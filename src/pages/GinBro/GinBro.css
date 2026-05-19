@@ -1,0 +1,54 @@
+/* GinBro.css */
+.ginbro-root {
+  min-height: 100dvh;
+  background: #0d0d0d;
+  color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Subheader tabs ── */
+.ginbro-tabs {
+  display: flex;
+  background: #111;
+  border-bottom: 1px solid #222;
+  padding: 0 .5rem;
+  gap: .25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.ginbro-tabs::-webkit-scrollbar { display: none; }
+
+.ginbro-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #666;
+  padding: .75rem 1rem;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.ginbro-tab:hover { color: #ccc; }
+.ginbro-tab.active {
+  color: #ff6a00;
+  border-bottom-color: #ff6a00;
+}
+
+.ginbro-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 2rem;
+}
+
+.ginbro-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: #666;
+  font-size: 1.1rem;
+}

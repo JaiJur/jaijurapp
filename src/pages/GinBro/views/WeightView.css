@@ -1,0 +1,113 @@
+/* WeightView.css */
+.weight-view {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+/* Stats */
+.wv-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+  margin-bottom: 1.2rem;
+}
+.wv-stat {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: .65rem .5rem;
+  text-align: center;
+}
+.wv-stat-label {
+  display: block;
+  font-size: .68rem;
+  color: #666;
+  margin-bottom: .25rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.wv-stat-val {
+  display: block;
+  font-size: .95rem;
+  font-weight: 700;
+  color: #f0f0f0;
+}
+.wv-stat-current { color: #4a9eff; }
+.wv-down { color: #4caf50; }
+.wv-up   { color: #e05e00; }
+.wv-goal-diff { color: #ff6a00; }
+
+/* Chart */
+.wv-chart-wrap {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  padding: .75rem .5rem .5rem;
+  margin-bottom: 1.2rem;
+  overflow: hidden;
+}
+.wv-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Añadir */
+.wv-add-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: 1.4rem;
+}
+.wv-kg-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #f0f0f0;
+  border-radius: 10px;
+  padding: .6rem .8rem;
+  font-size: 1rem;
+}
+.wv-kg-input:focus { border-color: #ff6a00; outline: none; }
+.wv-kg-unit { color: #666; font-size: .9rem; }
+.wv-add-btn {
+  background: #ff6a00;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: .6rem 1.1rem;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wv-add-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Log */
+.wv-log-title {
+  font-size: .8rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: .6rem;
+}
+.wv-log-empty { color: #555; font-size: .9rem; }
+.wv-log-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+.wv-log-date { color: #888; font-size: .88rem; flex: 1; }
+.wv-log-kg   { font-weight: 700; font-size: .95rem; }
+.wv-log-del  {
+  background: none;
+  border: none;
+  color: #444;
+  cursor: pointer;
+  font-size: .85rem;
+  padding: .2rem .3rem;
+}
+.wv-log-del:hover { color: #e05e00; }

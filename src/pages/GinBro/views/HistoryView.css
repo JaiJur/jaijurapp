@@ -1,0 +1,49 @@
+/* HistoryView.css */
+.history-view {
+  max-width: 600px; margin: 0 auto; padding: 1rem;
+}
+.hiv-header {
+  display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem;
+}
+.hiv-back-btn {
+  background: #1a1a1a; border: 1px solid #333; color: #ccc;
+  border-radius: 8px; padding: .4rem .8rem; cursor: pointer; font-size: 1.1rem;
+}
+.hiv-header h2 { font-size: 1.2rem; font-weight: 700; }
+.hiv-empty { color: #555; text-align: center; margin-top: 3rem; }
+
+.hiv-list { display: flex; flex-direction: column; gap: .7rem; }
+
+.hiv-session {
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 14px; overflow: hidden;
+}
+.hiv-session-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .9rem 1.1rem; cursor: pointer;
+}
+.hiv-session-header:hover { background: #222; }
+.hiv-session-meta { display: flex; flex-direction: column; gap: .2rem; }
+.hiv-session-name { font-weight: 600; font-size: .95rem; }
+.hiv-session-date { font-size: .8rem; color: #666; }
+.hiv-session-stats { display: flex; align-items: center; gap: .6rem; }
+.hiv-badge {
+  background: #ff6a00; color: #fff; border-radius: 99px;
+  padding: .15rem .55rem; font-size: .78rem; font-weight: 700;
+}
+.hiv-duration { font-size: .8rem; color: #888; }
+.hiv-toggle { color: #555; font-size: .8rem; }
+
+.hiv-session-detail {
+  border-top: 1px solid #2a2a2a; padding: .75rem 1.1rem;
+  display: flex; flex-direction: column; gap: .45rem;
+}
+.hiv-ex-row {
+  display: flex; align-items: baseline; gap: .5rem; font-size: .88rem;
+  flex-wrap: wrap;
+}
+.hiv-ex-check { font-size: .9rem; width: 16px; flex-shrink: 0; }
+.hiv-ex-row.done .hiv-ex-check { color: #ff6a00; }
+.hiv-ex-row.skipped { opacity: .45; }
+.hiv-ex-name { font-weight: 600; }
+.hiv-ex-detail { color: #888; }
+.hiv-ex-note { color: #555; font-style: italic; font-size: .8rem; }

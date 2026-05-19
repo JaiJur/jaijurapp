@@ -1,0 +1,582 @@
+.editor-root {
+  display: flex; flex-direction: column;
+  height: 100vh; background: #0a0a14; color: #e8e0d0;
+  font-family: 'Segoe UI', sans-serif; overflow: hidden;
+}
+.editor-loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #888; }
+
+.editor-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: rgba(0,0,0,.5); border-bottom: 1px solid rgba(255,255,255,.08);
+  z-index: 10; flex-shrink: 0;
+}
+.editor-back { background: transparent; color: #c8a96e; border: none; cursor: pointer; font-size: 0.9rem; }
+.editor-mapname { font-weight: 700; font-size: 1rem; flex: 1; color: #e8e0d0; }
+.editor-topbar-right { display: flex; gap: 8px; align-items: center; }
+.editor-status { font-size: 0.8rem; color: #6ee7b7; min-width: 70px; text-align: right; }
+.editor-save-btn {
+  background: rgba(124,58,237,.7); color: #fff; border: none;
+  border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; cursor: pointer;
+}
+.editor-viewer-btn {
+  background: rgba(59,130,246,.3); color: #7dd3fc;
+  border: 1px solid rgba(125,211,252,.3); border-radius: 6px;
+  padding: 6px 12px; font-size: 0.82rem; cursor: pointer;
+}
+
+.editor-body { display: flex; flex: 1; overflow: hidden; }
+
+.editor-panel {
+  width: 220px; flex-shrink: 0;
+  background: rgba(255,255,255,.03); border-right: 1px solid rgba(255,255,255,.07);
+  overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.editor-section { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.editor-section:last-child { border-bottom: none; }
+.editor-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em; color: #888; margin-bottom: 8px; }
+
+.editor-tools { display: flex; flex-direction: column; gap: 5px; }
+.editor-tool-btn {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px; padding: 7px 10px; font-size: 0.82rem; color: #c8a96e;
+  cursor: pointer; text-align: left; transition: background .12s;
+}
+.editor-tool-btn:hover { background: rgba(255,255,255,.1); }
+.editor-tool-btn.active { background: rgba(124,58,237,.3); border-color: #7c3aed; color: #c4b5fd; }
+
+.editor-range { width: 100%; margin: 6px 0; accent-color: #7c3aed; }
+.editor-checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; cursor: pointer; color: #a0a0b0; }
+
+.editor-textures { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.editor-tex-btn {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 5px; padding: 5px; font-size: 0.75rem; color: #a0a0b0;
+  cursor: pointer; text-transform: capitalize;
+}
+.editor-tex-btn.active { background: rgba(200,169,110,.2); border-color: #c8a96e; color: #c8a96e; }
+
+.editor-prop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.editor-prop-add {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 5px; padding: 5px 4px; font-size: 0.75rem; cursor: pointer; color: #c8a96e;
+  transition: background .12s;
+}
+.editor-prop-add:hover { background: rgba(200,169,110,.15); }
+
+.editor-prop-inspector { background: rgba(124,58,237,.08); border-radius: 8px; padding: 10px; }
+.editor-inspector-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 0.75rem; color: #a0a0b0; }
+.editor-inspector-row input[type=range] { flex: 1; accent-color: #7c3aed; }
+.editor-inspector-row span:last-child { width: 30px; text-align: right; color: #c8a96e; }
+.editor-prop-delete {
+  width: 100%; background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3);
+  color: #f87171; border-radius: 5px; padding: 5px; font-size: 0.75rem; cursor: pointer; margin-top: 6px;
+}
+
+.editor-canvas-wrap {
+  flex: 1; overflow: auto; display: flex;
+  background: #080810;
+  cursor: crosshair;
+  position: relative;
+}
+.editor-canvas {
+  display: block;
+}
+.editor-panel-right {
+  border-right: none;
+  border-left: 1px solid rgba(255,255,255,.07);
+  width: 240px;
+}
+
+.editor-empty-scene { color: #555; font-size: 0.8rem; padding: 4px 0; }
+
+.editor-scene-list { display: flex; flex-direction: column; gap: 3px; max-height: 340px; overflow-y: auto; }
+
+.editor-scene-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 6px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  cursor: pointer; transition: background .12s;
+}
+.editor-scene-item:hover { background: rgba(255,255,255,.08); }
+.editor-scene-item.selected {
+  background: rgba(124,58,237,.2);
+  border-color: rgba(124,58,237,.5);
+}
+.editor-scene-icon { font-size: 1rem; flex-shrink: 0; }
+.editor-scene-name { flex: 1; font-size: 0.78rem; color: #c8a96e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-scene-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.editor-scene-actions button {
+  background: transparent; border: none; color: #666;
+  font-size: 0.65rem; cursor: pointer; padding: 2px 3px;
+  border-radius: 3px; line-height: 1;
+}
+.editor-scene-actions button:hover { background: rgba(255,255,255,.1); color: #c8a96e; }
+.editor-scene-del:hover { color: #f87171 !important; }
+
+.editor-inspector-name { margin-bottom: 10px; }
+.editor-input-name {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px; padding: 6px 8px; color: #e8e0d0;
+  font-size: 0.82rem; outline: none;
+}
+.editor-input-name:focus { border-color: #7c3aed; }
+
+.editor-inspector-field { margin-bottom: 10px; }
+.editor-field-label { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: 4px; }
+.editor-field-row { display: flex; align-items: center; gap: 4px; }
+.editor-field-unit { font-size: 0.72rem; color: #666; flex-shrink: 0; }
+.editor-num-input {
+  flex: 1; min-width: 0;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 5px; padding: 5px 6px; color: #e8e0d0;
+  font-size: 0.85rem; outline: none; text-align: right;
+  -moz-appearance: textfield;
+}
+.editor-num-input::-webkit-inner-spin-button,
+.editor-num-input::-webkit-outer-spin-button { opacity: 0.4; }
+.editor-num-input:focus { border-color: #7c3aed; }
+
+.editor-presets { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.editor-preset-btn {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px; padding: 3px 6px; font-size: 0.72rem; color: #a0a0b0;
+  cursor: pointer; transition: background .1s;
+}
+.editor-preset-btn:hover { background: rgba(200,169,110,.2); color: #c8a96e; border-color: rgba(200,169,110,.4); }
+
+.editor-filter-row { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
+.editor-filter-label { font-size: 0.7rem; color: #a0a0b0; width: 54px; flex-shrink: 0; }
+.editor-filter-num {
+  width: 38px; flex-shrink: 0;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 4px; padding: 3px 4px; color: #e8e0d0;
+  font-size: 0.75rem; outline: none; text-align: right;
+  -moz-appearance: textfield;
+}
+.editor-filter-num:focus { border-color: #7c3aed; }
+.editor-filter-row .editor-range { flex: 1; min-width: 0; margin: 0; }
+.editor-btn-reset {
+  width: 100%; background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 5px;
+  color: #888; font-size: 0.75rem; padding: 4px; cursor: pointer; margin-top: 2px;
+}
+.editor-btn-reset:hover { background: rgba(255,255,255,.1); color: #c8a96e; }
+
+.editor-grid-color { margin-top: 8px; }
+.editor-grid-swatches { display: flex; gap: 6px; margin: 5px 0; }
+.editor-swatch {
+  width: 22px; height: 22px; border-radius: 4px; cursor: pointer;
+  border: 2px solid transparent; transition: border-color .12s;
+}
+.editor-swatch.active { border-color: #7c3aed; }
+.editor-swatch:hover { border-color: #c8a96e; }
+
+.editor-prop-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-height: 320px; overflow-y: auto; }
+.editor-prop-thumb {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px; padding: 5px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  transition: background .12s, border-color .12s;
+}
+.editor-prop-thumb:hover { background: rgba(200,169,110,.15); border-color: rgba(200,169,110,.4); }
+.editor-prop-thumb img { width: 48px; height: 48px; object-fit: contain; }
+.editor-prop-thumb span { font-size: 0.65rem; color: #a0a0b0; text-align: center; word-break: break-word; }
+
+/* ── Prop overlay handles ─────────────────────────── */
+.prop-overlay {
+  position: absolute;
+  pointer-events: none;
+  border: 2px dashed rgba(124,58,237,0.7);
+  box-sizing: border-box;
+}
+.prop-handle {
+  position: absolute;
+  width: 22px; height: 22px;
+  background: #1a1a2e;
+  border: 2px solid #7c3aed;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #c4b5fd;
+  cursor: pointer;
+  pointer-events: all;
+  user-select: none;
+  transition: background .12s, border-color .12s;
+  z-index: 20;
+}
+.prop-handle:hover { background: #7c3aed; color: #fff; }
+.prop-handle-rotate {
+  top: -13px; left: -13px;
+  cursor: alias;
+}
+.prop-handle-scale {
+  top: -13px; right: -13px;
+  cursor: nwse-resize;
+}
+
+.editor-prop-actions-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.editor-prop-action-btn {
+  flex: 1; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+  color: #c8a96e; font-size: 0.75rem; padding: 5px 4px;
+  cursor: pointer; transition: background .12s;
+}
+.editor-prop-action-btn:hover { background: rgba(200,169,110,.2); }
+.editor-prop-action-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Zona rect overlay ───────────────────────────── */
+.zone-rect-overlay {
+  position: absolute; pointer-events: none;
+  border: 2px dashed rgba(250,204,21,0.8);
+  background: rgba(250,204,21,0.08);
+  box-sizing: border-box;
+}
+
+/* ── Zona items ocultos ──────────────────────────── */
+.editor-scene-item.zone-hidden { opacity: 0.5; }
+
+/* ── Inspector de zona ───────────────────────────── */
+.zone-inspector {
+  margin-top: 8px; padding: 8px;
+  background: rgba(250,204,21,0.06);
+  border: 1px solid rgba(250,204,21,0.2);
+  border-radius: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.zone-inspector-info { font-size: 0.72rem; color: #888; }
+.zone-btn-show { color: #6ee7b7 !important; }
+.zone-btn-hide { color: #fbbf24 !important; }
+
+.editor-section-divider {
+  height: 1px; background: rgba(255,255,255,0.07); margin: 4px 0;
+}
+
+/* ── Fog draw overlay ────────────────────────────── */
+.fog-draw-overlay {
+  position: absolute; pointer-events: none;
+  background: rgba(0,0,0,0.5);
+  border: 2px dashed rgba(250,204,21,0.7);
+  box-sizing: border-box;
+}
+/* ── Fog inspector ───────────────────────────────── */
+.fog-inspector {
+  margin-top: 8px; padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(250,204,21,0.2);
+  border-radius: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.fog-visible { opacity: 0.6; }
+
+/* ── Secciones colapsables ───────────────────────── */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; padding: 2px 0; margin-bottom: 6px;
+  user-select: none;
+}
+.section-header:hover .editor-label { color: #c8a96e; }
+.section-chevron { font-size: 0.7rem; color: #666; }
+
+/* ── Drag handle en lista escena ─────────────────── */
+.editor-scene-drag {
+  font-size: 1rem; color: #555; cursor: grab; flex-shrink: 0;
+  padding: 0 3px; line-height: 1;
+  transition: color .1s;
+}
+.editor-scene-item:hover .editor-scene-drag { color: #c8a96e; }
+.editor-scene-item[draggable=true] { cursor: default; }
+.editor-scene-item.drag-over { border-color: rgba(124,58,237,.6); background: rgba(124,58,237,.15); }
+
+/* ── Tex draw overlay ────────────────────────────── */
+.tex-draw-overlay {
+  position: absolute; pointer-events: none;
+  background: rgba(99,102,241,0.2);
+  border: 2px dashed rgba(99,102,241,0.8);
+  box-sizing: border-box;
+}
+/* ── Tex picker ──────────────────────────────────── */
+.tex-picker { max-height: 160px; overflow-y: auto; }
+.editor-prop-thumb.tex-active {
+  background: rgba(99,102,241,0.25);
+  border-color: rgba(99,102,241,0.7);
+}
+
+
+/* ── Polígono de niebla ───────────────────────────── */
+
+/* SVG con el polígono en construcción */
+.fog-poly-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Toolbar flotante durante la construcción del polígono */
+.fog-poly-toolbar {
+  position: absolute;
+  top: 14px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 8, 4, 0.95);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  border-radius: 10px;
+  padding: 7px 10px;
+  display: flex; align-items: center; gap: 8px;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  font-family: 'Segoe UI', sans-serif;
+  animation: fog-toolbar-in 0.2s ease-out;
+}
+@keyframes fog-toolbar-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.fog-poly-count {
+  font-size: 0.78rem;
+  color: #facc15;
+  font-weight: 500;
+}
+.fog-poly-btn {
+  background: rgba(250, 204, 21, 0.1);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  color: #facc15;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s, border-color .12s;
+}
+.fog-poly-btn:hover {
+  background: rgba(250, 204, 21, 0.25);
+  border-color: rgba(250, 204, 21, 0.6);
+}
+.fog-poly-btn-ok {
+  background: rgba(110, 231, 183, 0.15);
+  border-color: rgba(110, 231, 183, 0.45);
+  color: #6ee7b7;
+}
+.fog-poly-btn-ok:hover {
+  background: rgba(110, 231, 183, 0.35);
+}
+.fog-poly-btn-cancel {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f87171;
+}
+.fog-poly-btn-cancel:hover {
+  background: rgba(248, 113, 113, 0.3);
+}
+
+/* Hint cuando la herramienta fog está activa pero no hay polígono en curso */
+.fog-poly-hint {
+  position: absolute;
+  top: 14px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: #8b7d5c;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-family: 'Segoe UI', sans-serif;
+  pointer-events: none;
+  z-index: 20;
+  border: 1px dashed rgba(200, 169, 110, 0.2);
+}
+
+
+/* ── Nombre del mapa editable ─────────────────────── */
+.editor-mapname-clickable {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 8px;
+  transition: background 0.12s, color 0.12s;
+}
+.editor-mapname-clickable:hover {
+  background: rgba(200, 169, 110, 0.12);
+  color: #e4caa0;
+}
+.editor-mapname-edit-icon {
+  opacity: 0;
+  font-size: 0.75em;
+  margin-left: 4px;
+  transition: opacity 0.12s;
+}
+.editor-mapname-clickable:hover .editor-mapname-edit-icon { opacity: 0.7; }
+
+.editor-mapname-input {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(200, 169, 110, 0.45);
+  border-radius: 6px;
+  color: #c8a96e;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  padding: 2px 8px;
+  outline: none;
+  min-width: 200px;
+}
+.editor-mapname-input:focus {
+  border-color: rgba(200, 169, 110, 0.8);
+  box-shadow: 0 0 0 2px rgba(200, 169, 110, 0.15);
+}
+
+
+/* ── Navegador de carpetas de props ───────────────── */
+.editor-prop-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prop-breadcrumb {
+  font-size: 0.72rem;
+  color: #8b7d5c;
+  padding: 2px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+}
+.prop-crumb {
+  background: none; border: none; color: #a58b55;
+  font-size: 0.72rem; cursor: pointer; padding: 0;
+  font-family: inherit;
+}
+.prop-crumb:hover { color: #c8a96e; text-decoration: underline; }
+.prop-crumb-sep { color: #555; }
+
+.prop-folder-list {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-bottom: 4px;
+}
+.prop-folder {
+  background: rgba(200,169,110,0.06);
+  border: 1px solid rgba(200,169,110,0.18);
+  color: #c8a96e; padding: 4px 9px;
+  border-radius: 5px; font-size: 0.74rem;
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+  transition: background .12s, border-color .12s;
+}
+.prop-folder:hover {
+  background: rgba(200,169,110,0.15);
+  border-color: rgba(200,169,110,0.35);
+}
+.prop-folder-up {
+  color: #8b7d5c;
+  border-style: dashed;
+}
+
+
+/* ── Props ocultos en lista de escena ─────────────── */
+.editor-scene-item.prop-hidden {
+  opacity: 0.4;
+}
+.editor-scene-item.prop-hidden .editor-scene-name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(200, 169, 110, 0.3);
+}
+
+
+/* ── Elementos bloqueados en lista de escena ─────── */
+.editor-scene-item.prop-locked {
+  opacity: 0.65;
+}
+.editor-scene-item.prop-locked .editor-scene-name {
+  color: #f59e0b;
+}
+
+
+/* ── Barra de bloqueo masivo ──────────────────────── */
+.editor-lock-all-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 0 4px;
+}
+.editor-lock-all-btn {
+  font-size: 0.7rem !important;
+  padding: 2px 8px !important;
+  opacity: 0.7;
+  transition: opacity .12s;
+}
+.editor-lock-all-btn:hover { opacity: 1; }
+
+
+/* ── Grupos expandibles con contenido ─────────────── */
+.editor-group-block {
+  border: 1px solid rgba(200,169,110,0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+.editor-group-block .editor-scene-item {
+  border: none; border-radius: 0;
+}
+.editor-group-contents {
+  background: rgba(0,0,0,0.2);
+  padding: 4px 6px;
+  border-top: 1px dashed rgba(200,169,110,0.1);
+}
+.editor-group-member {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 6px;
+  font-size: 0.78rem;
+  color: #aaa;
+  font-family: 'Segoe UI', sans-serif;
+}
+.editor-group-member-icon { font-size: 0.7rem; flex-shrink: 0; }
+.editor-group-member-name {
+  flex: 1; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.editor-group-member-remove {
+  background: none; border: none;
+  color: #8b7d5c; cursor: pointer;
+  font-size: 0.8rem; padding: 0 2px;
+  opacity: 0.5; transition: opacity .12s, color .12s;
+}
+.editor-group-member-remove:hover {
+  opacity: 1; color: #f87171;
+}
+
+/* Barra de añadir a grupo en el inspector de texturas */
+.editor-group-add-bar {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed rgba(200,169,110,0.1);
+  align-items: center;
+}
+.editor-group-add-bar .dnd-btn-sm:disabled {
+  opacity: 0.35; cursor: default;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   ZOOM CONTROLS
+   ══════════════════════════════════════════════════════ */
+
+.editor-canvas-zoom {
+  position: relative;
+}
+.editor-zoom-controls {
+  position: fixed;
+  bottom: 16px; right: 16px;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(20,20,35,0.92);
+  border: 1px solid rgba(200,169,110,0.2);
+  border-radius: 8px;
+  padding: 4px 8px;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.editor-zoom-label {
+  font-size: 0.72rem;
+  color: #c8a96e;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: center;
+}

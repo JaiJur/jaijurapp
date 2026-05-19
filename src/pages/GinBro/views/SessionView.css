@@ -1,0 +1,192 @@
+/* SessionView.css */
+.session-view {
+  display: flex; flex-direction: column;
+  max-width: 600px; margin: 0 auto; padding: 1rem;
+}
+.sv-header {
+  display: flex; align-items: center; gap: 1rem;
+  margin-bottom: .5rem;
+}
+.sv-back-btn {
+  background: #1a1a1a; border: 1px solid #333;
+  color: #ccc; border-radius: 8px;
+  padding: .4rem .8rem; cursor: pointer; font-size: 1.1rem;
+}
+.sv-title-block { flex: 1; }
+.sv-title { font-size: 1.2rem; font-weight: 700; margin: 0; }
+.sv-title-meta { display: flex; align-items: center; gap: .35rem; }
+.sv-date { font-size: .8rem; color: #888; }
+.sv-progress-dot { color: #444; font-size: .8rem; }
+.sv-progress { font-size: .8rem; color: #ff6a00; }
+
+/* Progress bar */
+.sv-progress-bar {
+  height: 4px; background: #2a2a2a; border-radius: 2px;
+  margin-bottom: 1.2rem; overflow: hidden;
+}
+.sv-progress-fill {
+  height: 100%; background: #ff6a00; border-radius: 2px;
+  transition: width .3s;
+}
+
+/* Exercise cards */
+.sv-exercises { display: flex; flex-direction: column; gap: .85rem; }
+.sv-ex-card {
+  background: #1a1a1a; border: 1px solid #2a2a2a;
+  border-radius: 14px; padding: 1rem 1.1rem;
+  transition: border-color .2s, opacity .2s;
+}
+.sv-ex-card.done {
+  border-color: #ff6a00;
+  opacity: .75;
+}
+.sv-ex-header {
+  display: flex; align-items: center; gap: .7rem; margin-bottom: .75rem;
+}
+.sv-check-btn {
+  background: none; border: 2px solid #444;
+  color: #444; border-radius: 50%;
+  width: 32px; height: 32px; font-size: 1rem;
+  cursor: pointer; flex-shrink: 0; transition: all .15s;
+}
+.sv-check-btn.checked {
+  background: #ff6a00; border-color: #ff6a00; color: #fff;
+}
+.sv-ex-name { font-weight: 600; font-size: 1rem; flex: 1; }
+.sv-ex-muscle {
+  background: #2a2a2a; border-radius: 6px;
+  padding: .2rem .5rem; font-size: .75rem; color: #888;
+}
+
+/* Cardio */
+.sv-cardio-row {
+  display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem;
+}
+.sv-cardio-type {
+  flex: 1; background: #111; border: 1px solid #333;
+  color: #f0f0f0; border-radius: 8px; padding: .45rem .6rem; font-size: .9rem;
+}
+.sv-cardio-min {
+  width: 64px; background: #111; border: 1px solid #333;
+  color: #f0f0f0; border-radius: 8px; padding: .45rem .5rem;
+  font-size: .9rem; text-align: center;
+}
+.sv-cardio-unit { font-size: .85rem; color: #666; }
+
+/* Sets table */
+.sv-sets { margin-bottom: .5rem; }
+.sv-sets-header {
+  display: grid; grid-template-columns: 30px 1fr 1fr 28px;
+  gap: .4rem; font-size: .75rem; color: #555; margin-bottom: .3rem;
+  padding: 0 .1rem;
+}
+.sv-set-row {
+  display: grid; grid-template-columns: 30px 1fr 1fr 28px;
+  gap: .4rem; align-items: center; margin-bottom: .3rem;
+}
+.sv-set-num { text-align: center; font-size: .85rem; color: #666; }
+.sv-set-input {
+  background: #111; border: 1px solid #333; color: #f0f0f0;
+  border-radius: 8px; padding: .4rem .5rem;
+  font-size: .95rem; text-align: center; width: 100%;
+}
+.sv-set-input:focus { border-color: #ff6a00; outline: none; }
+.sv-remove-set {
+  background: none; border: none; color: #444;
+  cursor: pointer; font-size: .85rem; padding: 0;
+}
+.sv-remove-set:hover { color: #e05e00; }
+.sv-add-set-btn {
+  background: none; border: 1px dashed #333; color: #666;
+  border-radius: 8px; padding: .35rem .8rem;
+  font-size: .85rem; cursor: pointer; margin-top: .2rem;
+  transition: border-color .15s, color .15s;
+}
+.sv-add-set-btn:hover { border-color: #ff6a00; color: #ff6a00; }
+
+/* Notes */
+.sv-notes-input {
+  width: 100%; background: #0d0d0d; border: 1px solid #222;
+  color: #888; border-radius: 8px; padding: .4rem .7rem;
+  font-size: .85rem; box-sizing: border-box;
+}
+.sv-notes-input:focus { border-color: #333; outline: none; color: #ccc; }
+
+/* Footer */
+.sv-footer {
+  margin-top: 1.5rem; text-align: center; padding-bottom: 1rem;
+}
+.sv-finish-btn {
+  background: #ff6a00; color: #fff; border: none;
+  border-radius: 12px; padding: .9rem 2rem;
+  font-size: 1.1rem; font-weight: 700; cursor: pointer;
+  width: 100%; transition: background .15s;
+}
+.sv-finish-btn:hover { background: #e05e00; }
+.sv-finish-hint { color: #555; font-size: .9rem; }
+
+/* ── añadir ejercicio en cabecera ── */
+.sv-add-ex-btn-header {
+  background: #ff6a00; color: #fff; border: none;
+  border-radius: 50%; width: 32px; height: 32px;
+  font-size: 1.3rem; cursor: pointer; line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── panel flotante añadir ejercicio ── */
+.sv-add-ex-panel {
+  background: #1a1a1a; border: 1px solid #ff6a00;
+  border-radius: 14px; padding: 1rem 1.1rem;
+  margin: .5rem 0 1rem;
+  display: flex; flex-direction: column; gap: .6rem;
+}
+.sv-add-ex-title { font-weight: 700; font-size: .95rem; color: #ff6a00; }
+.sv-add-ex-input {
+  background: #111; border: 1px solid #333; color: #f0f0f0;
+  border-radius: 8px; padding: .5rem .8rem; font-size: .95rem;
+}
+.sv-add-ex-input:focus { border-color: #ff6a00; outline: none; }
+.sv-add-ex-row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.sv-add-ex-select {
+  background: #111; border: 1px solid #333; color: #ccc;
+  border-radius: 8px; padding: .35rem .6rem; font-size: .82rem;
+}
+.sv-add-ex-sets {
+  width: 48px; background: #111; border: 1px solid #333; color: #f0f0f0;
+  border-radius: 8px; padding: .35rem .4rem; text-align: center; font-size: .9rem;
+}
+.sv-add-ex-sets-label { font-size: .78rem; color: #666; }
+.sv-add-ex-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+.sv-add-ex-cancel {
+  background: none; border: 1px solid #333; color: #888;
+  border-radius: 8px; padding: .45rem .9rem; cursor: pointer; font-size: .9rem;
+}
+.sv-add-ex-confirm {
+  background: #ff6a00; color: #fff; border: none;
+  border-radius: 8px; padding: .45rem .9rem; cursor: pointer;
+  font-size: .9rem; font-weight: 700;
+}
+.sv-add-ex-confirm:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── confirm cancel overlay ── */
+.sv-confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+  padding: 1.5rem;
+}
+.sv-confirm-box {
+  background: #1a1a1a; border: 1px solid #333; border-radius: 16px;
+  padding: 1.5rem; max-width: 340px; width: 100%;
+  text-align: center;
+}
+.sv-confirm-box p { margin: 0 0 1.2rem; color: #ccc; line-height: 1.5; }
+.sv-confirm-actions { display: flex; gap: .7rem; }
+.sv-confirm-stay {
+  flex: 1; background: #ff6a00; color: #fff; border: none;
+  border-radius: 10px; padding: .7rem; font-size: .95rem;
+  font-weight: 700; cursor: pointer;
+}
+.sv-confirm-leave {
+  flex: 1; background: none; border: 1px solid #444; color: #888;
+  border-radius: 10px; padding: .7rem; font-size: .95rem; cursor: pointer;
+}

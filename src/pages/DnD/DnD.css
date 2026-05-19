@@ -1,0 +1,1405 @@
+.dnd-root {
+  min-height: 100vh;
+  background: #0f0f1a;
+  color: #e8e0d0;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.dnd-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse at 20% 50%, #1a0a2e 0%, #0f0f1a 70%);
+  pointer-events: none;
+}
+
+.dnd-main {
+  position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto;
+  padding: 80px 20px 40px;
+}
+
+.dnd-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 28px;
+}
+
+.dnd-title {
+  font-size: 2rem; font-weight: 800;
+  background: linear-gradient(135deg, #c8a96e, #e8e0d0);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.dnd-btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #fff; border: none; border-radius: 8px;
+  padding: 8px 16px; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; transition: opacity .15s;
+}
+.dnd-btn-primary:hover { opacity: .85; }
+
+.dnd-btn-sm {
+  background: rgba(255,255,255,.08); color: #c8a96e;
+  border: 1px solid rgba(200,169,110,.3); border-radius: 6px;
+  padding: 4px 10px; font-size: 0.78rem; cursor: pointer; transition: background .15s;
+}
+.dnd-btn-sm:hover { background: rgba(200,169,110,.15); }
+
+.dnd-btn-viewer {
+  color: #7dd3fc; border-color: rgba(125,211,252,.3);
+}
+.dnd-btn-viewer:hover { background: rgba(125,211,252,.1); }
+
+.dnd-btn-danger {
+  background: transparent; color: #f87171;
+  border: 1px solid rgba(248,113,113,.3); border-radius: 6px;
+  padding: 4px 8px; font-size: 0.78rem; cursor: pointer;
+}
+.dnd-btn-danger:hover { background: rgba(248,113,113,.1); }
+
+.dnd-btn-cancel {
+  background: transparent; color: #888; border: 1px solid #444;
+  border-radius: 8px; padding: 8px 16px; font-size: 0.9rem; cursor: pointer;
+}
+
+.dnd-campaigns { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+
+.dnd-campaigns-section {
+  margin-bottom: 4px;
+  border-top: 1px solid rgba(200,169,110,0.12);
+  padding-top: 16px;
+}
+
+.dnd-campaign {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(200,169,110,.15);
+  border-radius: 12px; overflow: hidden;
+}
+
+.dnd-campaign-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; cursor: pointer;
+  transition: background .15s;
+}
+.dnd-campaign-header:hover { background: rgba(255,255,255,.04); }
+
+.dnd-chevron { color: #c8a96e; font-size: 0.85rem; width: 14px; }
+.dnd-campaign-name { font-weight: 700; font-size: 1.05rem; flex: 1; color: #e8e0d0; }
+
+.dnd-campaign-actions { display: flex; gap: 8px; align-items: center; }
+
+.dnd-chapters { padding: 0 16px 12px 28px; display: flex; flex-direction: column; gap: 8px; }
+
+.dnd-chapter {
+  background: rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px; overflow: hidden;
+}
+
+.dnd-chapter-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; cursor: pointer;
+  transition: background .15s;
+}
+.dnd-chapter-header:hover { background: rgba(255,255,255,.04); }
+.dnd-chapter-name { flex: 1; font-size: 0.95rem; color: #c8a96e; }
+.dnd-chapter-actions { display: flex; gap: 6px; align-items: center; }
+
+.dnd-maps { padding: 4px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.dnd-map-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px;
+  background: rgba(255,255,255,.03);
+  border-radius: 6px;
+}
+.dnd-map-icon { font-size: 0.9rem; }
+.dnd-map-name { flex: 1; font-size: 0.9rem; color: #a0a0b0; }
+.dnd-map-actions { display: flex; gap: 6px; }
+
+.dnd-empty { text-align: center; color: #555; padding: 40px 0; font-size: 0.95rem; }
+.dnd-empty-sm { color: #555; font-size: 0.82rem; padding: 6px 8px; }
+
+/* Modal */
+.dnd-modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.dnd-modal {
+  background: #1a1a2e; border: 1px solid rgba(200,169,110,.3);
+  border-radius: 14px; padding: 28px 24px;
+  width: 95vw; max-width: 420px; display: flex; flex-direction: column; gap: 16px;
+}
+.dnd-modal h3 { margin: 0; color: #c8a96e; font-size: 1.1rem; }
+.dnd-input {
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px; padding: 10px 12px; color: #e8e0d0;
+  font-size: 0.95rem; outline: none; width: 100%; box-sizing: border-box;
+}
+.dnd-input:focus { border-color: #7c3aed; }
+.dnd-modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+
+/* ── Header: acciones de visor ─────────────────────── */
+.dnd-header-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+
+/* Cada canal tiene su tarjeta compacta */
+.dnd-channel-card {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(200,169,110,0.18);
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex; flex-direction: column; gap: 5px;
+  min-width: 170px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.dnd-channel-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; color: #8b7d5c;
+}
+.dnd-channel-icon { font-size: 0.95rem; }
+.dnd-channel-label {
+  color: #c8a96e; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 160px;
+}
+.dnd-channel-btns { display: flex; gap: 4px; }
+.dnd-channel-btns .dnd-btn-sm { padding: 3px 8px; font-size: 0.72rem; }
+
+/* ── Sección de imágenes dentro del capítulo ──────── */
+.dnd-images-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(200,169,110,0.12);
+}
+.dnd-images-toggle {
+  display: flex; align-items: center; gap: 6px;
+  color: #a58b55; font-size: 0.82rem;
+  cursor: pointer; padding: 4px 2px;
+  user-select: none;
+}
+.dnd-images-toggle:hover { color: #c8a96e; }
+
+/* ── Navegador de imágenes ────────────────────────── */
+.dnd-image-browser {
+  margin-top: 8px;
+  padding: 10px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(200,169,110,0.15);
+  border-radius: 8px;
+}
+.dnd-breadcrumb {
+  font-size: 0.78rem; color: #8b7d5c;
+  margin-bottom: 8px; flex-wrap: wrap;
+}
+.dnd-crumb {
+  background: none; border: none; color: #a58b55;
+  font-size: 0.78rem; cursor: pointer; padding: 0;
+  font-family: inherit;
+}
+.dnd-crumb:hover { color: #c8a96e; text-decoration: underline; }
+.dnd-crumb-sep { color: #555; }
+
+.dnd-folder-up {
+  background: rgba(200,169,110,0.08);
+  border: 1px solid rgba(200,169,110,0.2);
+  color: #c8a96e; padding: 4px 10px;
+  border-radius: 6px; font-size: 0.78rem;
+  cursor: pointer; margin-bottom: 8px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.dnd-folder-up:hover { background: rgba(200,169,110,0.15); }
+
+.dnd-folder-list {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+.dnd-folder {
+  background: rgba(200,169,110,0.06);
+  border: 1px solid rgba(200,169,110,0.18);
+  color: #c8a96e; padding: 6px 12px;
+  border-radius: 6px; font-size: 0.82rem;
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+  transition: background .12s, border-color .12s;
+}
+.dnd-folder:hover {
+  background: rgba(200,169,110,0.15);
+  border-color: rgba(200,169,110,0.35);
+}
+
+/* ── Grid de thumbnails de imágenes ──────────────── */
+.dnd-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.dnd-image-thumb {
+  position: relative;
+  background: #0d0d11;
+  border: 1px solid rgba(200,169,110,0.15);
+  border-radius: 6px;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  transition: border-color .15s, transform .15s;
+}
+.dnd-image-thumb:hover {
+  border-color: rgba(200,169,110,0.45);
+  transform: translateY(-1px);
+}
+.dnd-image-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.dnd-image-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.65) 60%, transparent 100%);
+  padding: 20px 6px 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.dnd-image-name {
+  font-size: 0.68rem; color: #c8a96e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1;
+  font-family: 'Segoe UI', sans-serif;
+}
+.dnd-image-send {
+  background: rgba(99,102,241,0.25);
+  border: 1px solid rgba(99,102,241,0.5);
+  color: #a5b4fc;
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.dnd-image-send:hover { background: rgba(99,102,241,0.5); color: #fff; }
+
+/* ── Toast de notificación ────────────────────────── */
+.dnd-toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 8, 4, 0.95);
+  color: #c8a96e;
+  border: 1px solid rgba(200,169,110,0.3);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-family: 'Segoe UI', sans-serif;
+  z-index: 10000;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  animation: dnd-toast-in 0.25s ease-out;
+}
+@keyframes dnd-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+
+/* Botón tablet en overlay de thumbnails */
+.dnd-image-send.dnd-image-send-tablet {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #d8b4fe;
+}
+.dnd-image-send.dnd-image-send-tablet:hover {
+  background: rgba(168, 85, 247, 0.5);
+  color: #fff;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   GLOSARIO
+   ══════════════════════════════════════════════════════ */
+
+.dnd-glossary-section {
+  margin-top: 28px;
+  border-top: 1px solid rgba(200,169,110,0.12);
+  padding-top: 16px;
+}
+.dnd-glossary-header {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; padding: 6px 0;
+  user-select: none;
+}
+.dnd-glossary-title {
+  font-size: 1.1rem; color: #c8a96e;
+  font-weight: 600;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Filtros y búsqueda */
+.dnd-glossary-controls {
+  display: flex; gap: 10px; margin: 10px 0;
+  flex-wrap: wrap; align-items: center;
+}
+.dnd-glossary-filters {
+  display: flex; gap: 4px;
+}
+.dnd-glossary-filter {
+  background: rgba(200,169,110,0.06);
+  border: 1px solid rgba(200,169,110,0.18);
+  color: #8b7d5c; padding: 5px 12px;
+  border-radius: 6px; font-size: 0.8rem;
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+  transition: all .12s;
+}
+.dnd-glossary-filter:hover { border-color: rgba(200,169,110,0.4); color: #c8a96e; }
+.dnd-glossary-filter.active {
+  background: rgba(200,169,110,0.18);
+  border-color: rgba(200,169,110,0.5);
+  color: #c8a96e; font-weight: 500;
+}
+.dnd-glossary-search {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(200,169,110,0.2);
+  color: #c8a96e; padding: 5px 12px;
+  border-radius: 6px; font-size: 0.82rem;
+  outline: none; font-family: 'Segoe UI', sans-serif;
+  min-width: 180px;
+}
+.dnd-glossary-search:focus { border-color: rgba(200,169,110,0.5); }
+.dnd-glossary-search::placeholder { color: #555; }
+
+/* Subfiltros (nivel hechizo, campaña enemigos) */
+.dnd-glossary-subfilters {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  margin: 4px 0 8px;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 6px;
+}
+.dnd-glossary-subfilter {
+  background: rgba(200,169,110,0.04);
+  border: 1px solid rgba(200,169,110,0.12);
+  color: #6b5f48; padding: 3px 10px;
+  border-radius: 4px; font-size: 0.72rem;
+  cursor: pointer; font-family: 'Segoe UI', sans-serif;
+  transition: all .12s;
+}
+.dnd-glossary-subfilter:hover { border-color: rgba(200,169,110,0.35); color: #c8a96e; }
+.dnd-glossary-subfilter.active {
+  background: rgba(168,85,247,0.15);
+  border-color: rgba(168,85,247,0.4);
+  color: #d8b4fe; font-weight: 500;
+}
+
+/* Lista de fichas */
+.dnd-glossary-list {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 8px;
+}
+
+/* Ficha individual */
+.glossary-card {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(200,169,110,0.15);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.glossary-card.expanded { border-color: rgba(200,169,110,0.35); }
+
+.glossary-card-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer; user-select: none;
+}
+.glossary-card-header:hover { background: rgba(200,169,110,0.05); }
+.glossary-card-cat { font-size: 1rem; }
+.glossary-card-name {
+  flex: 1; color: #c8a96e;
+  font-weight: 500; font-size: 0.92rem;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.glossary-card-cr, .glossary-card-rarity {
+  font-size: 0.72rem; color: #8b7d5c;
+  background: rgba(200,169,110,0.1);
+  padding: 2px 8px; border-radius: 4px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-card-chevron { color: #555; font-size: 0.8rem; }
+
+/* Cuerpo de la ficha expandida */
+.glossary-card-body {
+  padding: 0 14px 14px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-desc {
+  color: #aaa; font-size: 0.85rem;
+  line-height: 1.5; margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+/* Stats D&D 5e */
+.glossary-stats-block {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(200,169,110,0.12);
+  border-radius: 8px; padding: 10px;
+  margin-bottom: 10px;
+}
+.glossary-stats-row {
+  display: flex; gap: 8px; margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.glossary-stat-badge {
+  background: rgba(200,169,110,0.12);
+  border: 1px solid rgba(200,169,110,0.25);
+  color: #c8a96e; padding: 3px 10px;
+  border-radius: 5px; font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Atributos en fila */
+.glossary-attrs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px; text-align: center;
+}
+.glossary-attr {
+  display: flex; flex-direction: column;
+  background: rgba(0,0,0,0.25);
+  border-radius: 5px; padding: 4px 2px;
+}
+.glossary-attr-label {
+  font-size: 0.65rem; color: #8b7d5c;
+  font-weight: 600; letter-spacing: 0.5px;
+}
+.glossary-attr-val {
+  font-size: 0.95rem; color: #c8a96e;
+  font-weight: 500;
+}
+.glossary-attr-mod {
+  font-size: 0.72rem; color: #777;
+}
+
+/* Rasgos y acciones */
+.glossary-section-label {
+  font-size: 0.75rem; color: #c8a96e;
+  font-weight: 600; margin: 10px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(200,169,110,0.15);
+  padding-bottom: 3px;
+}
+.glossary-trait, .glossary-action {
+  font-size: 0.82rem; color: #aaa;
+  line-height: 1.45; padding: 3px 0;
+}
+.glossary-trait strong, .glossary-action strong {
+  color: #c8a96e;
+}
+.glossary-damage { color: #f87171; font-weight: 500; }
+.glossary-props-text {
+  font-size: 0.85rem; color: #aaa;
+  line-height: 1.5; white-space: pre-wrap;
+  margin-bottom: 8px;
+}
+
+/* Tags */
+.glossary-tags {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin: 8px 0;
+}
+.glossary-tag {
+  background: rgba(99,102,241,0.12);
+  border: 1px solid rgba(99,102,241,0.3);
+  color: #a5b4fc; padding: 2px 8px;
+  border-radius: 4px; font-size: 0.7rem;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Acciones de la ficha */
+.glossary-card-actions {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(200,169,110,0.12);
+}
+.glossary-fav-active {
+  background: rgba(250,204,21,0.15) !important;
+  border-color: rgba(250,204,21,0.4) !important;
+  color: #facc15 !important;
+}
+
+/* Modal del glosario */
+.glossary-modal {
+  max-width: 720px; width: 95vw;
+  max-height: 85vh; overflow-y: auto;
+}
+.glossary-form-row {
+  margin-bottom: 10px;
+}
+.glossary-form-row > label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem; color: #8b7d5c;
+  margin-bottom: 4px; font-weight: 500;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-textarea {
+  min-height: 60px; resize: vertical;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Grids de stats y atributos en modal */
+.glossary-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.glossary-attr-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.glossary-stat-input {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.glossary-stat-input span {
+  font-size: 0.7rem; color: #8b7d5c;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-stat-input .dnd-input {
+  padding: 4px 8px; font-size: 0.85rem;
+}
+
+/* Items de lista (rasgos/acciones en modal) */
+.glossary-list-item {
+  display: flex; gap: 4px; margin-bottom: 4px;
+  align-items: center; flex-wrap: wrap;
+}
+.glossary-list-item .dnd-input {
+  flex: 1; padding: 4px 8px; font-size: 0.82rem;
+}
+
+
+/* Select y textarea del glosario */
+select.dnd-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgba(0,0,0,0.4);
+  color: #c8a96e;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23c8a96e' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+select.dnd-input option {
+  background: #1a1a22;
+  color: #c8a96e;
+}
+textarea.dnd-input {
+  resize: vertical;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+
+/* Habilidades (skills) */
+.glossary-skills {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin: 4px 0 6px;
+}
+.glossary-skill-badge {
+  background: rgba(110,231,183,0.1);
+  border: 1px solid rgba(110,231,183,0.3);
+  color: #6ee7b7;
+  padding: 2px 9px;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 500;
+}
+
+
+/* Habilidades especiales */
+.glossary-abilities-block {
+  background: rgba(168,85,247,0.06);
+  border: 1px solid rgba(168,85,247,0.18);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+}
+.glossary-ability {
+  font-size: 0.82rem;
+  color: #ccc;
+  line-height: 1.45;
+  padding: 3px 0;
+}
+.glossary-ability strong {
+  color: #d8b4fe;
+}
+
+
+/* Puntos de Golpe (dados) */
+.glossary-hp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.glossary-hp-d {
+  color: #c8a96e;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-hp-preview {
+  color: #8b7d5c;
+  font-size: 0.8rem;
+  font-family: 'Segoe UI', sans-serif;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+
+/* ── Acciones mejoradas ────────────────────────────── */
+.glossary-action {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(200,169,110,0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.glossary-action-header {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.glossary-action-header strong {
+  color: #c8a96e; font-size: 0.88rem;
+}
+.glossary-action-range {
+  font-size: 0.72rem;
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.3);
+  color: #a5b4fc;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.glossary-action-mod {
+  font-size: 0.75rem;
+  color: #6ee7b7;
+  font-weight: 500;
+}
+
+.glossary-action-dmg {
+  display: flex; gap: 10px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+.glossary-damage {
+  font-size: 0.82rem;
+  color: #f87171;
+  font-weight: 500;
+}
+.glossary-damage-secondary {
+  color: #fb923c;
+}
+.glossary-action-note {
+  font-size: 0.78rem;
+  color: #999;
+  font-style: italic;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+/* Formulario de acciones en el modal */
+.glossary-action-form {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(200,169,110,0.12);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+.glossary-action-form-row {
+  display: flex; gap: 6px;
+  align-items: flex-end;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   ENCOUNTER / COMBATE
+   ══════════════════════════════════════════════════════ */
+
+.dnd-map-block {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(200,169,110,0.08);
+  border-radius: 8px;
+  padding: 0;
+  margin-bottom: 4px;
+}
+.dnd-map-block .dnd-map-row {
+  border: none; margin: 0;
+  padding: 8px 12px;
+}
+
+.dnd-encounter-toggle {
+  display: flex; align-items: center; gap: 6px;
+  color: #a58b55; font-size: 0.8rem;
+  cursor: pointer; padding: 4px 12px 8px;
+  user-select: none;
+}
+.dnd-encounter-toggle:hover { color: #c8a96e; }
+
+/* Panel de combate */
+.encounter-panel {
+  padding: 8px 12px 12px;
+  border-top: 1px dashed rgba(200,169,110,0.1);
+}
+.encounter-actions-bar {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+
+/* Picker de enemigos del glosario */
+.encounter-picker {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(200,169,110,0.2);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+.encounter-picker .dnd-glossary-search {
+  width: 100%; margin-bottom: 6px;
+}
+.encounter-picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px;
+}
+
+.encounter-picker-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(200,169,110,0.06);
+  border: 1px solid rgba(200,169,110,0.15);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left;
+  transition: all .12s;
+  color: inherit;
+}
+.encounter-picker-item:hover {
+  background: rgba(200,169,110,0.15);
+  border-color: rgba(200,169,110,0.4);
+}
+.encounter-picker-name {
+  color: #c8a96e; font-weight: 500;
+  font-size: 0.85rem; flex: 1;
+}
+.encounter-picker-info {
+  color: #8b7d5c; font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* Lista de enemigos */
+.encounter-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+/* Card de enemigo individual */
+.enemy-card {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(200,169,110,0.18);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color .15s, opacity .2s;
+}
+.enemy-card.enemy-dead {
+  opacity: 0.45;
+  border-color: rgba(248,113,113,0.25);
+}
+.enemy-card-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Badge de iniciativa */
+.enemy-init-badge {
+  background: rgba(99,102,241,0.2);
+  border: 1px solid rgba(99,102,241,0.5);
+  color: #a5b4fc;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 700;
+  flex-shrink: 0;
+  font-family: 'Segoe UI', sans-serif;
+}
+.enemy-card-name {
+  flex: 1; color: #c8a96e;
+  font-weight: 500; font-size: 0.9rem;
+  font-family: 'Segoe UI', sans-serif;
+}
+.enemy-card-ca {
+  font-size: 0.75rem; color: #8b7d5c;
+  background: rgba(200,169,110,0.1);
+  padding: 2px 8px; border-radius: 4px;
+}
+.enemy-card-remove {
+  padding: 2px 6px !important;
+  font-size: 0.7rem !important;
+}
+
+/* Barra de vida */
+.enemy-hp-section {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.enemy-hp-bar-bg {
+  flex: 1; height: 10px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.enemy-hp-bar {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease-out, background 0.3s;
+}
+.enemy-hp-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: right;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Controles de daño/curación */
+.enemy-dmg-row {
+  display: flex; gap: 5px;
+  align-items: center;
+}
+.enemy-dmg-input {
+  width: 65px !important;
+  min-width: 0 !important;
+  padding: 5px 8px !important;
+  font-size: 0.85rem !important;
+  text-align: center;
+  border-radius: 6px !important;
+}
+.enemy-btn-dmg {
+  background: rgba(248,113,113,0.12) !important;
+  border-color: rgba(248,113,113,0.35) !important;
+  color: #f87171 !important;
+}
+.enemy-btn-dmg:hover {
+  background: rgba(248,113,113,0.3) !important;
+}
+.enemy-btn-heal {
+  background: rgba(110,231,183,0.12) !important;
+  border-color: rgba(110,231,183,0.35) !important;
+  color: #6ee7b7 !important;
+}
+.enemy-btn-heal:hover {
+  background: rgba(110,231,183,0.3) !important;
+}
+
+
+/* ── Badges nuevos de acciones ─────────────────────── */
+.glossary-action-type {
+  font-size: 0.68rem;
+  background: rgba(250,204,21,0.12);
+  border: 1px solid rgba(250,204,21,0.3);
+  color: #fbbf24;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.glossary-action-spell {
+  font-size: 0.68rem;
+  background: rgba(168,85,247,0.15);
+  border: 1px solid rgba(168,85,247,0.35);
+  color: #d8b4fe;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.glossary-action-aoe {
+  font-size: 0.68rem;
+  background: rgba(248,113,113,0.1);
+  border: 1px solid rgba(248,113,113,0.3);
+  color: #fca5a5;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Uses en habilidades especiales */
+.glossary-ability-uses {
+  font-size: 0.72rem;
+  color: #fbbf24;
+  font-style: italic;
+  margin-left: 4px;
+}
+.glossary-ability-desc {
+  color: #ccc;
+}
+
+/* Espacios de conjuro */
+.glossary-spell-slots {
+  font-size: 0.8rem;
+  color: #d8b4fe;
+  background: rgba(168,85,247,0.08);
+  border: 1px solid rgba(168,85,247,0.2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.glossary-spell-slots-label {
+  font-weight: 500;
+  margin-right: 6px;
+}
+.glossary-spell-slots-grid {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-top: 4px;
+}
+.glossary-spell-slot-badge {
+  background: rgba(168,85,247,0.15);
+  border: 1px solid rgba(168,85,247,0.35);
+  color: #d8b4fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Grid de huecos en formulario */
+.glossary-spell-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+  gap: 6px;
+}
+.glossary-spell-input {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.glossary-spell-input span {
+  font-size: 0.7rem; color: #d8b4fe;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 500;
+}
+.glossary-spell-input .dnd-input {
+  padding: 4px 8px; font-size: 0.85rem;
+  text-align: center; width: 100%;
+}
+
+/* Checkbox de hechizo en formulario */
+.glossary-spell-check {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.8rem; color: #d8b4fe;
+  white-space: nowrap; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-spell-check input[type="checkbox"] {
+  accent-color: #a855f7;
+}
+
+
+/* ── Paginación del glosario ──────────────────────── */
+.glossary-pagination {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(200,169,110,0.12);
+}
+.glossary-page-info {
+  font-size: 0.78rem; color: #8b7d5c;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-pagination .dnd-btn-sm:disabled {
+  opacity: 0.3; cursor: default;
+}
+
+/* Estrella de favorito en la lista */
+.glossary-card-fav-star {
+  color: #facc15;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   HECHIZOS (SPELLS)
+   ══════════════════════════════════════════════════════ */
+
+.glossary-card-spell-lv {
+  font-size: 0.72rem; color: #d8b4fe;
+  background: rgba(168,85,247,0.15);
+  padding: 2px 8px; border-radius: 4px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-spell-card {
+  background: rgba(168,85,247,0.06);
+  border: 1px solid rgba(168,85,247,0.18);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.glossary-spell-meta {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 5px;
+}
+.glossary-spell-meta-item {
+  font-size: 0.8rem; color: #ccc;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.glossary-spell-material {
+  color: #8b7d5c;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+.glossary-spell-damage {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 4px;
+}
+.glossary-spell-dmg-type {
+  font-size: 0.78rem; color: #fb923c;
+  background: rgba(251,146,60,0.1);
+  border: 1px solid rgba(251,146,60,0.3);
+  padding: 1px 7px; border-radius: 4px;
+}
+
+/* Componentes en el formulario */
+.glossary-components-row {
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.glossary-comp-check {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.82rem; color: #ccc;
+  cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+}
+.glossary-comp-check input[type="checkbox"] {
+  accent-color: #a855f7;
+}
+.glossary-spell-concentration {
+  font-size: 0.72rem;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.35);
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   SPELL PICKER
+   ══════════════════════════════════════════════════════ */
+
+.spell-picker {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(168,85,247,0.35);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.spell-picker-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.spell-picker-title {
+  font-size: 0.85rem; color: #d8b4fe;
+  font-weight: 600;
+  font-family: 'Segoe UI', sans-serif;
+}
+.spell-picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.spell-picker-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(168,85,247,0.08);
+  border: 1px solid rgba(168,85,247,0.2);
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left;
+  transition: all .12s;
+  color: inherit;
+}
+.spell-picker-item:hover {
+  background: rgba(168,85,247,0.2);
+  border-color: rgba(168,85,247,0.5);
+}
+.spell-picker-name {
+  color: #d8b4fe; font-weight: 500;
+  font-size: 0.85rem; flex: 1;
+}
+.spell-picker-info {
+  color: #8b7d5c; font-size: 0.72rem;
+  white-space: nowrap;
+}
+.spell-picker-btn {
+  background: rgba(168,85,247,0.15) !important;
+  border-color: rgba(168,85,247,0.4) !important;
+  color: #d8b4fe !important;
+}
+.spell-picker-btn:hover {
+  background: rgba(168,85,247,0.3) !important;
+}
+
+/* Acción importada desde glosario */
+.glossary-action-from-spell {
+  border-color: rgba(168,85,247,0.3) !important;
+  background: rgba(168,85,247,0.06) !important;
+}
+.glossary-action-spell-badge {
+  font-size: 0.68rem;
+  color: #d8b4fe;
+  margin-bottom: 4px;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+
+/* Entradas ocultas para jugadores */
+.glossary-card-hidden {
+  opacity: 0.6;
+  border-color: rgba(255,100,100,0.15) !important;
+}
+.glossary-card-hidden .glossary-card-header {
+  background: rgba(255,100,100,0.04);
+}
+.glossary-hidden-badge {
+  font-size: 0.7rem;
+  margin-right: 2px;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   D&D AUTH GATE
+   ══════════════════════════════════════════════════════ */
+
+.dnd-auth-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding: 20px;
+}
+.dnd-auth-card {
+  background: rgba(30,27,20,0.92);
+  border: 1px solid rgba(200,169,110,0.25);
+  border-radius: 12px;
+  padding: 32px 28px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.dnd-auth-title {
+  text-align: center;
+  font-family: 'Segoe UI', sans-serif;
+  color: #c8a96e;
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+}
+.dnd-auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(200,169,110,0.2);
+}
+.dnd-auth-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: transparent;
+  border: none;
+  color: #8b7d5c;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.dnd-auth-tab.active {
+  background: rgba(200,169,110,0.15);
+  color: #c8a96e;
+  font-weight: 600;
+}
+.dnd-auth-tab:hover:not(.active) {
+  background: rgba(200,169,110,0.06);
+}
+.dnd-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dnd-auth-error {
+  color: #e57373;
+  font-size: 0.8rem;
+  text-align: center;
+  font-family: 'Segoe UI', sans-serif;
+}
+.dnd-auth-submit {
+  margin-top: 4px;
+  padding: 10px !important;
+  font-size: 0.95rem !important;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .dnd-main { padding: 70px 10px 30px; }
+  .dnd-header { flex-wrap: wrap; gap: 10px; }
+  .glossary-attr-grid { grid-template-columns: repeat(3, 1fr); }
+  .glossary-modal { width: 98vw; max-width: none; padding: 16px 12px; }
+  .dnd-modal { width: 98vw; max-width: none; padding: 18px 14px; }
+  .glossary-action-form-row { flex-direction: column; }
+  .glossary-action-form-row > * { flex: 1 1 100% !important; width: 100% !important; }
+  .glossary-hp-row { flex-direction: column; }
+  .glossary-components-row { flex-wrap: wrap; }
+  .dnd-auth-card { padding: 24px 16px; }
+}
+
+
+/* ══════════════════════════════════════════════════════
+   CHARACTER WIZARD
+   ══════════════════════════════════════════════════════ */
+
+.cw-modal { padding-bottom: 12px !important; }
+.cw-progress {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; margin-bottom: 12px;
+}
+.cw-step-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(200,169,110,0.08);
+  border: 2px solid rgba(200,169,110,0.15);
+  transition: all .2s;
+}
+.cw-step-dot.active {
+  background: rgba(200,169,110,0.2);
+  border-color: #c8a96e;
+  box-shadow: 0 0 8px rgba(200,169,110,0.3);
+}
+.cw-step-dot.done {
+  background: rgba(200,169,110,0.15);
+  border-color: rgba(200,169,110,0.4);
+}
+.cw-step-num {
+  font-size: 0.7rem; font-weight: 600;
+  color: #8b7d5c;
+  font-family: 'Segoe UI', sans-serif;
+}
+.cw-step-dot.active .cw-step-num { color: #c8a96e; }
+.cw-step-dot.done .cw-step-num { color: #a89660; }
+.cw-step-title {
+  text-align: center; color: #c8a96e;
+  font-size: 1.1rem; margin: 0 0 12px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.cw-body {
+  flex: 1; overflow-y: auto;
+  max-height: 55vh; padding-right: 4px;
+}
+.cw-footer {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 12px; margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(200,169,110,0.12);
+}
+.cw-step-counter {
+  font-size: 0.75rem; color: #8b7d5c;
+  font-family: 'Segoe UI', sans-serif;
+}
+.cw-mod {
+  font-size: 0.72rem; color: #c8a96e;
+  text-align: center; font-weight: 600;
+}
+
+/* Portrait */
+.cw-portrait-preview {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.cw-portrait-preview img {
+  max-width: 120px; max-height: 120px;
+  border-radius: 8px;
+  border: 2px solid rgba(200,169,110,0.3);
+  object-fit: cover;
+}
+.cw-portrait-tabs {
+  display: flex; gap: 0; border-radius: 6px;
+  overflow: hidden; border: 1px solid rgba(200,169,110,0.15);
+  margin-bottom: 8px;
+}
+.cw-portrait-upload {
+  display: flex; justify-content: center; padding: 10px;
+}
+.cw-portrait-gallery {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px; max-height: 160px; overflow-y: auto;
+}
+.cw-portrait-thumb {
+  width: 100%; aspect-ratio: 1;
+  object-fit: cover; border-radius: 6px;
+  cursor: pointer; border: 2px solid transparent;
+  transition: border-color .15s;
+}
+.cw-portrait-thumb:hover {
+  border-color: #c8a96e;
+}
+
+/* Chip input (competencias) */
+.cw-chip-input {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  align-items: center;
+}
+.cw-chip {
+  background: rgba(200,169,110,0.12);
+  border: 1px solid rgba(200,169,110,0.25);
+  border-radius: 12px; padding: 2px 8px;
+  font-size: 0.75rem; color: #c8a96e;
+  display: flex; align-items: center; gap: 3px;
+  font-family: 'Segoe UI', sans-serif;
+}
+.cw-chip-x {
+  background: none; border: none; color: #e57373;
+  cursor: pointer; font-size: 0.65rem; padding: 0;
+}
+.cw-chip-field {
+  flex: 1; min-width: 120px;
+}
+
+/* Skills grid */
+.cw-skills-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 4px;
+}
+.cw-skill-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 6px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(200,169,110,0.08);
+  cursor: pointer; transition: all .12s;
+  font-family: 'Segoe UI', sans-serif;
+}
+.cw-skill-item.active {
+  background: rgba(200,169,110,0.1);
+  border-color: rgba(200,169,110,0.3);
+}
+.cw-skill-item input[type="checkbox"] { margin: 0; }
+.cw-skill-name { flex: 1; font-size: 0.8rem; color: #e8e0d0; }
+.cw-skill-bonus {
+  font-size: 0.75rem; color: #c8a96e;
+  font-weight: 600; min-width: 24px; text-align: right;
+}

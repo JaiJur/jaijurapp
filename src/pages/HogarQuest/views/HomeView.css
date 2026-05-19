@@ -1,0 +1,121 @@
+/* ── HomeView ─────────────────────────────────────────── */
+.hq-home { display: flex; flex-direction: column; gap: 16px; }
+
+.hq-zone-card {
+  background: #161618;
+  border: 1px solid #2a2a2e;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hq-zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  gap: 10px;
+  user-select: none;
+}
+.hq-zone-header:hover { background: #1c1c20; }
+
+.hq-zone-left { display: flex; align-items: center; gap: 10px; }
+.hq-zone-emoji { font-size: 1.3rem; }
+.hq-zone-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  color: #e8e8e8;
+}
+.hq-zone-chevron { color: #555; font-size: 0.75rem; transition: transform 0.2s; }
+.hq-zone-chevron.open { transform: rotate(180deg); }
+
+/* Monstruo mini en cabecera */
+.hq-zone-monster-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #888;
+}
+.hq-mini-bar-bg {
+  width: 60px; height: 4px;
+  background: #2a2a2e;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.hq-mini-bar-fill {
+  height: 100%;
+  background: #c8f135;
+  border-radius: 2px;
+  transition: width 0.4s;
+}
+
+/* Lista de tareas */
+.hq-task-list { border-top: 1px solid #2a2a2e; }
+
+.hq-task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #1e1e22;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.hq-task-item:last-child { border-bottom: none; }
+.hq-task-item:hover { background: #1a1a1e; }
+.hq-task-item.done { opacity: 0.45; }
+
+.hq-task-check {
+  width: 20px; height: 20px;
+  border: 2px solid #3a3a3e;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem;
+  transition: all 0.2s;
+}
+.hq-task-item.done .hq-task-check {
+  background: #c8f135;
+  border-color: #c8f135;
+  color: #0e0e0f;
+}
+.hq-task-item.overdue .hq-task-check { border-color: #ff6b6b; }
+
+.hq-task-info { flex: 1; min-width: 0; }
+.hq-task-name {
+  font-size: 0.88rem;
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hq-task-meta {
+  font-size: 0.7rem;
+  color: #555;
+  margin-top: 2px;
+}
+.hq-task-item.overdue .hq-task-meta { color: #ff6b6b; }
+
+.hq-task-xp {
+  font-size: 0.72rem;
+  color: #c8f135;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* XP Float animation */
+@keyframes xpFloat {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+.hq-xp-float {
+  position: fixed;
+  color: #c8f135;
+  font-family: 'DM Mono', monospace;
+  font-size: 1rem;
+  font-weight: bold;
+  pointer-events: none;
+  animation: xpFloat 1.2s ease-out forwards;
+  z-index: 9999;
+}

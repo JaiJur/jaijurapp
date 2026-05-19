@@ -1,0 +1,135 @@
+.routines-view {
+  padding: 1.25rem 1rem 2rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.rv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.rv-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem;
+  color: #f0f0f0;
+}
+.rv-new-btn {
+  padding: .45rem .9rem;
+  background: #c8f135;
+  border: none;
+  border-radius: 5px;
+  color: #0e0e0f;
+  font-family: 'DM Mono', monospace;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.rv-new-btn:hover { background: #b8e020; }
+
+.rv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  color: #555;
+  font-size: .88rem;
+}
+.rv-new-btn-lg {
+  padding: .65rem 1.5rem;
+  background: transparent;
+  border: 1px solid #c8f135;
+  border-radius: 6px;
+  color: #c8f135;
+  font-family: 'DM Mono', monospace;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.rv-new-btn-lg:hover { background: #c8f135; color: #0e0e0f; }
+
+.rv-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.rv-item {
+  display: flex;
+  align-items: stretch;
+  background: #161618;
+  border: 1px solid #2a2a2c;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.rv-item:hover { border-color: #3a3a3c; }
+
+.rv-item-info {
+  flex: 1;
+  padding: .9rem 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-width: 0;
+}
+.rv-item-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.05rem;
+  color: #e8e8e8;
+}
+.rv-item-meta {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .75rem;
+  color: #555;
+}
+.rv-days-badge {
+  background: #222;
+  color: #666;
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+  padding: .1rem .35rem;
+  border-radius: 3px;
+  letter-spacing: .05em;
+}
+.rv-item-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.rv-pill {
+  font-size: .68rem;
+  background: #222;
+  color: #666;
+  border-radius: 3px;
+  padding: .1rem .4rem;
+}
+.rv-pill-more { color: #444; }
+
+.rv-item-actions {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #222;
+}
+.rv-fav-btn, .rv-edit-btn {
+  flex: 1;
+  width: 44px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: .95rem;
+  color: #333;
+  transition: background .15s, color .15s;
+}
+.rv-fav-btn:hover { background: #1e1e20; color: #c8f135; }
+.rv-fav-btn.active { color: #c8f135; }
+.rv-edit-btn:hover { background: #1e1e20; color: #aaa; }
+.rv-edit-btn + .rv-fav-btn, .rv-fav-btn + .rv-edit-btn {
+  border-top: 1px solid #222;
+}

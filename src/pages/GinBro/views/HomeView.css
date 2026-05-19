@@ -1,0 +1,255 @@
+.home-view {
+  padding: 1.5rem 1rem 2rem;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Fecha hero ── */
+.hv-date-hero {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+}
+.hv-date-day {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.6rem;
+  color: #c8f135;
+  line-height: 1;
+}
+.hv-date-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.1rem;
+  color: #555;
+}
+.hv-date-month {
+  font-family: 'DM Mono', monospace;
+  font-size: .85rem;
+  color: #444;
+  text-transform: lowercase;
+}
+
+/* ── Tarjeta rutina del día ── */
+.hv-today-card {
+  background: #161618;
+  border: 1px solid #2a2a2c;
+  border-radius: 10px;
+  padding: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  transition: border-color .2s;
+}
+.hv-today-card:hover { border-color: #c8f135; }
+.hv-today-badge {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #c8f135;
+}
+.hv-today-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.4rem;
+  color: #f0f0f0;
+  line-height: 1.2;
+}
+.hv-today-meta {
+  font-size: .78rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.hv-days-badge {
+  background: #222;
+  color: #888;
+  font-family: 'DM Mono', monospace;
+  font-size: .65rem;
+  padding: .1rem .4rem;
+  border-radius: 3px;
+  letter-spacing: .05em;
+}
+.hv-today-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.hv-ex-pill {
+  font-size: .72rem;
+  background: #222;
+  color: #888;
+  border-radius: 3px;
+  padding: .15rem .45rem;
+}
+.hv-ex-more { color: #555; }
+.hv-start-btn {
+  margin-top: .4rem;
+  padding: .7rem 1rem;
+  background: #c8f135;
+  color: #0e0e0f;
+  border: none;
+  border-radius: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: background .15s;
+  align-self: stretch;
+  text-align: center;
+}
+.hv-start-btn:hover { background: #b8e020; }
+
+/* ── Sin rutina hoy ── */
+.hv-no-routine {
+  background: #161618;
+  border: 1px dashed #2a2a2c;
+  border-radius: 10px;
+  padding: 2rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.hv-no-routine-msg {
+  color: #555;
+  font-size: .88rem;
+  text-align: center;
+}
+.hv-pick-btn {
+  padding: .65rem 1.5rem;
+  background: transparent;
+  border: 1px solid #c8f135;
+  border-radius: 6px;
+  color: #c8f135;
+  font-family: 'DM Mono', monospace;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.hv-pick-btn:hover { background: #c8f135; color: #0e0e0f; }
+
+/* ── Top de tarjeta con badge + cambiar ── */
+.hv-today-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hv-change-btn {
+  background: transparent;
+  border: none;
+  color: #555;
+  font-family: 'DM Mono', monospace;
+  font-size: .7rem;
+  cursor: pointer;
+  padding: .1rem .3rem;
+  border-radius: 3px;
+  transition: color .15s;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hv-change-btn:hover { color: #c8f135; }
+
+/* ── Picker overlay ── */
+.picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+.picker-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: #161618;
+  border: 1px solid #2a2a2c;
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp .2s cubic-bezier(.22,1,.36,1);
+}
+@keyframes slideUp {
+  from { transform: translateY(100%) }
+  to   { transform: translateY(0) }
+}
+
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem .75rem;
+  border-bottom: 1px solid #222;
+  flex-shrink: 0;
+}
+.picker-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.05rem;
+  color: #e8e8e8;
+}
+.picker-close {
+  background: transparent;
+  border: none;
+  color: #555;
+  font-size: .85rem;
+  cursor: pointer;
+  padding: .2rem .4rem;
+  border-radius: 3px;
+  transition: color .15s;
+}
+.picker-close:hover { color: #aaa; }
+
+.picker-empty {
+  padding: 2rem;
+  color: #555;
+  font-size: .88rem;
+  text-align: center;
+}
+
+.picker-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+.picker-item {
+  padding: .9rem 1.25rem;
+  border-bottom: 1px solid #1e1e20;
+  cursor: pointer;
+  transition: background .12s;
+}
+.picker-item:last-child { border-bottom: none; }
+.picker-item:hover { background: #1e1e20; }
+.picker-item:active { background: #222; }
+
+.picker-item-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  color: #e0e0e0;
+  margin-bottom: .25rem;
+}
+.picker-item-meta {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .75rem;
+  color: #555;
+}
+.picker-days {
+  background: #222;
+  color: #666;
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+  padding: .1rem .35rem;
+  border-radius: 3px;
+  letter-spacing: .05em;
+}

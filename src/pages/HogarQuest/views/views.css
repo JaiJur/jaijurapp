@@ -1,0 +1,343 @@
+/* ── CasaView ─────────────────────────────────────────── */
+.hq-casa { display: flex; flex-direction: column; gap: 20px; }
+
+.hq-boss-card {
+  background: #161618;
+  border: 1px solid #2a2a2e;
+  border-radius: 16px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.hq-boss-sprite {
+  width: 120px; height: 120px;
+  background: #1e1e22;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem;
+  border: 2px solid #2a2a2e;
+}
+
+.hq-boss-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.5rem;
+  color: #e8e8e8;
+}
+.hq-boss-subtitle { font-size: 0.75rem; color: #666; margin-top: -10px; }
+
+/* Barra de vida del jefe */
+.hq-boss-hp-label {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.75rem;
+  color: #888;
+}
+.hq-boss-hp-bg {
+  width: 100%;
+  height: 10px;
+  background: #2a2a2e;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.hq-boss-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4444, #ff8c00);
+  border-radius: 5px;
+  transition: width 0.6s ease;
+}
+
+/* Cuenta atrás semanal */
+.hq-boss-timer {
+  font-size: 0.8rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hq-boss-timer span { color: #c8f135; font-weight: 600; }
+
+/* Pool XP */
+.hq-pool-card {
+  background: #161618;
+  border: 1px solid #2a2a2e;
+  border-radius: 12px;
+  padding: 16px;
+}
+.hq-pool-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  margin-bottom: 10px;
+  color: #e8e8e8;
+}
+.hq-pool-xp {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #c8f135;
+}
+.hq-pool-sub { font-size: 0.72rem; color: #555; margin-top: 2px; }
+
+/* Historial de jefes */
+.hq-boss-history { display: flex; flex-direction: column; gap: 6px; }
+.hq-boss-history-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 0.95rem;
+  color: #888;
+  margin-bottom: 4px;
+}
+.hq-boss-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #161618;
+  border-radius: 8px;
+  border: 1px solid #2a2a2e;
+  font-size: 0.78rem;
+}
+.hq-boss-result.win  { color: #c8f135; }
+.hq-boss-result.loss { color: #ff6b6b; }
+
+/* ── ProfileView ──────────────────────────────────────── */
+.hq-profile { display: flex; flex-direction: column; gap: 16px; }
+
+.hq-profile-hero {
+  background: #161618;
+  border: 1px solid #2a2a2e;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.hq-profile-avatar {
+  width: 64px; height: 64px;
+  background: #c8f135;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem;
+  color: #0e0e0f;
+  font-family: 'DM Serif Display', serif;
+}
+.hq-profile-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem;
+}
+.hq-level-badge {
+  background: #c8f135;
+  color: #0e0e0f;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* Barra XP personal */
+.hq-xp-bar-wrap { width: 100%; }
+.hq-xp-bar-labels {
+  display: flex; justify-content: space-between;
+  font-size: 0.72rem; color: #666; margin-bottom: 4px;
+}
+.hq-xp-bar-bg {
+  width: 100%; height: 8px;
+  background: #2a2a2e;
+  border-radius: 4px; overflow: hidden;
+}
+.hq-xp-bar-fill {
+  height: 100%;
+  background: #c8f135;
+  border-radius: 4px;
+  transition: width 0.5s;
+}
+
+/* Logros */
+.hq-logros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.hq-logro-card {
+  background: #161618;
+  border: 1px solid #2a2a2e;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  opacity: 0.4;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+.hq-logro-card.unlocked {
+  opacity: 1;
+  border-color: #c8f135;
+}
+.hq-logro-icon { font-size: 1.6rem; }
+.hq-logro-name { font-size: 0.72rem; color: #bbb; }
+.hq-logro-desc { font-size: 0.65rem; color: #555; }
+
+/* ── HistorialView ──────────────────────────────────────── */
+.hq-historial { display: flex; flex-direction: column; gap: 12px; }
+
+.hq-historial-filters {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.hq-filter-btn {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid #2a2a2e;
+  background: none;
+  color: #888;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.hq-filter-btn.active {
+  background: #c8f135;
+  color: #0e0e0f;
+  border-color: #c8f135;
+  font-weight: 600;
+}
+
+.hq-log-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #161618;
+  border-radius: 8px;
+  border: 1px solid #2a2a2e;
+}
+.hq-log-icon { font-size: 1.1rem; }
+.hq-log-info { flex: 1; }
+.hq-log-name { font-size: 0.85rem; color: #ddd; }
+.hq-log-meta { font-size: 0.7rem; color: #555; margin-top: 2px; }
+.hq-log-xp { font-size: 0.8rem; color: #c8f135; font-weight: 600; }
+
+/* ── AdminView ────────────────────────────────────────── */
+.hq-admin { display: flex; flex-direction: column; gap: 16px; }
+
+.hq-admin-section-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  color: #888;
+  margin-bottom: 4px;
+}
+.hq-add-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  background: #c8f135;
+  color: #0e0e0f;
+  border: none;
+  border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+}
+.hq-add-btn:hover { background: #d4ff40; }
+
+.hq-admin-list { display: flex; flex-direction: column; gap: 6px; }
+.hq-admin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #161618;
+  border: 1px solid #2a2a2e;
+  border-radius: 8px;
+  gap: 10px;
+}
+.hq-admin-item-info { flex: 1; min-width: 0; }
+.hq-admin-item-name { font-size: 0.85rem; color: #ddd; }
+.hq-admin-item-meta { font-size: 0.7rem; color: #555; margin-top: 2px; }
+.hq-admin-actions { display: flex; gap: 6px; }
+.hq-icon-btn {
+  background: none;
+  border: 1px solid #2a2a2e;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+.hq-icon-btn:hover { border-color: #c8f135; color: #c8f135; }
+.hq-icon-btn.danger:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+/* Modal */
+.hq-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: flex-end;
+  z-index: 1000;
+  padding: 0;
+}
+.hq-modal {
+  background: #161618;
+  border-top: 1px solid #2a2a2e;
+  border-radius: 16px 16px 0 0;
+  padding: 24px 20px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.hq-modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.2rem;
+  margin-bottom: 4px;
+}
+.hq-field { display: flex; flex-direction: column; gap: 5px; }
+.hq-label { font-size: 0.72rem; color: #888; }
+.hq-input, .hq-select {
+  background: #0e0e0f;
+  border: 1px solid #2a2a2e;
+  border-radius: 8px;
+  color: #e8e8e8;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.hq-input:focus, .hq-select:focus {
+  outline: none;
+  border-color: #c8f135;
+}
+.hq-modal-actions { display: flex; gap: 10px; margin-top: 4px; }
+.hq-btn-primary {
+  flex: 1;
+  padding: 12px;
+  background: #c8f135;
+  color: #0e0e0f;
+  border: none;
+  border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hq-btn-secondary {
+  flex: 1;
+  padding: 12px;
+  background: none;
+  color: #888;
+  border: 1px solid #2a2a2e;
+  border-radius: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.hq-empty { text-align: center; color: #444; font-size: 0.82rem; padding: 24px 0; }
