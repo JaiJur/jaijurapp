@@ -101,18 +101,30 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
     if (!file) return
     setUploading(true)
     try {
-      const reader = new FileReader()
-      reader.onload = async () => {
-        const res = await fetch('/api/dnd/portraits', {
-          method: 'POST', headers,
-          body: JSON.stringify({ data: reader.result, filename: file.name })
-        })
-        const data = await res.json()
-        if (data.url) update('portrait', data.url)
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(new Error('Error leyendo archivo'))
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/dnd/portraits', {
+        method: 'POST', headers,
+        body: JSON.stringify({ data: base64, filename: file.name })
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('Upload failed:', err)
+        alert('Error subiendo imagen: ' + (err.error || res.statusText))
+        return
       }
-      reader.readAsDataURL(file)
-    } catch (err) { console.error(err) }
-    finally { setTimeout(() => setUploading(false), 500) }
+      const data = await res.json()
+      if (data.url) update('portrait', data.url)
+    } catch (err) {
+      console.error('Portrait upload error:', err)
+      alert('Error subiendo imagen: ' + err.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function loadGallery() {
@@ -129,7 +141,8 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
         {/* Progress bar */}
         <div className="cw-progress">
           {STEP_LABELS.map((label, i) => (
-            <div key={i} className={`cw-step-dot ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`}>
+            <div key={i} className={`cw-step-dot ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`}
+              onClick={() => setStep(i)} title={label}>
               <span className="cw-step-num">{i + 1}</span>
             </div>
           ))}
@@ -225,6 +238,21 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
                   }} />
               </div>
             </div>
+            <div className="glossary-form-row">
+              <label>Rasgos de clase</label>
+              <div className="cw-traits-list">
+                {(ch.traits||[]).map((t, i) => (
+                  <div key={i} className="cw-trait-item">
+                    <input className="dnd-input cw-trait-name" value={t.name||''} placeholder="Nombre del rasgo"
+                      onChange={e => { const next = [...(ch.traits||[])]; next[i] = {...next[i], name: e.target.value}; setCh(prev => ({...prev, traits: next})) }} />
+                    <textarea className="dnd-input cw-trait-desc" value={t.description||''} placeholder="Descripción..." rows={2}
+                      onChange={e => { const next = [...(ch.traits||[])]; next[i] = {...next[i], description: e.target.value}; setCh(prev => ({...prev, traits: next})) }} />
+                    <button className="dnd-btn-sm dnd-btn-danger cw-trait-remove" onClick={() => setCh(prev => ({...prev, traits: prev.traits.filter((_,j)=>j!==i)}))}>✕</button>
+                  </div>
+                ))}
+                <button className="dnd-btn-sm" onClick={() => setCh(prev => ({...prev, traits: [...(prev.traits||[]), {name:'', description:''}]}))}>+ Añadir rasgo</button>
+              </div>
+            </div>
           </>}
 
           {/* ── PASO 3: Características ── */}
@@ -263,6 +291,36 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
             <div className="glossary-form-row">
               <label>Velocidad</label>
               <input className="dnd-input" value={ch.stats?.speed||'30 pies'} onChange={e => updateStat('speed', e.target.value)} />
+            </div>
+            <div className="glossary-form-row">
+              <label>Dado de golpe</label>
+              <div className="glossary-hp-row">
+                <div className="glossary-stat-input" style={{flex:'0 0 auto'}}>
+                  <span>Dado</span>
+                  <select className="dnd-input" value={ch.stats?.hitDice?.die || 8}
+                    onChange={e => updateStat('hitDice', { ...(ch.stats?.hitDice || {}), die: parseInt(e.target.value) })}>
+                    <option value={6}>d6</option>
+                    <option value={8}>d8</option>
+                    <option value={10}>d10</option>
+                    <option value={12}>d12</option>
+                  </select>
+                </div>
+                <div className="glossary-stat-input" style={{flex:1}}>
+                  <span>Cantidad</span>
+                  <input className="dnd-input" type="number" min="1" value={ch.stats?.hitDice?.count ?? ch.level ?? 1}
+                    onChange={e => updateStat('hitDice', { ...(ch.stats?.hitDice || {}), count: parseInt(e.target.value) || 1 })} />
+                </div>
+                <div className="glossary-stat-input" style={{flex:1}}>
+                  <span>Usados</span>
+                  <input className="dnd-input" type="number" min="0" value={ch.stats?.hitDice?.used ?? 0}
+                    onChange={e => updateStat('hitDice', { ...(ch.stats?.hitDice || {}), used: parseInt(e.target.value) || 0 })} />
+                </div>
+              </div>
+            </div>
+            <div className="glossary-form-row">
+              <label>Percepción pasiva</label>
+              <input className="dnd-input" type="number" value={ch.stats?.passivePerception ?? (10 + Math.floor(((ch.stats?.wis || 10) - 10) / 2))}
+                onChange={e => updateStat('passivePerception', parseInt(e.target.value) || 10)} />
             </div>
           </>}
 
@@ -425,6 +483,18 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
               ))}
             </div>
             <div className="glossary-form-row">
+              <label>Consumibles <button className="dnd-btn-sm" onClick={() => setCh(e => ({...e, consumables: [...(e.consumables||[]), {name:'',quantity:1,notes:''}]}))}>+</button></label>
+              {(ch.consumables||[]).length === 0 && <div className="dnd-empty-sm">Sin consumibles — añade pociones, flechas, etc.</div>}
+              {(ch.consumables||[]).map((c, i) => (
+                <div key={i} className="glossary-list-item">
+                  <input className="dnd-input" placeholder="Nombre (ej: Poción de curación)" value={c.name} onChange={e => setCh(prev => ({...prev, consumables: prev.consumables.map((x,j) => j===i ? {...x, name: e.target.value} : x)}))} style={{flex:1}} />
+                  <input className="dnd-input" type="number" min="0" placeholder="×" value={c.quantity} onChange={e => setCh(prev => ({...prev, consumables: prev.consumables.map((x,j) => j===i ? {...x, quantity: parseInt(e.target.value)||0} : x)}))} style={{maxWidth:55}} />
+                  <input className="dnd-input" placeholder="Notas (ej: 2d4+2 PG)" value={c.notes||''} onChange={e => setCh(prev => ({...prev, consumables: prev.consumables.map((x,j) => j===i ? {...x, notes: e.target.value} : x)}))} style={{flex:1}} />
+                  <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(e => ({...e, consumables: e.consumables.filter((_,j)=>j!==i)}))}>✕</button>
+                </div>
+              ))}
+            </div>
+            <div className="glossary-form-row">
               <label>Acciones (armas, ataques) <button className="dnd-btn-sm" onClick={() => setCh(e => ({...e, actions: [...(e.actions||[]), {name:'',range:'Cuerpo a cuerpo',modifier:0,damage:'',secondaryDamage:'',note:'',actionType:'normal',isSpell:false,spellLevel:'truco',aoe:''}]}))}>+</button></label>
               {(ch.actions||[]).filter(a => !a.isSpell).map((a, idx) => {
                 const i = (ch.actions||[]).indexOf(a)
@@ -443,6 +513,7 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
                       <div className="glossary-stat-input" style={{flex:'0 0 70px'}}><span>Mod.</span><input className="dnd-input" type="number" value={a.modifier??0} onChange={e => setCh(prev => ({...prev, actions: prev.actions.map((x,j) => j===i ? {...x, modifier: parseInt(e.target.value)||0} : x)}))} /></div>
                       <div className="glossary-stat-input" style={{flex:1}}><span>Daño</span><input className="dnd-input" placeholder="1d8+3" value={a.damage||''} onChange={e => setCh(prev => ({...prev, actions: prev.actions.map((x,j) => j===i ? {...x, damage: e.target.value} : x)}))} /></div>
                     </div>
+                    <textarea className="dnd-input" placeholder="Descripción / notas de la acción..." rows={2} value={a.note||''} onChange={e => setCh(prev => ({...prev, actions: prev.actions.map((x,j) => j===i ? {...x, note: e.target.value} : x)}))} style={{width:'100%', resize:'vertical', fontSize:'0.85rem'}} />
                   </div>
                 )
               })}
@@ -498,8 +569,8 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
                       </div>
                       <div className="glossary-action-form-row">
                         <div className="glossary-stat-input" style={{flex:1}}><span>Daño</span><input className="dnd-input" placeholder="1d10 fuego" value={a.damage||''} onChange={e => setCh(prev => ({...prev, actions: prev.actions.map((x,j) => j===i ? {...x, damage: e.target.value} : x)}))} /></div>
-                        <div className="glossary-stat-input" style={{flex:1}}><span>Nota</span><input className="dnd-input" value={a.note||''} onChange={e => setCh(prev => ({...prev, actions: prev.actions.map((x,j) => j===i ? {...x, note: e.target.value} : x)}))} /></div>
                       </div>
+                      <textarea className="dnd-input" placeholder="Descripción / notas del conjuro..." rows={2} value={a.note||''} onChange={e => setCh(prev => ({...prev, actions: prev.actions.map((x,j) => j===i ? {...x, note: e.target.value} : x)}))} style={{width:'100%', resize:'vertical', fontSize:'0.85rem'}} />
                     </div>
                   )
                 })}
@@ -515,6 +586,7 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
           <button className="dnd-btn-cancel" onClick={step === 0 ? onClose : handleBack}>
             {step === 0 ? 'Cancelar' : '← Anterior'}
           </button>
+          {mode === 'edit' && step < 6 && <button className="dnd-btn-primary cw-save-inline" onClick={handleSave}>✅ Guardar</button>}
           <span className="cw-step-counter">{step + 1} / 7</span>
           {step < 6 ? (
             <button className="dnd-btn-primary" onClick={handleNext} disabled={!canAdvance()}>

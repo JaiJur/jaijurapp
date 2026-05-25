@@ -1,9 +1,74 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AppHeader from '../../components/AppHeader'
 import CharacterWizard from './CharacterWizard'
 import './DnD.css'
+
+const CONDITION_LIST = [
+  { id: 'agarrado', label: 'AGA' }, { id: 'apresado', label: 'APR' }, { id: 'asustado', label: 'ASU' },
+  { id: 'aturdido', label: 'ATU' }, { id: 'cansancio', label: 'CAN', levels: 6 }, { id: 'cegado', label: 'CEG' },
+  { id: 'derribado', label: 'DER' }, { id: 'ensordecido', label: 'ENS' }, { id: 'envenenado', label: 'ENV' },
+  { id: 'hechizado', label: 'HEC' }, { id: 'incapacitado', label: 'INC' }, { id: 'inconsciente', label: 'INS' },
+  { id: 'invisible', label: 'INV' }, { id: 'paralizado', label: 'PAR' }, { id: 'petrificado', label: 'PET' },
+]
+
+function ConditionPills({ conditions }) {
+  if (!conditions || Object.keys(conditions).length === 0) return null
+  const pills = []
+  CONDITION_LIST.forEach(c => {
+    if (c.levels) {
+      const lv = conditions[c.id]
+      if (lv && lv > 0) pills.push({ label: `${c.label}${lv}`, id: c.id })
+    } else if (conditions[c.id]) {
+      pills.push({ label: c.label, id: c.id })
+    }
+  })
+  if (pills.length === 0) return null
+  return <div className="condition-pills">{pills.map(p => <span key={p.id} className="condition-pill">{p.label}</span>)}</div>
+}
+
+function ConditionManager({ conditions, onChange }) {
+  const conds = conditions || {}
+  function toggleCondition(id) {
+    const next = { ...conds }
+    if (next[id]) delete next[id]; else next[id] = true
+    onChange(next)
+  }
+  function setCansancio(lv) {
+    const next = { ...conds }
+    if (lv === 0) delete next.cansancio; else next.cansancio = lv
+    onChange(next)
+  }
+  return (
+    <div className="condition-manager">
+      <div className="condition-manager-label">Estados</div>
+      <div className="condition-manager-grid">
+        {CONDITION_LIST.map(c => {
+          if (c.levels) {
+            const lv = conds[c.id] || 0
+            return (
+              <div key={c.id} className={`condition-check ${lv > 0 ? 'active' : ''}`}>
+                <span className="condition-check-name">{c.id}</span>
+                <select className="condition-level-select" value={lv} onChange={e => setCansancio(parseInt(e.target.value))}>
+                  <option value={0}>—</option>
+                  {Array.from({length: c.levels}, (_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                </select>
+              </div>
+            )
+          }
+          const isActive = !!conds[c.id]
+          return (
+            <label key={c.id} className={`condition-check ${isActive ? 'active' : ''}`}>
+              <input type="checkbox" checked={isActive} onChange={() => toggleCondition(c.id)} />
+              <span className="condition-check-name">{c.id}</span>
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function DnD() {
   const { user, loading: authLoading } = useAuth()
@@ -29,18 +94,29 @@ export default function DnD() {
   const [glossaryPage, setGlossaryPage] = useState(0)
   const GLOSSARY_PAGE_SIZE = 10
 
-  // Encounter (combate por mapa)
-  const [encounters, setEncounters] = useState({}) // { [mapId]: [enemy, ...] }
-  const [addEnemyModal, setAddEnemyModal] = useState(null) // { mapId }
-
   // Characters
   const [characters, setCharacters] = useState([])
   const [characterModal, setCharacterModal] = useState(null) // null | { mode: 'create'|'edit', character }
   const [expandedCharacter, setExpandedCharacter] = useState(null)
 
+  // Parties (multi-party)
+  const [parties, setParties] = useState([])
+  const [partyAddModal, setPartyAddModal] = useState(null) // null | { partyId }
+  const [partyCreateModal, setPartyCreateModal] = useState(false)
+  const [partyCreateName, setPartyCreateName] = useState('')
+
+  // Gestor de Imágenes global
+  const [globalImages, setGlobalImages] = useState(null)
+  const [imageModal, setImageModal] = useState(null)
+
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
 
-  useEffect(() => { if (!user) return; if (isMaster) fetchCampaigns(); fetchViewer(); fetchGlossary(); fetchCharacters() }, [user])
+  async function updateConditions(partyId, key, conditions) {
+    await fetch(`/api/dnd/parties/${partyId}/conditions/${key}`, { method: 'PATCH', headers, body: JSON.stringify({ conditions }) })
+    setParties(ps => ps.map(p => p.id === partyId ? { ...p, conditions: { ...(p.conditions || {}), [key]: conditions } } : p))
+  }
+
+  useEffect(() => { if (!user) return; if (isMaster) fetchCampaigns(); fetchViewer(); fetchGlossary(); fetchCharacters(); fetchParties() }, [user])
   // Refrescar estado del visor cada 5s (por si alguien más lo cambia)
   useEffect(() => {
     const iv = setInterval(fetchViewer, 5000)
@@ -103,6 +179,7 @@ export default function DnD() {
   function newEnemyTemplate() {
     return {
       category: 'enemy', name: '', description: '',
+      portraits: [],
       stats: { ca: 10, hp: { dice: 2, sides: 6, modifier: 0 }, str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10, speed: '30 pies', challenge: '1/4' },
       spellSlots: { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 },
       isSpellcaster: false,
@@ -146,12 +223,126 @@ export default function DnD() {
     setCharacterModal(null)
     showToast(isNew ? '🛡️ Personaje creado' : '🛡️ Personaje actualizado')
   }
+  async function quickSaveCharacter(character) {
+    if (!character.id) return
+    await fetch(`/api/dnd/characters/${character.id}`, { method: 'PUT', headers, body: JSON.stringify(character) })
+    fetchCharacters()
+  }
   async function deleteCharacter(id) {
     if (!confirm('¿Borrar este personaje?')) return
     await fetch(`/api/dnd/characters/${id}`, { method: 'DELETE', headers })
     fetchCharacters()
     showToast('🗑 Personaje eliminado')
   }
+
+  // ── Parties ────────────────────────────────────────────
+  async function fetchParties() {
+    try {
+      const r = await fetch('/api/dnd/parties', { headers })
+      if (r.ok) setParties(await r.json())
+    } catch {}
+  }
+  async function createParty() {
+    const name = partyCreateName.trim()
+    if (!name) return
+    await fetch('/api/dnd/parties', { method: 'POST', headers, body: JSON.stringify({ name }) })
+    fetchParties()
+    setPartyCreateModal(false)
+    setPartyCreateName('')
+    showToast('⚔️ Party creada')
+  }
+  async function renameParty(partyId, currentName) {
+    const name = prompt('Nuevo nombre de la party:', currentName)
+    if (!name || !name.trim() || name.trim() === currentName) return
+    await fetch(`/api/dnd/parties/${partyId}`, { method: 'PUT', headers, body: JSON.stringify({ name: name.trim() }) })
+    fetchParties()
+    showToast('✏️ Party renombrada')
+  }
+  async function deleteParty(partyId) {
+    if (!confirm('¿Borrar esta party y todo su contenido?')) return
+    await fetch(`/api/dnd/parties/${partyId}`, { method: 'DELETE', headers })
+    fetchParties()
+    showToast('🗑 Party eliminada')
+  }
+  async function addToParty(partyId, charId) {
+    await fetch(`/api/dnd/parties/${partyId}/members`, { method: 'POST', headers, body: JSON.stringify({ charId }) })
+    fetchParties()
+    showToast('🛡️ Añadido a la party')
+  }
+  async function removeFromParty(partyId, charId) {
+    await fetch(`/api/dnd/parties/${partyId}/members/${charId}`, { method: 'DELETE', headers })
+    fetchParties()
+    showToast('👋 Eliminado de la party')
+  }
+  async function updateInitiative(partyId, newOrder) {
+    await fetch(`/api/dnd/parties/${partyId}/initiative`, { method: 'PUT', headers, body: JSON.stringify({ initiative: newOrder }) })
+    setParties(ps => ps.map(p => p.id === partyId ? { ...p, initiative: newOrder } : p))
+  }
+  async function updatePartyHp(partyId, charId, hp) {
+    await fetch(`/api/dnd/parties/${partyId}/hp/${charId}`, { method: 'PATCH', headers, body: JSON.stringify({ hp }) })
+    setParties(ps => ps.map(p => p.id === partyId ? {
+      ...p, currentHp: { ...p.currentHp, [charId]: hp },
+      memberChars: (p.memberChars||[]).map(c => c.id === charId ? { ...c, stats: { ...c.stats, hp: { ...c.stats.hp, current: hp } } } : c)
+    } : p))
+  }
+  async function updatePartySlots(partyId, charId, usedSlots) {
+    await fetch(`/api/dnd/parties/${partyId}/slots/${charId}`, { method: 'PATCH', headers, body: JSON.stringify({ usedSlots }) })
+    setParties(ps => ps.map(p => p.id === partyId ? { ...p, usedSlots: { ...p.usedSlots, [charId]: usedSlots } } : p))
+  }
+  async function partyRest(partyId, type) {
+    if (!confirm(type === 'long' ? '¿Descanso largo? Se restaurarán PG y huecos de conjuro.' : '¿Descanso corto? Se restaurarán los PG.')) return
+    await fetch(`/api/dnd/parties/${partyId}/rest`, { method: 'POST', headers, body: JSON.stringify({ type }) })
+    fetchParties()
+    showToast(type === 'long' ? '🌙 Descanso largo completado' : '☀️ Descanso corto completado')
+  }
+  function rollInitiative(dexMod, surprised) {
+    const roll1 = Math.floor(Math.random() * 20) + 1 + dexMod
+    if (!surprised) return roll1
+    const roll2 = Math.floor(Math.random() * 20) + 1 + dexMod
+    return Math.min(roll1, roll2)
+  }
+  async function addEnemyToParty(partyId, glossaryId, label, hpMax, surprised) {
+    const entry = glossary.entries.find(e => e.id === glossaryId)
+    const dexMod = entry?.stats?.dex ? Math.floor((entry.stats.dex - 10) / 2) : 0
+    const initiative = rollInitiative(dexMod, surprised)
+    const r = await fetch(`/api/dnd/parties/${partyId}/enemy`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ glossaryId, initiative, label, hpMax: hpMax || undefined })
+    })
+    if (r.ok) {
+      fetchParties()
+      const surprisedTxt = surprised ? ' (sorprendido)' : ''
+      showToast(`💀 Añadido · Init: ${initiative}${surprisedTxt}`)
+    }
+  }
+  async function removeEnemyFromParty(partyId, enemyId) {
+    await fetch(`/api/dnd/parties/${partyId}/enemy/${enemyId}`, { method: 'DELETE', headers })
+    fetchParties()
+    showToast('💀 Enemigo eliminado')
+  }
+  async function updateEnemyHp(partyId, enemyId, hp) {
+    await fetch(`/api/dnd/parties/${partyId}/enemy/${enemyId}/hp`, { method: 'PATCH', headers, body: JSON.stringify({ hp }) })
+    setParties(ps => ps.map(p => p.id === partyId ? {
+      ...p, enemies: (p.enemies || []).map(e => e.id === enemyId ? { ...e, hpCurrent: hp } : e)
+    } : p))
+  }
+  function scrollToGlossaryEntry(entryId) {
+    // Expandir glosario, filtrar enemigos, expandir la entrada
+    if (!expanded.glossary) toggleExpand('glossary')
+    setGlossaryFilter('enemy')
+    setGlossarySubFilter('all')
+    setExpandedEntry(entryId)
+    // Buscar la página correcta
+    const enemyEntries = glossary.entries.filter(e => e.category === 'enemy')
+    const idx = enemyEntries.findIndex(e => e.id === entryId)
+    if (idx !== -1) setGlossaryPage(Math.floor(idx / GLOSSARY_PAGE_SIZE))
+    // Scroll suave
+    setTimeout(() => {
+      const el = document.querySelector(`[data-glossary-id="${entryId}"]`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 200)
+  }
+
   function newCharacterTemplate() {
     return {
       // Paso 1: Descripción
@@ -161,7 +352,8 @@ export default function DnD() {
       proficiencies: [], // ['Armaduras ligeras', 'Espadas largas', ...]
       savingThrows: { str: false, dex: false, con: false, int: false, wis: false, cha: false },
       stats: { ca: 10, hp: { max: 10, current: 10 }, speed: '30 pies', proficiencyBonus: 2,
-        str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
+        hitDice: { die: 8, count: 1, used: 0 }, passivePerception: 10 },
       // Paso 4: Trasfondo
       background: '', backgroundTraits: [],
       bgSkills: [], bgTools: [], bgEquipment: [], gold: 0,
@@ -169,6 +361,7 @@ export default function DnD() {
       skills: [],
       // Paso 6: Equipo
       equipment: [],
+      consumables: [],
       // Paso 7: Conjuros
       isSpellcaster: false,
       spellSlots: { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 },
@@ -215,77 +408,6 @@ export default function DnD() {
 
   const glossaryTotalPages = Math.ceil(filteredGlossary.length / GLOSSARY_PAGE_SIZE)
   const glossaryPageItems = filteredGlossary.slice(glossaryPage * GLOSSARY_PAGE_SIZE, (glossaryPage + 1) * GLOSSARY_PAGE_SIZE)
-
-  // ── Encounter (combate por mapa) ─────────────────────
-  function rollDice(dice, sides, modifier = 0) {
-    let total = modifier
-    for (let i = 0; i < dice; i++) total += Math.floor(Math.random() * sides) + 1
-    return total
-  }
-
-  async function loadEncounter(mapId) {
-    try {
-      const r = await fetch(`/api/dnd/maps/${mapId}/encounter`, { headers })
-      if (r.ok) {
-        const data = await r.json()
-        setEncounters(prev => ({ ...prev, [mapId]: data }))
-      }
-    } catch {}
-  }
-
-  function toggleEncounter(mapId) {
-    const key = `enc-${mapId}`
-    setExpanded(prev => {
-      const next = { ...prev, [key]: !prev[key] }
-      if (next[key] && !encounters[mapId]) loadEncounter(mapId)
-      return next
-    })
-  }
-
-  async function addEnemyFromGlossary(mapId, entry) {
-    const hp = entry.stats?.hp
-    const rolledHp = hp ? rollDice(hp.dice, hp.sides, hp.modifier) : (entry.stats?.pg || 10)
-    const maxHp = rolledHp
-    const initiative = rollDice(1, 20)
-    const enemy = {
-      glossaryId: entry.id,
-      name: entry.name,
-      hp: rolledHp,
-      maxHp,
-      initiative,
-      ca: entry.stats?.ca || 10,
-      stats: entry.stats,
-      actions: entry.actions,
-      abilities: entry.abilities,
-      traits: entry.traits,
-      skills: entry.skills,
-    }
-    await fetch(`/api/dnd/maps/${mapId}/encounter`, {
-      method: 'POST', headers, body: JSON.stringify(enemy)
-    })
-    loadEncounter(mapId)
-    setAddEnemyModal(null)
-    showToast(`⚔️ ${entry.name} añadido (PG: ${rolledHp}, Init: ${initiative})`)
-  }
-
-  async function updateEnemy(mapId, enemyId, updates) {
-    await fetch(`/api/dnd/maps/${mapId}/encounter/${enemyId}`, {
-      method: 'PUT', headers, body: JSON.stringify(updates)
-    })
-    loadEncounter(mapId)
-  }
-
-  async function removeEnemy(mapId, enemyId) {
-    await fetch(`/api/dnd/maps/${mapId}/encounter/${enemyId}`, { method: 'DELETE', headers })
-    loadEncounter(mapId)
-  }
-
-  async function clearEncounter(mapId) {
-    if (!confirm('¿Limpiar todos los enemigos de este mapa?')) return
-    await fetch(`/api/dnd/maps/${mapId}/encounter`, { method: 'DELETE', headers })
-    loadEncounter(mapId)
-    showToast('🗑 Combate limpiado')
-  }
 
   // ── Visor global ─────────────────────────────────────
   async function sendImageToViewer(img, channel) {
@@ -348,6 +470,31 @@ export default function DnD() {
     })
   }
 
+  // Gestor de imágenes global
+  async function loadGlobalImages(path = '') {
+    try {
+      const q = path ? `?path=${encodeURIComponent(path)}` : ''
+      const r = await fetch(`/api/dnd/images${q}`)
+      if (r.ok) setGlobalImages(await r.json())
+    } catch {}
+  }
+
+  async function assignImageToChapter(campaignId, chapterId, img) {
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/images`, {
+      method: 'POST', headers, body: JSON.stringify({ url: img.url, name: img.name })
+    })
+    fetchCampaigns()
+    showToast(`🖼️ Imagen asignada`)
+  }
+
+  async function removeImageFromChapter(campaignId, chapterId, url) {
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/images`, {
+      method: 'DELETE', headers, body: JSON.stringify({ url })
+    })
+    fetchCampaigns()
+    showToast('🗑 Imagen desasociada')
+  }
+
   async function createCampaign() {
     const name = inputVal.trim()
     if (!name) return
@@ -378,7 +525,7 @@ export default function DnD() {
       if (!r.ok) { console.error('createMap failed', await r.text()); return }
       const map = await r.json()
       setInputVal(''); setModal(null); fetchCampaigns()
-      navigate(`/dnd/editor/${map.id}`)
+      window.open(`/dnd/editor/${map.id}`, '_blank')
     } catch (e) { console.error('createMap error:', e) }
   }
 
@@ -397,6 +544,16 @@ export default function DnD() {
     })
     fetchCampaigns()
     showToast('✏️ Capítulo renombrado')
+  }
+
+  async function renameCampaign(campaignId, currentName) {
+    const name = prompt('Nuevo nombre de la campaña:', currentName)
+    if (!name || !name.trim() || name.trim() === currentName) return
+    await fetch(`/api/dnd/campaigns/${campaignId}`, {
+      method: 'PUT', headers, body: JSON.stringify({ name: name.trim() })
+    })
+    fetchCampaigns()
+    showToast('✏️ Campaña renombrada')
   }
 
   async function deleteChapter(e, campaignId, chapterId) {
@@ -473,7 +630,7 @@ export default function DnD() {
         {isMaster && <div className="dnd-campaigns-section">
           <div className="dnd-glossary-header" onClick={() => toggleExpand('campaigns')}>
             <span className="dnd-chevron">{expanded.campaigns ? '▾' : '▸'}</span>
-            <span className="dnd-glossary-title">🗡️ Campañas ({campaigns.length})</span>
+            <span className="dnd-glossary-title">🗡️ Campañas</span>
             <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); openModal('campaign') }}>+ Campaña</button>
           </div>
           {expanded.campaigns && <div className="dnd-campaigns">
@@ -487,6 +644,7 @@ export default function DnD() {
                 <span className="dnd-campaign-name">{campaign.name}</span>
                 <div className="dnd-campaign-actions">
                   <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openModal('chapter', campaign.id) }}>+ Capítulo</button>
+                  <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); renameCampaign(campaign.id, campaign.name) }} title="Renombrar">✏️</button>
                   <button className="dnd-btn-danger" onClick={e => deleteCampaign(e, campaign.id)}>✕</button>
                 </div>
               </div>
@@ -512,44 +670,38 @@ export default function DnD() {
                                 <span className="dnd-map-icon">🗺️</span>
                                 <span className="dnd-map-name">{map.name}</span>
                                 <div className="dnd-map-actions">
-                                  <button className="dnd-btn-sm" onClick={() => navigate(`/dnd/editor/${map.id}`)}>Editar</button>
+                                  <button className="dnd-btn-sm" onClick={() => window.open(`/dnd/editor/${map.id}`, '_blank')}>Editar</button>
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Main" onClick={() => sendMapToViewer(map.id, map.name, 'main')}>📺</button>
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Tablet" onClick={() => sendMapToViewer(map.id, map.name, 'tablet')}>📱</button>
                                 </div>
                               </div>
-                              {/* Combate */}
-                              <div className="dnd-encounter-toggle" onClick={() => toggleEncounter(map.id)}>
-                                <span className="dnd-chevron">{expanded[`enc-${map.id}`] ? '▾' : '▸'}</span>
-                                <span>⚔️ Combate {encounters[map.id]?.length ? `(${encounters[map.id].length})` : ''}</span>
-                              </div>
-                              {expanded[`enc-${map.id}`] && (
-                                <EncounterPanel
-                                  mapId={map.id}
-                                  enemies={encounters[map.id] || []}
-                                  glossaryEnemies={glossary.entries.filter(e => e.category === 'enemy')}
-                                  glossaryFavorites={glossary.favorites}
-                                  onAddEnemy={(entry) => addEnemyFromGlossary(map.id, entry)}
-                                  onUpdate={(enemyId, updates) => updateEnemy(map.id, enemyId, updates)}
-                                  onRemove={(enemyId) => removeEnemy(map.id, enemyId)}
-                                  onClear={() => clearEncounter(map.id)}
-                                />
-                              )}
                             </div>
                           ))}
                           {chapter.maps.length === 0 && <div className="dnd-empty-sm">Sin mapas</div>}
 
                           {/* ── Imágenes del capítulo ── */}
                           <div className="dnd-images-section">
-                            <div className="dnd-images-toggle" onClick={() => toggleImageBrowser(chapter.id)}>
+                            <div className="dnd-images-toggle" onClick={() => toggleExpand(`img-${chapter.id}`)}>
                               <span className="dnd-chevron">{expanded[`img-${chapter.id}`] ? '▾' : '▸'}</span>
-                              <span>🖼️ Imágenes</span>
+                              <span>🖼️ Imágenes {(chapter.images||[]).length > 0 ? `(${chapter.images.length})` : ''}</span>
                             </div>
                             {expanded[`img-${chapter.id}`] && (
-                              <ImageBrowser
-                                data={imageBrowser[chapter.id]}
-                                onNavigate={(path) => loadImages(chapter.id, path)}
-                                onSend={sendImageToViewer}
-                              />
+                              <div className="dnd-chapter-images">
+                                {(chapter.images||[]).length === 0 && <div className="dnd-empty-sm">Sin imágenes — asígnalas desde el Gestor de Imágenes</div>}
+                                <div className="dnd-image-grid">
+                                  {(chapter.images||[]).map(img => (
+                                    <div key={img.url} className="dnd-image-thumb" title={img.name}>
+                                      <img src={img.url} alt={img.name} loading="lazy" />
+                                      <div className="dnd-image-overlay">
+                                        <button className="dnd-image-send" onClick={() => sendImageToViewer(img, 'main')} title="Enviar a Main">📺</button>
+                                        <button className="dnd-image-send dnd-image-send-tablet" onClick={() => sendImageToViewer(img, 'tablet')} title="Enviar a Tablet">📱</button>
+                                        <button className="dnd-image-send dnd-image-remove" onClick={() => removeImageFromChapter(campaign.id, chapter.id, img.url)} title="Quitar">✕</button>
+                                        <span className="dnd-image-name">{img.name}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -564,11 +716,82 @@ export default function DnD() {
         </div>}
         </div>}
 
+        {/* ── Parties ── */}
+        {isMaster && <div className="dnd-glossary-section">
+          <div className="dnd-glossary-header" onClick={() => toggleExpand('parties')}>
+            <span className="dnd-chevron">{expanded.parties ? '▾' : '▸'}</span>
+            <span className="dnd-glossary-title">⚔️ Parties</span>
+            <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
+              <button className="dnd-btn-sm" onClick={() => window.open('/dnd/party','_blank')}>🖥 Ver</button>
+              <button className="dnd-btn-primary" onClick={() => setPartyCreateModal(true)}>+ Party</button>
+            </div>
+          </div>
+          {expanded.parties && <>
+            {parties.length === 0 && <div className="dnd-empty-sm">Sin parties — ¡crea la primera!</div>}
+            {parties.map(p => (
+              <div key={p.id} className="dnd-party-block">
+                <div className="dnd-party-block-header" onClick={() => toggleExpand(`party-${p.id}`)}>
+                  <span className="dnd-chevron">{expanded[`party-${p.id}`] ? '▾' : '▸'}</span>
+                  <span className="dnd-party-block-name">{p.name}</span>
+                  <span className="dnd-party-block-count">{(p.members||[]).length} PCs · {(p.enemies||[]).length} enemigos</span>
+                  <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
+                    <button className="dnd-btn-sm" onClick={() => setPartyAddModal({ partyId: p.id })}>+ Añadir</button>
+                    <button className="dnd-btn-sm" onClick={() => renameParty(p.id, p.name)} title="Renombrar">✏️</button>
+                    <button className="dnd-btn-sm dnd-btn-danger" onClick={() => deleteParty(p.id)}>✕</button>
+                  </div>
+                </div>
+                {expanded[`party-${p.id}`] && (
+                  <div className="dnd-party-block-body">
+                    <div className="dnd-party-rest-bar">
+                      <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'short')}>☀️ Descanso corto</button>
+                      <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'long')}>🌙 Descanso largo</button>
+                    </div>
+                    <PartyTracker
+                      party={p}
+                      onReorder={(newOrder) => updateInitiative(p.id, newOrder)}
+                      onHpChange={(charId, hp) => updatePartyHp(p.id, charId, hp)}
+                      onSlotsChange={(charId, slots) => updatePartySlots(p.id, charId, slots)}
+                      onRemove={(charId) => removeFromParty(p.id, charId)}
+                      onEnemyHpChange={(enemyId, hp) => updateEnemyHp(p.id, enemyId, hp)}
+                      onRemoveEnemy={(enemyId) => removeEnemyFromParty(p.id, enemyId)}
+                      onEnemyClick={scrollToGlossaryEntry}
+                      onConditionsChange={(key, conds) => updateConditions(p.id, key, conds)}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </>}
+          {partyAddModal && (
+            <PartyAddModal
+              characters={characters}
+              partyMembers={(parties.find(p => p.id === partyAddModal.partyId)?.members) || []}
+              enemies={glossary.entries.filter(e => e.category === 'enemy')}
+              onAddCharacter={(id) => { addToParty(partyAddModal.partyId, id); setPartyAddModal(null) }}
+              onAddEnemy={(glossaryId, label, hpMax, surprised) => { addEnemyToParty(partyAddModal.partyId, glossaryId, label, hpMax, surprised); setPartyAddModal(null) }}
+              onClose={() => setPartyAddModal(null)}
+            />
+          )}
+          {partyCreateModal && (
+            <div className="dnd-modal-overlay" onClick={() => setPartyCreateModal(false)}>
+              <div className="dnd-modal" onClick={e => e.stopPropagation()}>
+                <h3>Nueva Party</h3>
+                <input className="dnd-input" placeholder="Nombre de la party..." value={partyCreateName}
+                  onChange={e => setPartyCreateName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createParty()} autoFocus />
+                <div className="dnd-modal-btns">
+                  <button className="dnd-btn-primary" onClick={createParty}>Crear</button>
+                  <button className="dnd-btn-cancel" onClick={() => setPartyCreateModal(false)}>Cancelar</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>}
+
         {/* ── Personajes ── */}
         <div className="dnd-glossary-section">
           <div className="dnd-glossary-header" onClick={() => toggleExpand('characters')}>
             <span className="dnd-chevron">{expanded.characters ? '▾' : '▸'}</span>
-            <span className="dnd-glossary-title">🛡️ Personajes ({characters.length})</span>
+            <span className="dnd-glossary-title">🛡️ Personajes</span>
             <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setCharacterModal({ mode: 'create', character: null }) }}>+ Personaje</button>
           </div>
           {expanded.characters && <>
@@ -579,7 +802,11 @@ export default function DnD() {
                   expanded={expandedCharacter === ch.id}
                   onToggle={() => setExpandedCharacter(expandedCharacter === ch.id ? null : ch.id)}
                   onEdit={() => setCharacterModal({ mode: 'edit', character: ch })}
-                  onDelete={() => deleteCharacter(ch.id)} />
+                  onDelete={() => deleteCharacter(ch.id)}
+                  onSave={quickSaveCharacter}
+                  onAddToParty={addToParty}
+                  parties={parties}
+                  isMaster={isMaster} />
               ))}
             </div>
           </>}
@@ -589,7 +816,7 @@ export default function DnD() {
         <div className="dnd-glossary-section">
           <div className="dnd-glossary-header" onClick={() => toggleExpand('glossary')}>
             <span className="dnd-chevron">{expanded.glossary ? '▾' : '▸'}</span>
-            <span className="dnd-glossary-title">📖 Glosario ({glossary.entries.length})</span>
+            <span className="dnd-glossary-title">📖 Glosario</span>
             {isMaster && <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setGlossaryModal({ mode: 'create', entry: null }) }}>+ Entrada</button>}
           </div>
           {expanded.glossary && <>
@@ -644,6 +871,33 @@ export default function DnD() {
             )}
           </>}
         </div>
+
+        {/* ── Gestor de Imágenes ── */}
+        {isMaster && <div className="dnd-glossary-section">
+          <div className="dnd-glossary-header" onClick={() => { toggleExpand('imageManager'); if (!globalImages) loadGlobalImages() }}>
+            <span className="dnd-chevron">{expanded.imageManager ? '▾' : '▸'}</span>
+            <span className="dnd-glossary-title">🖼️ Gestor de Imágenes</span>
+          </div>
+          {expanded.imageManager && (
+            <ImageManager
+              data={globalImages}
+              onNavigate={loadGlobalImages}
+              onSend={sendImageToViewer}
+              onImageClick={img => setImageModal({ img })}
+            />
+          )}
+        </div>}
+
+        {/* Modal de asignación de imagen */}
+        {imageModal && (
+          <ImageAssignModal
+            img={imageModal.img}
+            campaigns={campaigns}
+            onAssign={(campaignId, chapterId) => { assignImageToChapter(campaignId, chapterId, imageModal.img); setImageModal(null) }}
+            onSend={(channel) => { sendImageToViewer(imageModal.img, channel); setImageModal(null) }}
+            onClose={() => setImageModal(null)}
+          />
+        )}
       </main>
 
       {modal && (
@@ -693,7 +947,183 @@ export default function DnD() {
   )
 }
 
-// ── Componente: Navegador de imágenes ──────────────────────
+// ── Componente: Gestor de Imágenes global ─────────────────
+function ImageManager({ data, onNavigate, onSend, onImageClick }) {
+  const { user } = useAuth()
+  const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
+  const fileInputRef = useRef(null)
+  const [uploads, setUploads] = useState([]) // [{ name, status: 'wait'|'sending'|'success'|'error', progress, error }]
+
+  if (!data) return <div className="dnd-empty-sm">Cargando...</div>
+
+  const crumbs = data.path ? data.path.split('/') : []
+  const parentPath = crumbs.length > 1 ? crumbs.slice(0, -1).join('/') : ''
+
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    // Crear entradas en la tabla
+    const entries = files.map(f => ({ name: f.name, status: 'wait', progress: 0, error: '' }))
+    setUploads(prev => [...prev, ...entries])
+    const startIdx = uploads.length
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const idx = startIdx + i
+      // Marcar como sending
+      setUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'sending', progress: 10 } : u))
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('Error leyendo archivo'))
+          reader.onprogress = (ev) => {
+            if (ev.lengthComputable) {
+              const pct = Math.round((ev.loaded / ev.total) * 40)
+              setUploads(prev => prev.map((u, j) => j === idx ? { ...u, progress: pct } : u))
+            }
+          }
+          reader.readAsDataURL(file)
+        })
+        setUploads(prev => prev.map((u, j) => j === idx ? { ...u, progress: 50 } : u))
+        const res = await fetch('/api/dnd/images/upload', {
+          method: 'POST', headers,
+          body: JSON.stringify({ data: base64, filename: file.name, path: data.path || '' })
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || res.statusText)
+        }
+        setUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'success', progress: 100 } : u))
+      } catch (err) {
+        setUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'error', progress: 0, error: err.message } : u))
+      }
+    }
+    // Refrescar carpeta
+    onNavigate(data.path || '')
+    // Limpiar input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function clearUploads() {
+    setUploads(prev => prev.filter(u => u.status === 'sending'))
+  }
+
+  const statusIcons = { wait: '⏳', sending: '📤', success: '✅', error: '❌' }
+
+  return (
+    <div className="dnd-image-browser">
+      <div className="dnd-breadcrumb">
+        <button className="dnd-crumb" onClick={() => onNavigate('')}>🏠 Raíz</button>
+        {crumbs.map((c, i) => (
+          <span key={i}>
+            <span className="dnd-crumb-sep"> / </span>
+            <button className="dnd-crumb" onClick={() => onNavigate(crumbs.slice(0, i + 1).join('/'))}>{c}</button>
+          </span>
+        ))}
+        <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={() => fileInputRef.current?.click()}>📤 Subir imágenes</button>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{display:'none'}} />
+      </div>
+      {data.path && <button className="dnd-folder-up" onClick={() => onNavigate(parentPath)}>⬆ Subir</button>}
+
+      {/* Tabla de uploads */}
+      {uploads.length > 0 && (
+        <div className="img-upload-table">
+          <div className="img-upload-table-header">
+            <span>Subidas</span>
+            <button className="dnd-btn-sm" onClick={clearUploads} title="Limpiar completados">✕ Limpiar</button>
+          </div>
+          {uploads.map((u, i) => (
+            <div key={i} className={`img-upload-row img-upload-${u.status}`}>
+              <span className="img-upload-status">{statusIcons[u.status]}</span>
+              <span className="img-upload-name">{u.name}</span>
+              {u.status === 'sending' && (
+                <div className="img-upload-progress-bar">
+                  <div className="img-upload-progress-fill" style={{width: `${u.progress}%`}} />
+                </div>
+              )}
+              {u.status === 'success' && <span className="img-upload-pct">100%</span>}
+              {u.status === 'error' && <span className="img-upload-error" title={u.error}>Error</span>}
+              {u.status === 'wait' && <span className="img-upload-pct">—</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data.folders.length > 0 && (
+        <div className="dnd-folder-list">
+          {data.folders.map(f => (
+            <button key={f.path} className="dnd-folder" onClick={() => onNavigate(f.path)}>📁 {f.name}</button>
+          ))}
+        </div>
+      )}
+      {data.images.length > 0 && (
+        <div className="dnd-image-grid">
+          {data.images.map(img => (
+            <div key={img.url} className="dnd-image-thumb" title={img.name} onClick={() => onImageClick(img)}>
+              <img src={img.url} alt={img.name} loading="lazy" />
+              <div className="dnd-image-overlay">
+                <span className="dnd-image-name">{img.name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {data.folders.length === 0 && data.images.length === 0 && (
+        <div className="dnd-empty-sm">Carpeta vacía</div>
+      )}
+    </div>
+  )
+}
+
+// ── Componente: Modal de asignación de imagen ──────────────
+function ImageAssignModal({ img, campaigns, onAssign, onSend, onClose }) {
+  const [selectedCampaign, setSelectedCampaign] = useState(campaigns[0]?.id || null)
+  const selectedCamp = campaigns.find(c => c.id === selectedCampaign)
+
+  return (
+    <div className="dnd-modal-overlay" onClick={onClose}>
+      <div className="dnd-modal img-assign-modal" onClick={e => e.stopPropagation()}>
+        <div className="img-assign-preview">
+          <img src={img.url} alt={img.name} />
+        </div>
+        <div className="img-assign-name">{img.name}</div>
+
+        <div className="img-assign-actions">
+          <button className="dnd-btn-sm dnd-btn-viewer" onClick={() => onSend('main')}>📺 Main</button>
+          <button className="dnd-btn-sm dnd-btn-viewer" onClick={() => onSend('tablet')}>📱 Tablet</button>
+        </div>
+
+        {campaigns.length > 0 && (
+          <div className="img-assign-section">
+            <div className="img-assign-label">Asignar a capítulo</div>
+            <select className="dnd-input" value={selectedCampaign || ''} onChange={e => setSelectedCampaign(parseInt(e.target.value))}>
+              {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            {selectedCamp && selectedCamp.chapters.length > 0 ? (
+              <div className="img-assign-chapters">
+                {selectedCamp.chapters.map(ch => (
+                  <button key={ch.id} className="img-assign-chapter-btn" onClick={() => onAssign(selectedCamp.id, ch.id)}>
+                    📎 {ch.name}
+                    {(ch.images||[]).some(i => i.url === img.url) && <span className="img-assign-already">✔</span>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="dnd-empty-sm">Sin capítulos en esta campaña</div>
+            )}
+          </div>
+        )}
+
+        <div className="dnd-modal-btns">
+          <button className="dnd-btn-cancel" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Componente: Navegador de imágenes (legacy, para capítulos) ──
 function ImageBrowser({ data, onNavigate, onSend }) {
   if (!data) return <div className="dnd-empty-sm">Cargando...</div>
   if (data.error) return <div className="dnd-empty-sm">Crea la carpeta <code>/home/jai/apps/jaijur/public/dndImages</code> y sube imágenes ahí (o en subcarpetas).</div>
@@ -840,13 +1270,40 @@ function GlossaryCard({ entry, expanded, onToggle, onEdit, onDelete, onSendImage
   const catLabel = { enemy: 'Enemigo', artifact: 'Artefacto', lore: 'Lore', spell: 'Hechizo' }
   const s = entry.stats || {}
   const mod = v => { const m = Math.floor((v-10)/2); return m >= 0 ? `+${m}` : `${m}` }
+  const [openSections, setOpenSections] = useState({})
+  const [actionTab, setActionTab] = useState('melee')
+  const toggleSec = key => setOpenSections(p => ({ ...p, [key]: !p[key] }))
+
+  const GlossaryAccordion = ({ id, label, children, count }) => {
+    const isOpen = openSections[id]
+    return (
+      <div className="cc-accordion">
+        <div className="cc-accordion-header" onClick={() => toggleSec(id)}>
+          <span className="cc-accordion-chevron">{isOpen ? '▾' : '▸'}</span>
+          <span className="cc-accordion-label">{label}</span>
+          {count != null && <span className="cc-accordion-count">{count}</span>}
+        </div>
+        {isOpen && <div className="cc-accordion-body">{children}</div>}
+      </div>
+    )
+  }
+
+  const hasSkills = (entry.skills||[]).length > 0
+  const hasTraits = (entry.traits||[]).length > 0
+  const hasActions = (entry.actions||[]).length > 0
+  const hasAbilities = (entry.abilities||[]).length > 0
+  const hasSpellSlots = entry.spellSlots && typeof entry.spellSlots === 'object' && Object.values(entry.spellSlots).some(v => v > 0)
 
   return (
-    <div className={`glossary-card ${expanded ? 'expanded' : ''} ${entry.hidden ? 'glossary-card-hidden' : ''}`}>
+    <div className={`glossary-card ${expanded ? 'expanded' : ''} ${entry.hidden ? 'glossary-card-hidden' : ''}`} data-glossary-id={entry.id}>
       <div className="glossary-card-header" onClick={onToggle}>
         {isFavorite && <span className="glossary-card-fav-star">★</span>}
         {entry.hidden && <span className="glossary-hidden-badge" title="Oculto para jugadores">🙈</span>}
-        <span className="glossary-card-cat">{catIcons[entry.category] || '📄'}</span>
+        {entry.category === 'enemy' && (entry.portraits||[]).length > 0 ? (
+          <img src={entry.portraits[0]} alt="" className="glossary-card-enemy-thumb" />
+        ) : (
+          <span className="glossary-card-cat">{catIcons[entry.category] || '📄'}</span>
+        )}
         <span className="glossary-card-name">{entry.name || 'Sin nombre'}</span>
         {entry.category === 'enemy' && s.challenge && <span className="glossary-card-cr">CR {s.challenge}</span>}
         {entry.category === 'artifact' && entry.rarity && <span className="glossary-card-rarity">{entry.rarity}</span>}
@@ -876,73 +1333,58 @@ function GlossaryCard({ entry, expanded, onToggle, onEdit, onDelete, onSendImage
                 ))}
               </div>
 
-              {(entry.skills||[]).length > 0 && (
-                <div className="glossary-section-label">Habilidades</div>
+              {hasSkills && (
+                <GlossaryAccordion id="skills" label="Habilidades" count={entry.skills.length}>
+                  <div className="glossary-skills">
+                    {entry.skills.map((sk,i) => (
+                      <span key={i} className="glossary-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>
+                    ))}
+                  </div>
+                </GlossaryAccordion>
               )}
-              {(entry.skills||[]).length > 0 && (
-                <div className="glossary-skills">
-                  {entry.skills.map((sk,i) => (
-                    <span key={i} className="glossary-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>
+
+              {hasTraits && (
+                <GlossaryAccordion id="traits" label="Rasgos" count={entry.traits.length}>
+                  {entry.traits.map((t,i) => (
+                    <div key={i} className="glossary-trait">
+                      <strong>{t.name}.</strong> {t.description}
+                    </div>
                   ))}
-                </div>
+                </GlossaryAccordion>
               )}
 
-              {(entry.traits||[]).length > 0 && (
-                <div className="glossary-section-label">Rasgos</div>
+              {(hasActions || hasSpellSlots) && (
+                <GlossaryAccordion id="actions" label="Acciones" count={hasActions ? entry.actions.length : undefined}>
+                  {hasSpellSlots && (
+                    <div className="glossary-spell-slots">
+                      <span className="glossary-spell-slots-label">🔮 Huecos de conjuro:</span>
+                      <div className="glossary-spell-slots-grid">
+                        {[1,2,3,4,5,6,7,8,9].map(lv => {
+                          const val = entry.spellSlots[lv] || 0
+                          if (!val) return null
+                          return <span key={lv} className="glossary-spell-slot-badge">Nv.{lv}: {val}</span>
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {entry.spellSlots && typeof entry.spellSlots === 'number' && entry.spellSlots > 0 && (
+                    <div className="glossary-spell-slots">🔮 Espacios de conjuro: {entry.spellSlots}</div>
+                  )}
+                  {hasActions && <ActionsPanel actions={entry.actions} favoriteActions={[]} actionTab={actionTab} setActionTab={setActionTab} onToggleFav={() => {}} />}
+                </GlossaryAccordion>
               )}
-              {(entry.traits||[]).map((t,i) => (
-                <div key={i} className="glossary-trait">
-                  <strong>{t.name}.</strong> {t.description}
-                </div>
-              ))}
-              {(entry.actions||[]).length > 0 && (
-                <div className="glossary-section-label">Acciones</div>
-              )}
-              {entry.spellSlots && typeof entry.spellSlots === 'object' && Object.values(entry.spellSlots).some(v => v > 0) && (
-                <div className="glossary-spell-slots">
-                  <span className="glossary-spell-slots-label">🔮 Huecos de conjuro:</span>
-                  <div className="glossary-spell-slots-grid">
-                    {[1,2,3,4,5,6,7,8,9].map(lv => {
-                      const val = entry.spellSlots[lv] || 0
-                      if (!val) return null
-                      return <span key={lv} className="glossary-spell-slot-badge">Nv.{lv}: {val}</span>
-                    })}
-                  </div>
-                </div>
-              )}
-              {entry.spellSlots && typeof entry.spellSlots === 'number' && entry.spellSlots > 0 && (
-                <div className="glossary-spell-slots">🔮 Espacios de conjuro: {entry.spellSlots}</div>
-              )}
-              {(entry.actions||[]).map((a,i) => (
-                <div key={i} className="glossary-action">
-                  <div className="glossary-action-header">
-                    <strong>{a.name}</strong>
-                    {a.actionType && a.actionType !== 'normal' && <span className="glossary-action-type">{a.actionType === 'bonus' ? 'Adic.' : a.actionType === 'reaction' ? 'Reacción' : 'Ritual'}</span>}
-                    {a.isSpell && <span className="glossary-action-spell">🔮 {a.spellLevel === 'truco' ? 'Truco' : `Nv.${a.spellLevel}`}</span>}
-                    {a.range && <span className="glossary-action-range">{a.range}</span>}
-                    {a.aoe && <span className="glossary-action-aoe">◎ {a.aoe}</span>}
-                    {a.modifier != null && a.modifier !== '' && <span className="glossary-action-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>}
-                  </div>
-                  <div className="glossary-action-dmg">
-                    {a.damage && <span className="glossary-damage">⚔ {a.damage}</span>}
-                    {a.secondaryDamage && <span className="glossary-damage glossary-damage-secondary">+ {a.secondaryDamage}</span>}
-                  </div>
-                  {a.note && <div className="glossary-action-note">{a.note}</div>}
-                </div>
-              ))}
-            </div>
-          )}
 
-          {entry.category === 'enemy' && (entry.abilities||[]).length > 0 && (
-            <div className="glossary-abilities-block">
-              <div className="glossary-section-label">Habilidades especiales</div>
-              {entry.abilities.map((ab,i) => (
-                <div key={i} className="glossary-ability">
-                  <strong>{ab.name}</strong>
-                  {ab.uses && <span className="glossary-ability-uses">({ab.uses})</span>}
-                  <span className="glossary-ability-desc">. {ab.description}</span>
-                </div>
-              ))}
+              {hasAbilities && (
+                <GlossaryAccordion id="abilities" label="Habilidades especiales" count={entry.abilities.length}>
+                  {entry.abilities.map((ab,i) => (
+                    <div key={i} className="glossary-ability">
+                      <strong>{ab.name}</strong>
+                      {ab.uses && <span className="glossary-ability-uses">({ab.uses})</span>}
+                      <span className="glossary-ability-desc">. {ab.description}</span>
+                    </div>
+                  ))}
+                </GlossaryAccordion>
+              )}
             </div>
           )}
 
@@ -1090,11 +1532,44 @@ function SpellPicker({ spells, onSelect, onClose }) {
 // ── Componente: Modal de creación/edición del glosario ─────
 function GlossaryModal({ mode, entry: initialEntry, onSave, onClose, templates, glossarySpells }) {
   const [entry, setEntry] = useState(() => {
-    if (mode === 'edit' && initialEntry) return { ...initialEntry }
+    if (mode === 'edit' && initialEntry) return { ...initialEntry, portraits: initialEntry.portraits || [] }
     return templates.enemy()
   })
   const [tagsInput, setTagsInput] = useState((initialEntry?.tags || []).join(', '))
   const [showSpellPicker, setShowSpellPicker] = useState(false)
+  const [uploadingPortrait, setUploadingPortrait] = useState(false)
+  const portraitInputRef = useRef(null)
+
+  async function handlePortraitUpload(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploadingPortrait(true)
+    for (const file of files) {
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('Error leyendo archivo'))
+          reader.readAsDataURL(file)
+        })
+        const res = await fetch('/api/dnd/portraits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': '1' },
+          body: JSON.stringify({ data: base64, filename: file.name })
+        })
+        if (res.ok) {
+          const { url } = await res.json()
+          setEntry(en => ({ ...en, portraits: [...(en.portraits || []), url] }))
+        }
+      } catch (err) { console.error('Portrait upload error:', err) }
+    }
+    setUploadingPortrait(false)
+    if (portraitInputRef.current) portraitInputRef.current.value = ''
+  }
+
+  function removePortrait(url) {
+    setEntry(en => ({ ...en, portraits: (en.portraits || []).filter(p => p !== url) }))
+  }
 
   function update(field, val) { setEntry(e => ({ ...e, [field]: val })) }
   function updateStat(key, val) { setEntry(e => ({ ...e, stats: { ...e.stats, [key]: val } })) }
@@ -1166,6 +1641,22 @@ function GlossaryModal({ mode, entry: initialEntry, onSave, onClose, templates, 
         )}
 
         {entry.category === 'enemy' && <>
+          <div className="glossary-form-row">
+            <label>Fotos de perfil <button className="dnd-btn-sm" onClick={() => portraitInputRef.current?.click()} disabled={uploadingPortrait}>{uploadingPortrait ? '📤...' : '📤 Subir'}</button></label>
+            <input ref={portraitInputRef} type="file" accept="image/*" multiple onChange={handlePortraitUpload} style={{display:'none'}} />
+            {(entry.portraits||[]).length > 0 ? (
+              <div className="enemy-portraits-grid">
+                {entry.portraits.map((url, i) => (
+                  <div key={i} className="enemy-portrait-thumb">
+                    <img src={url} alt={`Retrato ${i+1}`} />
+                    <button className="enemy-portrait-remove" onClick={() => removePortrait(url)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="dnd-empty-sm">Sin fotos — al añadir al grupo se asignará una aleatoriamente</div>
+            )}
+          </div>
           <div className="glossary-form-row">
             <label>Stats</label>
             <div className="glossary-stat-grid">
@@ -1440,132 +1931,139 @@ function GlossaryModal({ mode, entry: initialEntry, onSave, onClose, templates, 
 }
 
 
-// ── Componente: Panel de combate ───────────────────────────
-function EncounterPanel({ mapId, enemies, glossaryEnemies, onAddEnemy, onUpdate, onRemove, onClear, glossaryFavorites }) {
-  const [showPicker, setShowPicker] = useState(false)
-  const [search, setSearch] = useState('')
-  const [pickerPage, setPickerPage] = useState(0)
-  const PICKER_PAGE_SIZE = 10
 
-  const sorted = [...enemies].sort((a, b) => (b.initiative || 0) - (a.initiative || 0))
 
-  const isAnyFav = (id) => Object.values(glossaryFavorites || {}).some(ids => ids.includes(id))
-  const filtered = glossaryEnemies
-    .filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      const aF = isAnyFav(a.id) ? 1 : 0
-      const bF = isAnyFav(b.id) ? 1 : 0
-      return bF - aF
-    })
-  const pickerTotalPages = Math.ceil(filtered.length / PICKER_PAGE_SIZE)
-  const pickerPageItems = filtered.slice(pickerPage * PICKER_PAGE_SIZE, (pickerPage + 1) * PICKER_PAGE_SIZE)
+// ── Componente: Panel de acciones con categorías y cards ───
+function ActionsPanel({ actions, favoriteActions, actionTab, setActionTab, onToggleFav, openActionIdx, setOpenActionIdx }) {
+  const favSet = new Set(favoriteActions || [])
 
-  return (
-    <div className="encounter-panel">
-      <div className="encounter-actions-bar">
-        <button className="dnd-btn-sm" onClick={() => setShowPicker(!showPicker)}>
-          {showPicker ? '✕ Cerrar' : '+ Añadir enemigo'}
-        </button>
-        {enemies.length > 0 && <button className="dnd-btn-sm dnd-btn-danger" onClick={onClear}>🗑 Limpiar</button>}
-      </div>
+  const melee = []
+  const spells = []
+  const favs = []
+  actions.forEach((a, i) => {
+    if (favSet.has(i)) favs.push({ ...a, _idx: i })
+    if (a.isSpell) spells.push({ ...a, _idx: i })
+    else melee.push({ ...a, _idx: i })
+  })
 
-      {showPicker && (
-        <div className="encounter-picker">
-          <input className="dnd-glossary-search" placeholder="Buscar enemigo..." value={search} onChange={e => { setSearch(e.target.value); setPickerPage(0) }} autoFocus />
-          <div className="encounter-picker-list">
-            {pickerPageItems.length === 0 && <div className="dnd-empty-sm">{search ? 'Sin resultados' : 'Sin enemigos en el glosario'}</div>}
-            {pickerPageItems.map(entry => {
-              const hp = entry.stats?.hp
-              const hpLabel = hp ? `${hp.dice}d${hp.sides}${hp.modifier ? (hp.modifier > 0 ? `+${hp.modifier}` : hp.modifier) : ''}` : '?'
-              const fav = isAnyFav(entry.id)
-              return (
-                <button key={entry.id} className="encounter-picker-item" onClick={() => { onAddEnemy(entry); setSearch('') }}>
-                  {fav && <span className="glossary-card-fav-star">★</span>}
-                  <span className="encounter-picker-name">{entry.name}</span>
-                  <span className="encounter-picker-info">PG {hpLabel} · CA {entry.stats?.ca || '?'} · CR {entry.stats?.challenge || '?'}</span>
-                </button>
-              )
-            })}
-          </div>
-          {pickerTotalPages > 1 && (
-            <div className="glossary-pagination" style={{marginTop:6}}>
-              <button className="dnd-btn-sm" disabled={pickerPage === 0} onClick={() => setPickerPage(p => p - 1)}>←</button>
-              <span className="glossary-page-info">{pickerPage + 1}/{pickerTotalPages}</span>
-              <button className="dnd-btn-sm" disabled={pickerPage >= pickerTotalPages - 1} onClick={() => setPickerPage(p => p + 1)}>→</button>
-            </div>
+  // Si no hay favoritos y tab es fav, auto-switch
+  const activeTab = actionTab === 'fav' && favs.length === 0 ? 'melee' : actionTab
+
+  const tabActions = activeTab === 'fav' ? favs : activeTab === 'spell' ? spells : melee
+  // Fallback local si no se pasan props
+  const [localOpen, setLocalOpen] = useState(null)
+  const effectiveOpen = openActionIdx !== undefined ? openActionIdx : localOpen
+  const effectiveSetOpen = setOpenActionIdx || setLocalOpen
+
+  function ActionCard({ a }) {
+    const isFav = favSet.has(a._idx)
+    const isOpen = effectiveOpen === a._idx
+
+    const cardContent = () => (
+      <>
+        <div className="action-card-top">
+          <button className={`action-card-fav ${isFav ? 'active' : ''}`} onClick={e => { e.stopPropagation(); onToggleFav(a._idx) }}>
+            {isFav ? '★' : '☆'}
+          </button>
+          <span className="action-card-name">{a.name}</span>
+          {a.actionType && a.actionType !== 'normal' && (
+            <span className="action-card-type">{a.actionType === 'bonus' ? 'Adic.' : a.actionType === 'reaction' ? 'Reacción' : 'Ritual'}</span>
           )}
         </div>
-      )}
-
-      {enemies.length === 0 && !showPicker && <div className="dnd-empty-sm">Sin enemigos — añade desde el glosario</div>}
-
-      {sorted.length > 0 && (
-        <div className="encounter-list">
-          {sorted.map((enemy, idx) => (
-            <EnemyCard key={enemy.id} enemy={enemy} index={idx}
-              onUpdate={(updates) => onUpdate(enemy.id, updates)}
-              onRemove={() => onRemove(enemy.id)} />
-          ))}
+        <div className="action-card-body">
+          {a.isSpell && <span className="action-card-spell">🔮 {a.spellLevel === 'truco' ? 'Truco' : `Nv.${a.spellLevel}`}</span>}
+          {a.range && <span className="action-card-range">📏 {a.range}</span>}
+          {a.aoe && <span className="action-card-aoe">◎ {a.aoe}</span>}
+          {a.modifier != null && a.modifier !== '' && a.modifier !== 0 && (
+            <span className="action-card-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>
+          )}
         </div>
-      )}
-    </div>
-  )
-}
+        {(a.damage || a.secondaryDamage) && (
+          <div className="action-card-dmg">
+            {a.damage && <span className="action-card-dmg-main">⚔ {a.damage}</span>}
+            {a.secondaryDamage && <span className="action-card-dmg-sec">+ {a.secondaryDamage}</span>}
+          </div>
+        )}
+        {a.concentration && <div className="action-card-conc">🎯 Concentración</div>}
+        {a.note && <div className="action-card-note">{a.note}</div>}
+      </>
+    )
 
-// ── Componente: Card de enemigo en combate ─────────────────
-function EnemyCard({ enemy, index, onUpdate, onRemove }) {
-  const [dmg, setDmg] = useState('')
-  const hpPct = enemy.maxHp ? Math.max(0, (enemy.hp / enemy.maxHp) * 100) : 100
-  const hpColor = hpPct > 50 ? '#6ee7b7' : hpPct > 25 ? '#fbbf24' : '#f87171'
-  const isDead = enemy.hp <= 0
-
-  function applyDamage(amount) {
-    const val = amount || parseInt(dmg) || 1
-    onUpdate({ hp: Math.max(0, enemy.hp - val) })
-    if (!amount) setDmg('')
-  }
-  function applyHeal(amount) {
-    const val = amount || parseInt(dmg) || 1
-    onUpdate({ hp: Math.min(enemy.maxHp || 999, enemy.hp + val) })
-    if (!amount) setDmg('')
+    return (
+      <>
+        <div className="action-card" onClick={() => effectiveSetOpen(a._idx)}>
+          {cardContent()}
+        </div>
+        {isOpen && (
+          <div className="action-card-overlay" onClick={() => effectiveSetOpen(null)}>
+            <div className="action-card-modal" onClick={e => e.stopPropagation()}>
+              {cardContent()}
+            </div>
+          </div>
+        )}
+      </>
+    )
   }
 
   return (
-    <div className={`enemy-card ${isDead ? 'enemy-dead' : ''}`}>
-      <div className="enemy-card-header">
-        <span className="enemy-init-badge" title="Iniciativa">{enemy.initiative}</span>
-        <span className="enemy-card-name">{enemy.name}</span>
-        <span className="enemy-card-ca" title="Clase de Armadura">CA {enemy.ca}</span>
-        <button className="dnd-btn-sm dnd-btn-danger enemy-card-remove" onClick={onRemove}>✕</button>
+    <div className="actions-panel">
+      <div className="actions-tabs">
+        <button className={`actions-tab ${activeTab === 'fav' ? 'active' : ''}`} onClick={() => setActionTab('fav')}>
+          ★ Favoritos {favs.length > 0 && <span className="actions-tab-count">{favs.length}</span>}
+        </button>
+        <button className={`actions-tab ${activeTab === 'melee' ? 'active' : ''}`} onClick={() => setActionTab('melee')}>
+          ⚔ Cuerpo {melee.length > 0 && <span className="actions-tab-count">{melee.length}</span>}
+        </button>
+        <button className={`actions-tab ${activeTab === 'spell' ? 'active' : ''}`} onClick={() => setActionTab('spell')}>
+          🔮 Hechizos {spells.length > 0 && <span className="actions-tab-count">{spells.length}</span>}
+        </button>
       </div>
-
-      <div className="enemy-hp-section">
-        <div className="enemy-hp-bar-bg">
-          <div className="enemy-hp-bar" style={{width:`${hpPct}%`, background: hpColor}} />
-        </div>
-        <span className="enemy-hp-text" style={{color: hpColor}}>
-          {isDead ? '💀 Muerto' : `${enemy.hp} / ${enemy.maxHp} PG`}
-        </span>
+      <div className="actions-grid">
+        {tabActions.length === 0 && (
+          <div className="dnd-empty-sm" style={{gridColumn:'1/-1'}}>
+            {activeTab === 'fav' ? 'Sin favoritos — marca acciones con ★' : 'Sin acciones en esta categoría'}
+          </div>
+        )}
+        {tabActions.map(a => <ActionCard key={a._idx} a={a} />)}
       </div>
-
-      {!isDead && (
-        <div className="enemy-dmg-row">
-          <button className="dnd-btn-sm enemy-btn-dmg" onClick={() => applyDamage(1)} title="−1 PG">−💔</button>
-          <input className="dnd-input enemy-dmg-input" type="number" min="1" placeholder="±" value={dmg}
-            onChange={e => setDmg(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') applyDamage() }} />
-          <button className="dnd-btn-sm enemy-btn-heal" onClick={() => applyHeal(1)} title="+1 PG">+💚</button>
-        </div>
-      )}
     </div>
   )
 }
 
-
 // ── Componente: Ficha de personaje ─────────────────────────
-function CharacterCard({ character, expanded, onToggle, onEdit, onDelete }) {
+function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave, onAddToParty, parties, isMaster }) {
   const s = character.stats || {}
   const mod = v => { const m = Math.floor((v-10)/2); return m >= 0 ? `+${m}` : `${m}` }
+  const [openSections, setOpenSections] = useState({})
+  const [actionTab, setActionTab] = useState('fav')
+  const [openActionIdx, setOpenActionIdx] = useState(null)
+  const toggleSec = key => setOpenSections(p => ({ ...p, [key]: !p[key] }))
+
+  const SectionAccordion = ({ id, label, children, count }) => {
+    const isOpen = openSections[id]
+    return (
+      <div className="cc-accordion">
+        <div className="cc-accordion-header" onClick={() => toggleSec(id)}>
+          <span className="cc-accordion-chevron">{isOpen ? '▾' : '▸'}</span>
+          <span className="cc-accordion-label">{label}</span>
+          {count != null && <span className="cc-accordion-count">{count}</span>}
+        </div>
+        {isOpen && <div className="cc-accordion-body">{children}</div>}
+      </div>
+    )
+  }
+
+  const hasSaves = character.savingThrows && Object.values(character.savingThrows).some(v => v)
+  const hasSkills = (character.skills||[]).length > 0
+  const allTraits = [...(character.traits||[]), ...(character.bgTraits||[])]
+  const hasTraits = allTraits.length > 0
+  const hasActions = (character.actions||[]).length > 0
+  const hasAbilities = (character.abilities||[]).length > 0
+  const hasSpellSlots = character.spellSlots && typeof character.spellSlots === 'object' && Object.values(character.spellSlots).some(v => v > 0)
+  const hasProficiencies = [...(character.proficiencies||[]), ...(character.bgTools||[])].length > 0
+  const allEquipment = [...(character.equipment||[]), ...(character.bgEquipment||[])]
+  const hasEquipment = allEquipment.length > 0
+  const hasConsumables = (character.consumables||[]).length > 0
 
   return (
     <div className={`glossary-card ${expanded ? 'expanded' : ''}`}>
@@ -1573,7 +2071,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete }) {
         <span className="glossary-card-cat">🛡️</span>
         <span className="glossary-card-name">{character.name || 'Sin nombre'}</span>
         {character.race && <span className="glossary-card-cr">{character.race}</span>}
-        {character.class && <span className="glossary-card-rarity">{character.class} Nv.{character.level || 1}</span>}
+        {character.class && <span className="glossary-card-rarity">{character.class}{character.subclass ? ` (${character.subclass})` : ''} Nv.{character.level || 1}</span>}
         <span className="glossary-card-chevron">{expanded ? '▾' : '▸'}</span>
       </div>
 
@@ -1581,26 +2079,35 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete }) {
         <div className="glossary-card-body">
           {character.description && <p className="glossary-desc">{character.description}</p>}
 
-          <div className="glossary-stats-block">
-            <div className="glossary-stats-row">
-              <span className="glossary-stat-badge">CA {s.ca}</span>
-              <span className="glossary-stat-badge">PG {s.hp?.current ?? '?'} / {s.hp?.max ?? '?'}</span>
-              <span className="glossary-stat-badge">Vel. {s.speed}</span>
-              <span className="glossary-stat-badge">Comp. +{s.proficiencyBonus || 2}</span>
-            </div>
-            <div className="glossary-attrs">
-              {[['FUE',s.str],['DES',s.dex],['CON',s.con],['INT',s.int],['SAB',s.wis],['CAR',s.cha]].map(([label,val]) => (
-                <div key={label} className="glossary-attr">
-                  <span className="glossary-attr-label">{label}</span>
-                  <span className="glossary-attr-val">{val}</span>
+          <div className="cc-profile-layout">
+            {character.portrait && (
+              <div className="cc-profile-portrait">
+                <img src={character.portrait} alt="" />
+              </div>
+            )}
+            <div className="cc-profile-stats">
+              <div className="glossary-stats-row">
+                <span className="glossary-stat-badge">CA {s.ca}</span>
+                <span className="glossary-stat-badge">PG {s.hp?.current ?? '?'} / {s.hp?.max ?? '?'}</span>
+                <span className="glossary-stat-badge">Vel. {s.speed}</span>
+                <span className="glossary-stat-badge">Comp. +{s.proficiencyBonus || 2}</span>
+                {s.passivePerception != null && <span className="glossary-stat-badge">PP {s.passivePerception}</span>}
+                {s.hitDice && <span className="glossary-stat-badge">DG {s.hitDice.count}d{s.hitDice.die}</span>}
+              </div>
+              <div className="glossary-attrs">
+                {[['FUE',s.str],['DES',s.dex],['CON',s.con],['INT',s.int],['SAB',s.wis],['CAR',s.cha]].map(([label,val]) => (
+                  <div key={label} className="glossary-attr">
+                    <span className="glossary-attr-label">{label}</span>
+                    <span className="glossary-attr-val">{val}</span>
                   <span className="glossary-attr-mod">{mod(val||10)}</span>
                 </div>
               ))}
+              </div>
             </div>
+          </div>
 
-            {character.savingThrows && Object.values(character.savingThrows).some(v => v) && (
-              <>
-                <div className="glossary-section-label">Tiradas de salvación</div>
+            {hasSaves && (
+              <SectionAccordion id="saves" label="Tiradas de salvación" count={[['FUE','str'],['DES','dex'],['CON','con'],['INT','int'],['SAB','wis'],['CAR','cha']].filter(([,k]) => character.savingThrows[k]).length}>
                 <div className="glossary-skills">
                   {[['FUE','str'],['DES','dex'],['CON','con'],['INT','int'],['SAB','wis'],['CAR','cha']]
                     .filter(([,key]) => character.savingThrows[key])
@@ -1609,75 +2116,102 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete }) {
                       return <span key={key} className="glossary-skill-badge">{label} {bonus >= 0 ? '+' : ''}{bonus}</span>
                     })}
                 </div>
-              </>
+              </SectionAccordion>
             )}
 
-            {(character.skills||[]).length > 0 && (
-              <div className="glossary-section-label">Habilidades</div>
+            {hasSkills && (
+              <SectionAccordion id="skills" label="Habilidades" count={character.skills.length}>
+                <div className="glossary-skills">
+                  {character.skills.map((sk,i) => (
+                    <span key={i} className="glossary-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>
+                  ))}
+                </div>
+              </SectionAccordion>
             )}
-            {(character.skills||[]).length > 0 && (
-              <div className="glossary-skills">
-                {character.skills.map((sk,i) => (
-                  <span key={i} className="glossary-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>
+
+            {hasProficiencies && (() => {
+              const allProfs = [...(character.proficiencies||[]), ...(character.bgTools||[])]
+              return (
+              <SectionAccordion id="profs" label="Competencias" count={allProfs.length}>
+                <div className="glossary-skills">
+                  {allProfs.map((p,i) => (
+                    <span key={i} className="glossary-skill-badge">{p}</span>
+                  ))}
+                </div>
+              </SectionAccordion>
+            )})()}
+
+            {hasTraits && (
+              <SectionAccordion id="traits" label="Rasgos" count={allTraits.length}>
+                {allTraits.map((t,i) => (
+                  <div key={i} className="glossary-trait">
+                    <strong>{t.name}.</strong> {t.description}
+                  </div>
                 ))}
-              </div>
+              </SectionAccordion>
             )}
 
-            {(character.traits||[]).length > 0 && (
-              <div className="glossary-section-label">Rasgos</div>
+            {(hasActions || hasSpellSlots) && (
+              <SectionAccordion id="actions" label="Acciones" count={hasActions ? character.actions.length : undefined}>
+                {hasSpellSlots && (
+                  <div className="glossary-spell-slots">
+                    <span className="glossary-spell-slots-label">🔮 Huecos de conjuro:</span>
+                    <div className="glossary-spell-slots-grid">
+                      {[1,2,3,4,5,6,7,8,9].map(lv => {
+                        const val = character.spellSlots[lv] || 0
+                        if (!val) return null
+                        return <span key={lv} className="glossary-spell-slot-badge">Nv.{lv}: {val}</span>
+                      })}
+                    </div>
+                  </div>
+                )}
+                <ActionsPanel actions={character.actions||[]} favoriteActions={character.favoriteActions||[]}
+                  actionTab={actionTab} setActionTab={setActionTab}
+                  openActionIdx={openActionIdx} setOpenActionIdx={setOpenActionIdx}
+                  onToggleFav={idx => {
+                    const favs = [...(character.favoriteActions||[])]
+                    const pos = favs.indexOf(idx)
+                    if (pos >= 0) favs.splice(pos, 1); else favs.push(idx)
+                    onSave({ ...character, favoriteActions: favs })
+                  }} />
+              </SectionAccordion>
             )}
-            {(character.traits||[]).map((t,i) => (
-              <div key={i} className="glossary-trait">
-                <strong>{t.name}.</strong> {t.description}
-              </div>
-            ))}
 
-            {(character.actions||[]).length > 0 && (
-              <div className="glossary-section-label">Acciones</div>
+            {hasAbilities && (
+              <SectionAccordion id="abilities" label="Habilidades especiales" count={character.abilities.length}>
+                {character.abilities.map((ab,i) => (
+                  <div key={i} className="glossary-ability">
+                    <strong>{ab.name}</strong>
+                    {ab.uses && <span className="glossary-ability-uses">({ab.uses})</span>}
+                    <span className="glossary-ability-desc">. {ab.description}</span>
+                  </div>
+                ))}
+              </SectionAccordion>
             )}
-            {character.spellSlots && typeof character.spellSlots === 'object' && Object.values(character.spellSlots).some(v => v > 0) && (
-              <div className="glossary-spell-slots">
-                <span className="glossary-spell-slots-label">🔮 Huecos de conjuro:</span>
-                <div className="glossary-spell-slots-grid">
-                  {[1,2,3,4,5,6,7,8,9].map(lv => {
-                    const val = character.spellSlots[lv] || 0
-                    if (!val) return null
-                    return <span key={lv} className="glossary-spell-slot-badge">Nv.{lv}: {val}</span>
-                  })}
-                </div>
-              </div>
-            )}
-            {(character.actions||[]).map((a,i) => (
-              <div key={i} className="glossary-action">
-                <div className="glossary-action-header">
-                  <strong>{a.name}</strong>
-                  {a.actionType && a.actionType !== 'normal' && <span className="glossary-action-type">{a.actionType === 'bonus' ? 'Adic.' : a.actionType === 'reaction' ? 'Reacción' : 'Ritual'}</span>}
-                  {a.isSpell && <span className="glossary-action-spell">🔮 {a.spellLevel === 'truco' ? 'Truco' : `Nv.${a.spellLevel}`}</span>}
-                  {a.range && <span className="glossary-action-range">{a.range}</span>}
-                  {a.aoe && <span className="glossary-action-aoe">◎ {a.aoe}</span>}
-                  {a.modifier != null && a.modifier !== '' && <span className="glossary-action-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>}
-                </div>
-                <div className="glossary-action-dmg">
-                  {a.damage && <span className="glossary-damage">⚔ {a.damage}</span>}
-                  {a.secondaryDamage && <span className="glossary-damage glossary-damage-secondary">+ {a.secondaryDamage}</span>}
-                </div>
-                {a.note && <div className="glossary-action-note">{a.note}</div>}
-              </div>
-            ))}
-          </div>
 
-          {(character.abilities||[]).length > 0 && (
-            <div className="glossary-abilities-block">
-              <div className="glossary-section-label">Habilidades especiales</div>
-              {character.abilities.map((ab,i) => (
-                <div key={i} className="glossary-ability">
-                  <strong>{ab.name}</strong>
-                  {ab.uses && <span className="glossary-ability-uses">({ab.uses})</span>}
-                  <span className="glossary-ability-desc">. {ab.description}</span>
+            {hasEquipment && (
+              <SectionAccordion id="equipment" label="Equipo" count={allEquipment.length}>
+                <div className="glossary-skills">
+                  {allEquipment.map((eq,i) => (
+                    <span key={i} className="glossary-skill-badge">{typeof eq === 'string' ? eq : eq.name}{eq.quantity > 1 ? ` ×${eq.quantity}` : ''}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </SectionAccordion>
+            )}
+
+            {hasConsumables && (
+              <SectionAccordion id="consumables" label="Consumibles" count={character.consumables.length}>
+                <div className="cc-consumables-list">
+                  {character.consumables.map((c,i) => (
+                    <div key={i} className="cc-consumable-item">
+                      <span className="cc-consumable-name">{c.name}</span>
+                      <span className="cc-consumable-qty">×{c.quantity}</span>
+                      {c.notes && <span className="cc-consumable-notes">{c.notes}</span>}
+                    </div>
+                  ))}
+                </div>
+              </SectionAccordion>
+            )}
 
           {character.tags?.length > 0 && (
             <div className="glossary-tags">
@@ -1687,6 +2221,18 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete }) {
 
           <div className="glossary-card-actions">
             <button className="dnd-btn-sm" onClick={onEdit}>✏ Editar</button>
+            {isMaster && parties && parties.length > 0 && (
+              <div className="char-party-assign">
+                {parties.map(p => {
+                  const isIn = (p.members || []).includes(character.id)
+                  return <button key={p.id} className={`dnd-btn-sm ${isIn ? 'dnd-btn-in-party' : 'dnd-btn-party'}`}
+                    onClick={() => !isIn && onAddToParty(p.id, character.id)}
+                    style={isIn ? {cursor:'default', opacity:0.6} : {}}>
+                    {isIn ? '✔' : '⚔'} {p.name.length > 14 ? p.name.slice(0,14) + '…' : p.name}
+                  </button>
+                })}
+              </div>
+            )}
             <button className="dnd-btn-sm dnd-btn-danger" onClick={onDelete}>✕ Borrar</button>
           </div>
         </div>
@@ -1955,6 +2501,437 @@ function CharacterModal({ mode, character: initialChar, onSave, onClose, templat
         <div className="dnd-modal-btns">
           <button className="dnd-btn-primary" onClick={handleSave}>Guardar</button>
           <button className="dnd-btn-cancel" onClick={onClose}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ── Componente: Party Tracker con drag & drop ──────────────
+function PartyTracker({ party, onReorder, onHpChange, onSlotsChange, onRemove, onEnemyHpChange, onRemoveEnemy, onEnemyClick, onConditionsChange }) {
+  const [dragId, setDragId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const [expandedCard, setExpandedCard] = useState(null)
+
+  const chars = party.memberChars || []
+  const enemies = party.enemies || []
+  const allItems = []
+  chars.forEach(c => allItems.push({ type: 'pc', key: c.id, data: c }))
+  enemies.forEach(e => allItems.push({ type: 'enemy', key: `e${e.id}`, data: e }))
+
+  const initOrder = party.initiative || []
+  const allKeys = allItems.map(i => i.key)
+  const orderedKeys = initOrder.filter(k => allKeys.includes(k) || allKeys.includes(Number(k)))
+  const extraKeys = allKeys.filter(k => !orderedKeys.includes(k))
+  const sortedKeys = [...orderedKeys, ...extraKeys]
+  const sortedItems = sortedKeys.map(k => allItems.find(i => i.key === k || String(i.key) === String(k))).filter(Boolean)
+
+  function handleDragStart(e, key) { setDragId(key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(key)) }
+  function handleDragOver(e, key) { e.preventDefault(); if (key !== dragOverId) setDragOverId(key) }
+  function handleDragEnd() { setDragId(null); setDragOverId(null) }
+  function handleDrop(e, targetKey) {
+    e.preventDefault()
+    if (!dragId || dragId === targetKey) { handleDragEnd(); return }
+    const newOrder = sortedKeys.map(k => typeof k === 'number' ? k : String(k))
+    const dragStr = typeof dragId === 'number' ? dragId : String(dragId)
+    const targetStr = typeof targetKey === 'number' ? targetKey : String(targetKey)
+    const fromIdx = newOrder.indexOf(dragStr)
+    const toIdx = newOrder.indexOf(targetStr)
+    if (fromIdx === -1 || toIdx === -1) { handleDragEnd(); return }
+    newOrder.splice(fromIdx, 1)
+    newOrder.splice(toIdx, 0, dragStr)
+    onReorder(newOrder)
+    handleDragEnd()
+  }
+
+  const mod = v => { const m = Math.floor(((v||10)-10)/2); return m >= 0 ? `+${m}` : `${m}` }
+
+  // Obtener initiative de un item
+  function getInitiative(item) {
+    if (item.type === 'enemy') return item.data.initiative ?? '?'
+    // PCs: buscar en party.initiative no tiene valor numérico, usar la posición
+    return '—'
+  }
+
+  // Obtener condiciones de un key
+  function getConditions(key) { return (party.conditions || {})[key] || [] }
+
+  if (sortedItems.length === 0) return <div className="dnd-empty-sm" style={{padding:12}}>Sin miembros — usa «+ Añadir» para incluir personajes o enemigos</div>
+
+  return (
+    <div className="party-tracker">
+      <div className="party-grid">
+        {sortedItems.map((item, idx) => {
+          const isDragging = dragId === item.key
+          const isDragOver = dragOverId === item.key
+          const isEnemy = item.type === 'enemy'
+          const d = item.data
+          const portrait = isEnemy ? (d.portrait || null) : d.portrait
+          const name = isEnemy ? (d.label || d.glossaryData?.name || 'Enemigo') : d.name
+          const subtitle = isEnemy ? (d.glossaryData?.stats?.challenge ? `CR ${d.glossaryData.stats.challenge}` : '💀') : `${d.class || ''} Nv.${d.level || 1}`
+          const hp = isEnemy ? (d.hpCurrent ?? 0) : (d.stats?.hp?.current ?? 0)
+          const hpMax = isEnemy ? (d.hpMax ?? 1) : (d.stats?.hp?.max ?? 1)
+          const hpPct = Math.round((hp / hpMax) * 100)
+          const hpColor = hpPct > 50 ? 'var(--party-hp-good)' : hpPct > 25 ? 'var(--party-hp-mid)' : 'var(--party-hp-low)'
+          const init = isEnemy ? (d.initiative ?? '?') : '—'
+          const pp = isEnemy ? (d.glossaryData?.stats?.passivePerception ?? '—') : (d.stats?.passivePerception ?? '—')
+          const conditions = getConditions(item.key)
+
+          return (
+            <div key={item.key}
+              className={`party-mini-card ${isEnemy ? 'party-mini-enemy' : ''} ${isDragging ? 'party-card-dragging' : ''} ${isDragOver ? 'party-card-dragover' : ''}`}
+              draggable onDragStart={e => handleDragStart(e, item.key)} onDragOver={e => handleDragOver(e, item.key)}
+              onDragEnd={handleDragEnd} onDrop={e => handleDrop(e, item.key)}
+              onClick={() => setExpandedCard(expandedCard === item.key ? null : item.key)}>
+              <div className="party-mini-order">{idx + 1}</div>
+              {portrait ? <img src={portrait} alt="" className="party-mini-portrait" /> : <div className="party-mini-placeholder">{isEnemy ? '💀' : '🛡️'}</div>}
+              <div className="party-mini-info">
+                <span className="party-mini-name">{name}</span>
+                <span className="party-mini-sub">{subtitle}</span>
+              </div>
+              <div className="party-mini-stats-row">
+                {init !== '—' && <span className="party-mini-stat" title="Iniciativa">⚡{init}</span>}
+                {pp !== '—' && <span className="party-mini-stat" title="Percepción pasiva">👁{pp}</span>}
+              </div>
+              <div className="party-mini-hp-bar">
+                <div className="party-mini-hp-fill" style={{ width: `${hpPct}%`, background: hpColor }} />
+                <span className="party-mini-hp-text">{hp}/{hpMax}</span>
+              </div>
+              {conditions.length > 0 && (
+                <div className="party-mini-conditions">
+                  {conditions.map((c,i) => {
+                    const def = CONDITION_LIST.find(x => x.id === (c.id || c))
+                    if (!def) return null
+                    const label = def.levels ? `${def.label}${c.level || 1}` : def.label
+                    return <span key={i} className="condition-pill">{label}</span>
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {expandedCard && (() => {
+        const item = sortedItems.find(i => i.key === expandedCard)
+        if (!item) return null
+        const conditions = getConditions(item.key)
+        if (item.type === 'pc') return (
+          <div className="action-card-overlay" onClick={() => setExpandedCard(null)}>
+            <div className="party-detail-modal" onClick={e => e.stopPropagation()}>
+              <PCDetailModal ch={item.data} party={party} onHpChange={onHpChange} onSlotsChange={onSlotsChange} onRemove={onRemove} mod={mod}
+                conditions={conditions} onConditionsChange={conds => onConditionsChange(item.key, conds)} />
+            </div>
+          </div>
+        )
+        return (
+          <div className="action-card-overlay" onClick={() => setExpandedCard(null)}>
+            <div className="party-detail-modal" onClick={e => e.stopPropagation()}>
+              <EnemyDetailModal enemy={item.data} onEnemyHpChange={onEnemyHpChange} onRemoveEnemy={onRemoveEnemy} onEnemyClick={onEnemyClick} mod={mod} onClose={() => setExpandedCard(null)}
+                conditions={conditions} onConditionsChange={conds => onConditionsChange(item.key, conds)} />
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
+
+// ── Sub: Editor de estados ─────────────────────────────
+function ConditionsEditor({ conditions, onChange }) {
+  function toggleCondition(id) {
+    const def = CONDITION_LIST.find(c => c.id === id)
+    const existing = conditions.find(c => (c.id || c) === id)
+    if (existing) {
+      onChange(conditions.filter(c => (c.id || c) !== id))
+    } else {
+      onChange([...conditions, def.levels ? { id, level: 1 } : id])
+    }
+  }
+  function setLevel(id, level) {
+    onChange(conditions.map(c => (c.id || c) === id ? { id, level } : c))
+  }
+  return (
+    <div className="conditions-editor">
+      <div className="party-expanded-label">Estados</div>
+      <div className="conditions-grid">
+        {CONDITION_LIST.map(def => {
+          const active = conditions.find(c => (c.id || c) === def.id)
+          return (
+            <div key={def.id} className={`condition-toggle ${active ? 'active' : ''}`}>
+              <button className="condition-toggle-btn" onClick={() => toggleCondition(def.id)}>
+                <span className="condition-toggle-label">{def.label}</span>
+                <span className="condition-toggle-name">{def.id}</span>
+              </button>
+              {active && def.levels && (
+                <select className="condition-level-select" value={active.level || 1} onClick={e => e.stopPropagation()}
+                  onChange={e => setLevel(def.id, parseInt(e.target.value))}>
+                  {Array.from({length: def.levels}, (_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                </select>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Sub: Modal detalle PC ──────────────────────────────
+function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onRemove, mod, conditions, onConditionsChange }) {
+  const s = ch.stats || {}
+  const hp = s.hp?.current ?? 0
+  const hpMax = s.hp?.max ?? 1
+  const hpPct = Math.round((hp / hpMax) * 100)
+  const hpColor = hpPct > 50 ? 'var(--party-hp-good)' : hpPct > 25 ? 'var(--party-hp-mid)' : 'var(--party-hp-low)'
+  const usedSlots = party.usedSlots?.[ch.id] || {}
+  const hasSpells = ch.isSpellcaster && ch.spellSlots && Object.values(ch.spellSlots).some(v => v > 0)
+  const [openSec, setOpenSec] = useState({})
+  const toggleSec = k => setOpenSec(p => ({ ...p, [k]: !p[k] }))
+  const Acc = ({ id, label, children, count }) => (
+    <div className="cc-accordion">
+      <div className="cc-accordion-header" onClick={() => toggleSec(id)}>
+        <span className="cc-accordion-chevron">{openSec[id] ? '▾' : '▸'}</span>
+        <span className="cc-accordion-label">{label}</span>
+        {count != null && <span className="cc-accordion-count">{count}</span>}
+      </div>
+      {openSec[id] && <div className="cc-accordion-body">{children}</div>}
+    </div>
+  )
+  function toggleSlot(level) {
+    const used = { ...(party.usedSlots?.[ch.id] || {}) }
+    const maxSlots = ch.spellSlots?.[level] || 0
+    used[level] = (used[level] || 0) >= maxSlots ? 0 : (used[level] || 0) + 1
+    onSlotsChange(ch.id, used)
+  }
+  return (
+    <>
+      {/* Imagen arriba, ancho completo */}
+      {ch.portrait ? <img src={ch.portrait} alt="" className="party-detail-portrait-wide" /> : <div className="party-detail-portrait-ph" style={{width:'100%',height:120,fontSize:'2.5rem'}}>🛡️</div>}
+
+      {/* Nombre + clase */}
+      <div className="party-detail-nameblock">
+        <div className="party-detail-name">{ch.name}</div>
+        <div className="party-detail-meta">{ch.race} · {ch.class}{ch.subclass ? ` (${ch.subclass})` : ''} Nv.{ch.level || 1}</div>
+      </div>
+
+      {/* Estados */}
+      {conditions.length > 0 && <div className="party-mini-conditions" style={{justifyContent:'flex-start'}}>{conditions.map((c,i) => { const def = CONDITION_LIST.find(x => x.id === (c.id||c)); return def ? <span key={i} className="condition-pill">{def.levels ? `${def.label}${c.level||1}` : def.label}</span> : null })}</div>}
+
+      {/* Vida */}
+      <div className="party-detail-hp">
+        <div className="party-hp-bar" style={{height:22}}><div className="party-hp-fill" style={{ width: `${hpPct}%`, background: hpColor }} /><span className="party-hp-text">{hp} / {hpMax}</span></div>
+        <div className="party-hp-controls">
+          <button className="party-hp-btn party-hp-minus" onClick={() => onHpChange(ch.id, Math.max(0, hp - 1))}>−</button>
+          <input className="party-hp-input" type="number" value={hp} onChange={e => onHpChange(ch.id, Math.max(0, Math.min(hpMax, parseInt(e.target.value)||0)))} />
+          <button className="party-hp-btn party-hp-plus" onClick={() => onHpChange(ch.id, Math.min(hpMax, hp + 1))}>+</button>
+        </div>
+      </div>
+
+      {/* CA, Velocidad, PP */}
+      <div className="party-card-stats">
+        <span className="party-stat">🛡 CA {s.ca}</span>
+        <span className="party-stat">👟 {s.speed}</span>
+        {s.passivePerception != null && <span className="party-stat">👁 PP {s.passivePerception}</span>}
+      </div>
+      <div className="party-card-attrs">
+        {[['F',s.str],['D',s.dex],['C',s.con],['I',s.int],['S',s.wis],['Ca',s.cha]].map(([l,v]) => (
+          <div key={l} className="party-attr"><span className="party-attr-label">{l}</span><span className="party-attr-mod">{mod(v)}</span></div>
+        ))}
+      </div>
+      {hasSpells && (
+        <Acc id="slots" label="Huecos de conjuro">
+          <div className="party-slots-grid">
+            {[1,2,3,4,5,6,7,8,9].map(lv => {
+              const total = ch.spellSlots[lv] || 0; if (!total) return null
+              return (<button key={lv} className="party-slot-btn" onClick={e => { e.stopPropagation(); toggleSlot(lv) }} title={`Nv.${lv}: ${usedSlots[lv]||0}/${total}`}>
+                <span className="party-slot-level">{lv}</span>
+                <span className="party-slot-dots">{Array.from({length: total}, (_, i) => <span key={i} className={`party-slot-dot ${i < (usedSlots[lv]||0) ? 'used' : ''}`} />)}</span>
+              </button>)
+            })}
+          </div>
+        </Acc>
+      )}
+      {(ch.skills||[]).length > 0 && <Acc id="skills" label="Habilidades" count={ch.skills.length}><div className="party-skills-list">{ch.skills.map((sk,i) => <span key={i} className="party-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>)}</div></Acc>}
+      {ch.savingThrows && Object.values(ch.savingThrows).some(v => v) && (
+        <Acc id="saves" label="Salvaciones"><div className="party-skills-list">
+          {[['FUE','str'],['DES','dex'],['CON','con'],['INT','int'],['SAB','wis'],['CAR','cha']].filter(([,k]) => ch.savingThrows[k]).map(([l,k]) => {
+            const bonus = Math.floor(((s[k]||10)-10)/2) + (s.proficiencyBonus || 2)
+            return <span key={k} className="party-skill-badge">{l} {bonus >= 0 ? '+' : ''}{bonus}</span>
+          })}
+        </div></Acc>
+      )}
+      {(ch.abilities||[]).length > 0 && <Acc id="abilities" label="Habilidades especiales" count={ch.abilities.length}>{ch.abilities.map((ab,i) => <div key={i} className="party-ability"><strong>{ab.name}</strong>{ab.uses && <span className="party-ability-uses"> ({ab.uses})</span>}{ab.description && <span> — {ab.description}</span>}</div>)}</Acc>}
+      {(ch.actions||[]).length > 0 && <Acc id="actions" label="Acciones" count={ch.actions.length}>{ch.actions.map((a,i) => <div key={i} className="party-action"><span className="party-action-name">{a.name}</span>{a.isSpell && <span className="party-action-spell">🔮{a.spellLevel === 'truco' ? 'T' : a.spellLevel}</span>}{a.damage && <span className="party-action-dmg">⚔ {a.damage}</span>}{a.modifier != null && a.modifier !== 0 && <span className="party-action-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>}</div>)}</Acc>}
+      <Acc id="conditions" label="Estados" count={conditions.length || undefined}>
+        <ConditionsEditor conditions={conditions} onChange={onConditionsChange} />
+      </Acc>
+      <button className="dnd-btn-sm dnd-btn-danger" style={{marginTop:10}} onClick={() => onRemove(ch.id)}>✕ Quitar del grupo</button>
+    </>
+  )
+}
+
+// ── Sub: Modal detalle Enemigo ─────────────────────────
+function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick, mod, onClose, conditions, onConditionsChange }) {
+  const g = enemy.glossaryData || {}
+  const s = g.stats || {}
+  const hp = enemy.hpCurrent ?? 0
+  const hpMax = enemy.hpMax ?? 1
+  const hpPct = Math.round((hp / hpMax) * 100)
+  const hpColor = hpPct > 50 ? 'var(--party-hp-good)' : hpPct > 25 ? 'var(--party-hp-mid)' : 'var(--party-hp-low)'
+  const displayName = enemy.label || g.name || 'Enemigo'
+  const [openSec, setOpenSec] = useState({})
+  const toggleSec = k => setOpenSec(p => ({ ...p, [k]: !p[k] }))
+  const Acc = ({ id, label, children, count }) => (
+    <div className="cc-accordion">
+      <div className="cc-accordion-header" onClick={() => toggleSec(id)}>
+        <span className="cc-accordion-chevron">{openSec[id] ? '▾' : '▸'}</span>
+        <span className="cc-accordion-label">{label}</span>
+        {count != null && <span className="cc-accordion-count">{count}</span>}
+      </div>
+      {openSec[id] && <div className="cc-accordion-body">{children}</div>}
+    </div>
+  )
+  return (
+    <>
+      <div className="party-detail-header">
+        {enemy.portrait ? <img src={enemy.portrait} alt="" className="party-detail-portrait-sm" /> : <div className="party-detail-portrait-ph party-enemy-icon" style={{width:56,height:56}}>💀</div>}
+        <div>
+          <div className="party-detail-name">{displayName}</div>
+          <div className="party-detail-meta">{s.challenge ? `CR ${s.challenge}` : ''}{s.speed ? ` · Vel. ${s.speed}` : ''}</div>
+          <div className="party-detail-extra">
+            <span className="party-stat">⚡ Init {enemy.initiative ?? '?'}</span>
+            {s.passivePerception != null && <span className="party-stat">👁 PP {s.passivePerception}</span>}
+          </div>
+        </div>
+      </div>
+      {conditions.length > 0 && <div className="party-mini-conditions" style={{justifyContent:'flex-start'}}>{conditions.map((c,i) => { const def = CONDITION_LIST.find(x => x.id === (c.id||c)); return def ? <span key={i} className="condition-pill">{def.levels ? `${def.label}${c.level||1}` : def.label}</span> : null })}</div>}
+      <div className="party-detail-hp">
+        <div className="party-hp-bar" style={{height:22}}><div className="party-hp-fill" style={{ width: `${hpPct}%`, background: hpColor }} /><span className="party-hp-text">{hp} / {hpMax}</span></div>
+        <div className="party-hp-controls">
+          <button className="party-hp-btn party-hp-minus" onClick={() => onEnemyHpChange(enemy.id, Math.max(0, hp - 1))}>−</button>
+          <input className="party-hp-input" type="number" value={hp} onChange={e => onEnemyHpChange(enemy.id, Math.max(0, Math.min(hpMax, parseInt(e.target.value)||0)))} />
+          <button className="party-hp-btn party-hp-plus" onClick={() => onEnemyHpChange(enemy.id, Math.min(hpMax, hp + 1))}>+</button>
+        </div>
+      </div>
+      <div className="party-card-stats"><span className="party-stat">🛡 {s.ca ?? '?'}</span>{s.speed && <span className="party-stat">👟 {s.speed}</span>}</div>
+      <div className="party-card-attrs">
+        {[['F',s.str],['D',s.dex],['C',s.con],['I',s.int],['S',s.wis],['Ca',s.cha]].map(([l,v]) => (
+          <div key={l} className="party-attr"><span className="party-attr-label">{l}</span><span className="party-attr-mod">{mod(v)}</span></div>
+        ))}
+      </div>
+      {g.description && <p className="party-ability" style={{marginBottom:6}}>{g.description}</p>}
+      {(g.traits||[]).length > 0 && <Acc id="traits" label="Rasgos" count={g.traits.length}>{g.traits.map((t,i) => <div key={i} className="party-ability"><strong>{t.name}.</strong> {t.description}</div>)}</Acc>}
+      {(g.skills||[]).length > 0 && <Acc id="skills" label="Habilidades" count={g.skills.length}><div className="party-skills-list">{g.skills.map((sk,i) => <span key={i} className="party-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>)}</div></Acc>}
+      {(g.abilities||[]).length > 0 && <Acc id="abilities" label="Habilidades especiales" count={g.abilities.length}>{g.abilities.map((ab,i) => <div key={i} className="party-ability"><strong>{ab.name}</strong>{ab.uses && <span className="party-ability-uses"> ({ab.uses})</span>}{ab.description && <span> — {ab.description}</span>}</div>)}</Acc>}
+      {(g.actions||[]).length > 0 && <Acc id="actions" label="Acciones" count={g.actions.length}>{g.actions.map((a,i) => <div key={i} className="party-action"><span className="party-action-name">{a.name}</span>{a.isSpell && <span className="party-action-spell">🔮{a.spellLevel === 'truco' ? 'T' : a.spellLevel}</span>}{a.damage && <span className="party-action-dmg">⚔ {a.damage}</span>}{a.modifier != null && a.modifier !== 0 && <span className="party-action-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>}</div>)}</Acc>}
+      <Acc id="conditions" label="Estados" count={conditions.length || undefined}>
+        <ConditionsEditor conditions={conditions} onChange={onConditionsChange} />
+      </Acc>
+      <div className="party-enemy-actions">
+        {enemy.glossaryId && <button className="dnd-btn-sm" onClick={() => { onEnemyClick(enemy.glossaryId); onClose() }}>📖 Ver en glosario</button>}
+        <button className="dnd-btn-sm dnd-btn-danger" onClick={() => onRemoveEnemy(enemy.id)}>✕ Eliminar</button>
+      </div>
+    </>
+  )
+}
+
+// ── Componente: Modal para añadir PCs o Enemigos al grupo ──
+function PartyAddModal({ characters, partyMembers, enemies, onAddCharacter, onAddEnemy, onClose }) {
+  const [tab, setTab] = useState('pc') // 'pc' | 'enemy'
+  const [search, setSearch] = useState('')
+  const [labelValue, setLabelValue] = useState('')
+  const [selectedEnemy, setSelectedEnemy] = useState(null)
+  const [maxHpCheck, setMaxHpCheck] = useState(false)
+  const [surprisedCheck, setSurprisedCheck] = useState(false)
+
+  const availablePCs = characters.filter(c => !partyMembers.includes(c.id))
+  const filteredEnemies = enemies.filter(e => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return e.name?.toLowerCase().includes(q) || e.tags?.some(t => t.toLowerCase().includes(q))
+  })
+
+  function handleAddEnemy() {
+    if (!selectedEnemy) return
+    const hp = selectedEnemy.stats?.hp || {}
+    const calcMax = maxHpCheck && hp.dice && hp.sides ? (hp.dice * hp.sides + (hp.modifier || 0)) : undefined
+    onAddEnemy(selectedEnemy.id, labelValue.trim() || '', calcMax, surprisedCheck)
+    setSelectedEnemy(null)
+    setLabelValue('')
+    setMaxHpCheck(false)
+    setSurprisedCheck(false)
+  }
+
+  return (
+    <div className="dnd-modal-overlay" onClick={onClose}>
+      <div className="dnd-modal glossary-modal" onClick={e => e.stopPropagation()}>
+        <h3>Añadir al combate</h3>
+        <div className="party-add-tabs">
+          <button className={`dnd-auth-tab ${tab === 'pc' ? 'active' : ''}`} onClick={() => setTab('pc')}>🛡️ Personajes</button>
+          <button className={`dnd-auth-tab ${tab === 'enemy' ? 'active' : ''}`} onClick={() => setTab('enemy')}>💀 Enemigos</button>
+        </div>
+
+        {tab === 'pc' && (
+          <div className="party-add-list">
+            {availablePCs.length === 0 && <div className="dnd-empty-sm">Todos los personajes ya están en el grupo</div>}
+            {availablePCs.map(ch => (
+              <button key={ch.id} className="party-add-item" onClick={() => onAddCharacter(ch.id)}>
+                {ch.portrait && <img src={ch.portrait} alt="" className="party-add-portrait" />}
+                <span className="party-add-name">{ch.name}</span>
+                <span className="party-add-info">{ch.race} · {ch.class} Nv.{ch.level || 1}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === 'enemy' && (
+          <div className="party-add-enemy-section">
+            <input className="dnd-glossary-search" placeholder="Buscar enemigo..." value={search} onChange={e => setSearch(e.target.value)} autoFocus style={{width:'100%', marginBottom:8}} />
+            {!selectedEnemy ? (
+              <div className="party-add-list">
+                {filteredEnemies.length === 0 && <div className="dnd-empty-sm">Sin enemigos en el glosario</div>}
+                {filteredEnemies.map(e => (
+                  <button key={e.id} className="party-add-item" onClick={() => { setSelectedEnemy(e); setLabelValue(e.name || '') }}>
+                    {(e.portraits||[]).length > 0 ? <img src={e.portraits[0]} alt="" className="party-add-portrait" /> : <span className="party-add-enemy-icon">💀</span>}
+                    <span className="party-add-name">{e.name}</span>
+                    <span className="party-add-info">
+                      CR {e.stats?.challenge || '?'} · CA {e.stats?.ca ?? '?'}
+                      {e.stats?.hp ? ` · ${e.stats.hp.dice}d${e.stats.hp.sides}${e.stats.hp.modifier ? (e.stats.hp.modifier > 0 ? '+' : '') + e.stats.hp.modifier : ''}` : ''}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="party-add-enemy-config">
+                <div className="party-add-enemy-selected">
+                  <span className="party-add-enemy-icon">💀</span>
+                  <span className="party-add-name">{selectedEnemy.name}</span>
+                  <button className="dnd-btn-sm" onClick={() => setSelectedEnemy(null)}>✕ Cambiar</button>
+                </div>
+                <div className="glossary-form-row">
+                  <label>Etiqueta (nombre en combate)</label>
+                  <input className="dnd-input" value={labelValue} onChange={e => setLabelValue(e.target.value)} placeholder={selectedEnemy.name} />
+                </div>
+                <label className="glossary-add-party-check" style={{marginTop:8}}>
+                  <input type="checkbox" checked={maxHpCheck} onChange={e => setMaxHpCheck(e.target.checked)} />
+                  <span>PG máximos {selectedEnemy.stats?.hp ? `(${selectedEnemy.stats.hp.dice * selectedEnemy.stats.hp.sides + (selectedEnemy.stats.hp.modifier || 0)} PG)` : ''}</span>
+                </label>
+                <label className="glossary-add-party-check" style={{marginTop:4}}>
+                  <input type="checkbox" checked={surprisedCheck} onChange={e => setSurprisedCheck(e.target.checked)} />
+                  <span>Sorprendido</span>
+                </label>
+                <button className="dnd-btn-primary" style={{width:'100%', marginTop:8}} onClick={handleAddEnemy}>
+                  💀 Añadir al combate
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="dnd-modal-btns" style={{marginTop:10}}>
+          <button className="dnd-btn-cancel" onClick={onClose}>Cerrar</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import express from 'express'
 import bcrypt from 'bcrypt'
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'fs'
 import { resolve, join, normalize } from 'path'
 import { randomBytes } from 'crypto'
 
@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000
 const DIST = new URL('./dist', import.meta.url).pathname
 const DB_PATH = resolve('/home/jai/apps/db.json')
 
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
 
 // ── DB helpers ───────────────────────────────────────────
 function getDB() {
@@ -325,6 +325,19 @@ app.delete('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) =
   res.json({ ok: true })
 })
 
+// Renombrar campaña
+app.put('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) => {
+  const { name } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.id))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  campaign.name = name.trim()
+  saveDB(db)
+  res.json(campaign)
+})
+
 // Crear capítulo
 app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaster, (req, res) => {
   const { name } = req.body
@@ -351,6 +364,39 @@ app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requi
   chapter.name = name.trim()
   saveDB(db)
   res.json(chapter)
+})
+
+// Asociar imagen a capítulo
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUser, requireDnDMaster, (req, res) => {
+  const { url, name } = req.body
+  if (!url) return res.status(400).json({ error: 'URL requerida' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  if (!chapter.images) chapter.images = []
+  if (!chapter.images.some(img => img.url === url)) {
+    chapter.images.push({ url, name: name || url.split('/').pop(), addedAt: Date.now() })
+    saveDB(db)
+  }
+  res.json(chapter.images)
+})
+
+// Desasociar imagen de capítulo
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUser, requireDnDMaster, (req, res) => {
+  const { url } = req.body
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  if (!chapter.images) chapter.images = []
+  chapter.images = chapter.images.filter(img => img.url !== url)
+  saveDB(db)
+  res.json(chapter.images)
 })
 
 // Borrar capítulo
@@ -517,6 +563,28 @@ app.get('/api/dnd/images', (req, res) => {
   }
 })
 
+// Subir imagen a una carpeta de dndImages
+app.post('/api/dnd/images/upload', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { data, filename, path: subPath } = req.body
+    if (!data || !filename) return res.status(400).json({ error: 'Datos requeridos' })
+    const targetDir = safeDndPath(subPath || '')
+    if (!targetDir) return res.status(400).json({ error: 'Ruta inválida' })
+    mkdirSync(targetDir, { recursive: true })
+    const ext = filename.split('.').pop().toLowerCase()
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const finalName = safeName.length > 3 ? safeName : `${Date.now()}.${ext}`
+    const buf = Buffer.from(data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+    writeFileSync(join(targetDir, finalName), buf)
+    const relPath = subPath ? `${subPath}/${finalName}` : finalName
+    const urlPath = relPath.split('/').map(encodeURIComponent).join('/')
+    res.json({ url: `/dndImages/${urlPath}`, name: finalName })
+  } catch (e) {
+    console.error('Image upload error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── API: D&D Glossary (bestiario, artefactos, lore) ──────
 function getGlossary(db) {
   const dnd = getDnDData(db)
@@ -650,7 +718,6 @@ app.post('/api/dnd/portraits', requireUser, (req, res) => {
   try {
     const { data, filename } = req.body
     if (!data || !filename) return res.status(400).json({ error: 'Datos requeridos' })
-    const mkdirSync = require('fs').mkdirSync
     mkdirSync(PORTRAITS_DIR, { recursive: true })
     const ext = filename.split('.').pop().toLowerCase()
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
@@ -665,8 +732,6 @@ app.post('/api/dnd/portraits', requireUser, (req, res) => {
 
 app.get('/api/dnd/portraits', requireUser, (req, res) => {
   try {
-    const { readdirSync } = require('fs')
-    const mkdirSync = require('fs').mkdirSync
     mkdirSync(PORTRAITS_DIR, { recursive: true })
     const files = readdirSync(PORTRAITS_DIR).filter(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f))
     res.json(files.map(f => `/dndImages/portraits/${f}`))
@@ -684,6 +749,239 @@ function requireDnDMaster(req, res, next) {
   if (!isDnDMaster(db, req.userId)) return res.status(403).json({ error: 'Solo el DM puede hacer esto' })
   next()
 }
+
+// ── Parties (multi-party system) ──────────────────────
+function getParties(dnd) {
+  if (!dnd.parties) {
+    // Migrar desde dnd.party si existe
+    if (dnd.party) {
+      dnd.parties = [{ id: Date.now(), name: 'Grupo principal', ...dnd.party }]
+      delete dnd.party
+    } else {
+      dnd.parties = []
+    }
+  }
+  return dnd.parties
+}
+function findParty(dnd, partyId) {
+  return getParties(dnd).find(p => p.id === parseInt(partyId))
+}
+function enrichParty(dnd, party) {
+  const memberChars = (party.members || []).map(id => dnd.characters.find(c => c.id === id)).filter(Boolean)
+  const enrichedEnemies = (party.enemies || []).map(e => {
+    const glossEntry = (dnd.glossary?.entries || []).find(g => g.id === e.glossaryId)
+    return { ...e, glossaryData: glossEntry || null }
+  })
+  return { ...party, enemies: enrichedEnemies, memberChars }
+}
+
+// Vista pública de parties (para el viewer)
+app.get('/api/dnd/parties/view', (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const parties = getParties(dnd)
+  saveDB(db)
+  res.json(parties.map(p => enrichParty(dnd, p)))
+})
+
+// Listar todas las parties
+app.get('/api/dnd/parties', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const parties = getParties(dnd)
+  saveDB(db) // guardar posible migración
+  res.json(parties.map(p => enrichParty(dnd, p)))
+})
+
+// Crear party
+app.post('/api/dnd/parties', requireUser, requireDnDMaster, (req, res) => {
+  const { name } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const parties = getParties(dnd)
+  const party = { id: Date.now(), name: name.trim(), members: [], initiative: [], usedSlots: {}, currentHp: {}, enemies: [], conditions: {} }
+  parties.push(party)
+  saveDB(db)
+  res.json(enrichParty(dnd, party))
+})
+
+// Renombrar party
+app.put('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, (req, res) => {
+  const { name } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  party.name = name.trim()
+  saveDB(db)
+  res.json(enrichParty(dnd, party))
+})
+
+// Borrar party
+app.delete('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  dnd.parties = getParties(dnd).filter(p => p.id !== parseInt(req.params.partyId))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Añadir miembro a party
+app.post('/api/dnd/parties/:partyId/members', requireUser, requireDnDMaster, (req, res) => {
+  const { charId } = req.body
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  if (!party.members) party.members = []
+  if (!party.members.includes(charId)) party.members.push(charId)
+  saveDB(db)
+  res.json(enrichParty(dnd, party))
+})
+
+// Quitar miembro de party
+app.delete('/api/dnd/parties/:partyId/members/:charId', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const charId = parseInt(req.params.charId)
+  party.members = (party.members || []).filter(id => id !== charId)
+  party.initiative = (party.initiative || []).filter(id => id !== charId && id !== String(charId))
+  saveDB(db)
+  res.json(enrichParty(dnd, party))
+})
+
+// Reordenar initiative
+app.put('/api/dnd/parties/:partyId/initiative', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  party.initiative = req.body.initiative || []
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// HP de un PC en party
+app.patch('/api/dnd/parties/:partyId/hp/:charId', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const charId = parseInt(req.params.charId)
+  if (!party.currentHp) party.currentHp = {}
+  party.currentHp[charId] = req.body.hp
+  const ch = dnd.characters.find(c => c.id === charId)
+  if (ch?.stats?.hp) ch.stats.hp.current = req.body.hp
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Slots de un PC en party
+app.patch('/api/dnd/parties/:partyId/slots/:charId', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  if (!party.usedSlots) party.usedSlots = {}
+  party.usedSlots[parseInt(req.params.charId)] = req.body.usedSlots
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Conditions
+app.patch('/api/dnd/parties/:partyId/conditions/:key', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  if (!party.conditions) party.conditions = {}
+  party.conditions[req.params.key] = req.body.conditions || []
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Añadir enemigo a party
+app.post('/api/dnd/parties/:partyId/enemy', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  if (!party.enemies) party.enemies = []
+  const { glossaryId, initiative, hpMax, label } = req.body
+  let finalHpMax = hpMax
+  if (!finalHpMax && glossaryId) {
+    const entry = (dnd.glossary?.entries || []).find(g => g.id === glossaryId)
+    if (entry?.stats?.hp) {
+      const { dice, sides, modifier } = entry.stats.hp
+      let total = modifier || 0
+      for (let i = 0; i < (dice || 1); i++) total += Math.floor(Math.random() * (sides || 6)) + 1
+      finalHpMax = Math.max(1, total)
+    } else { finalHpMax = 10 }
+  }
+  const enemy = {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    glossaryId: glossaryId || null, label: label || '',
+    initiative: initiative ?? 0, hpMax: finalHpMax || 10, hpCurrent: finalHpMax || 10, portrait: null
+  }
+  if (glossaryId) {
+    const entry = (dnd.glossary?.entries || []).find(g => g.id === glossaryId)
+    if (entry?.portraits?.length > 0) enemy.portrait = entry.portraits[Math.floor(Math.random() * entry.portraits.length)]
+  }
+  party.enemies.push(enemy)
+  if (!party.initiative) party.initiative = []
+  party.initiative.push(`e${enemy.id}`)
+  saveDB(db)
+  const glossEntry = (dnd.glossary?.entries || []).find(g => g.id === glossaryId)
+  res.json({ ...enemy, glossaryData: glossEntry || null })
+})
+
+// Quitar enemigo de party
+app.delete('/api/dnd/parties/:partyId/enemy/:id', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const enemyId = parseInt(req.params.id)
+  party.enemies = (party.enemies || []).filter(e => e.id !== enemyId)
+  party.initiative = (party.initiative || []).filter(k => k !== `e${enemyId}`)
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// HP enemigo en party
+app.patch('/api/dnd/parties/:partyId/enemy/:id/hp', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const enemy = (party.enemies || []).find(e => e.id === parseInt(req.params.id))
+  if (!enemy) return res.status(404).json({ error: 'Enemigo no encontrado' })
+  enemy.hpCurrent = req.body.hp
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Descanso en party
+app.post('/api/dnd/parties/:partyId/rest', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const restType = req.body.type
+  if (restType === 'long') {
+    party.usedSlots = {}; party.currentHp = {}
+    ;(party.members || []).forEach(id => { const ch = dnd.characters.find(c => c.id === id); if (ch?.stats?.hp) ch.stats.hp.current = ch.stats.hp.max })
+  } else if (restType === 'short') {
+    party.currentHp = {}
+    ;(party.members || []).forEach(id => { const ch = dnd.characters.find(c => c.id === id); if (ch?.stats?.hp) ch.stats.hp.current = ch.stats.hp.max })
+  }
+  saveDB(db)
+  res.json({ ok: true })
+})
 
 app.get('/api/dnd/characters', requireUser, (req, res) => {
   const db = getDB()

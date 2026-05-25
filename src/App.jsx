@@ -9,6 +9,7 @@ import HogarQuest from './pages/HogarQuest/HogarQuest'
 import DnD from './pages/DnD/DnD'
 import MapEditor from './pages/DnD/MapEditor'
 import MapViewer from './pages/DnD/MapViewer'
+import PartyViewer from './pages/DnD/PartyViewer'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/dnd/editor/:mapId" element={<ProtectedRoute roles={['master','dndMaster']}><MapEditor /></ProtectedRoute>} />
           <Route path="/dnd/viewer" element={<MapViewer />} />
           <Route path="/dnd/viewer/:channel" element={<MapViewer />} />
+          <Route path="/dnd/party" element={<PartyViewer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
