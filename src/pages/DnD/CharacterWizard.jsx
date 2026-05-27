@@ -68,7 +68,7 @@ const ALL_SKILLS = [
   'Religión','Sigilo','Supervivencia','Trato con animales'
 ]
 
-export default function CharacterWizard({ mode, character: initialChar, onSave, onClose, template, glossarySpells }) {
+export default function CharacterWizard({ mode, character: initialChar, onSave, onClose, template, glossarySpells, glossaryItems: availableGlossaryItems }) {
   const { user } = useAuth()
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
   const [step, setStep] = useState(0)
@@ -79,6 +79,7 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
   const [portraitTab, setPortraitTab] = useState('upload') // 'upload' | 'gallery'
   const [galleryImages, setGalleryImages] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [showGlossaryPicker, setShowGlossaryPicker] = useState(false)
   const fileRef = useRef(null)
 
   // ── Helpers ──
@@ -371,6 +372,23 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
             </div>
 
             <div className="glossary-form-row">
+              <label>Idiomas</label>
+              <div className="cw-chip-input">
+                {(ch.languages||[]).map((l, i) => (
+                  <span key={i} className="cw-chip">{l} <button onClick={() => setCh(e => ({...e, languages: e.languages.filter((_,j)=>j!==i)}))} className="cw-chip-x">✕</button></span>
+                ))}
+                <input className="dnd-input cw-chip-field" placeholder="Ej: Común, Élfico, Enano... (Enter)"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      e.preventDefault()
+                      setCh(prev => ({...prev, languages: [...(prev.languages||[]), e.target.value.trim()]}))
+                      e.target.value = ''
+                    }
+                  }} />
+              </div>
+            </div>
+
+            <div className="glossary-form-row">
               <label>Equipo del trasfondo</label>
               <div className="cw-chip-input">
                 {(ch.bgEquipment||[]).map((eq, i) => (
@@ -493,6 +511,46 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
                   <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(e => ({...e, consumables: e.consumables.filter((_,j)=>j!==i)}))}>✕</button>
                 </div>
               ))}
+            </div>
+            <div className="glossary-form-row">
+              <label>Items del glosario (Lore / Artefactos) <button className="dnd-btn-sm" onClick={() => setShowGlossaryPicker(!showGlossaryPicker)}>+ Vincular</button></label>
+              {showGlossaryPicker && (() => {
+                const linked = new Set(ch.glossaryItems || [])
+                const items = (availableGlossaryItems || []).filter(g => !linked.has(g.id))
+                return (
+                  <div className="glossary-picker-list">
+                    {items.length === 0 && <div className="dnd-empty-sm">No hay items disponibles</div>}
+                    {items.map(g => (
+                      <button key={g.id} className="glossary-picker-item" onClick={() => {
+                        setCh(e => ({ ...e, glossaryItems: [...(e.glossaryItems||[]), g.id] }))
+                        setShowGlossaryPicker(false)
+                      }}>
+                        <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
+                        <span>{g.name}</span>
+                        {g.rarity && <span className="glossary-picker-rarity">{g.rarity}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )
+              })()}
+              {(ch.glossaryItems||[]).length > 0 ? (
+                <div className="glossary-linked-items">
+                  {ch.glossaryItems.map(gId => {
+                    const g = (availableGlossaryItems || []).find(x => x.id === gId)
+                    if (!g) return null
+                    return (
+                      <div key={gId} className="glossary-linked-item">
+                        <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
+                        <span className="glossary-linked-name">{g.name}</span>
+                        {g.rarity && <span className="glossary-linked-rarity">{g.rarity}</span>}
+                        <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(e => ({ ...e, glossaryItems: (e.glossaryItems||[]).filter(id => id !== gId) }))}>✕</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="dnd-empty-sm">Sin items del glosario vinculados</div>
+              )}
             </div>
             <div className="glossary-form-row">
               <label>Acciones (armas, ataques) <button className="dnd-btn-sm" onClick={() => setCh(e => ({...e, actions: [...(e.actions||[]), {name:'',range:'Cuerpo a cuerpo',modifier:0,damage:'',secondaryDamage:'',note:'',actionType:'normal',isSpell:false,spellLevel:'truco',aoe:''}]}))}>+</button></label>

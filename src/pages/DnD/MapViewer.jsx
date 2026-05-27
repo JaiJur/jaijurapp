@@ -68,6 +68,34 @@ export default function MapViewer() {
   const lastMapIdRef = useRef(null)
   const lastUpdatedRef = useRef(0)
 
+  // ── Sound command listener ──
+  const lastSoundTsRef = useRef(0)
+  const audioRef = useRef(null)
+
+  useEffect(() => {
+    async function pollSound() {
+      try {
+        const r = await fetch('/api/dnd/sound-command')
+        if (!r.ok) return
+        const cmd = await r.json()
+        if (!cmd || cmd.ts <= lastSoundTsRef.current) return
+        lastSoundTsRef.current = cmd.ts
+        // Play the sound
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+        }
+        const audio = new Audio(cmd.url)
+        audio.volume = cmd.volume ?? 1
+        audioRef.current = audio
+        audio.play().catch(() => {})
+      } catch {}
+    }
+    const iv = setInterval(pollSound, 2000)
+    pollSound()
+    return () => clearInterval(iv)
+  }, [])
+
   // ── Zoom/pan para imágenes (solo canal tablet) ──
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })

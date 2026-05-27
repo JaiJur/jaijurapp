@@ -299,7 +299,7 @@
   box-sizing: border-box;
 }
 /* ── Tex picker ──────────────────────────────────── */
-.tex-picker { max-height: 160px; overflow-y: auto; }
+.tex-picker { max-height: 320px; overflow-y: auto; }
 .editor-prop-thumb.tex-active {
   background: rgba(99,102,241,0.25);
   border-color: rgba(99,102,241,0.7);
@@ -579,4 +579,99 @@
   font-weight: 600;
   min-width: 36px;
   text-align: center;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   TEXTURE MODE SELECTOR & BRUSH CONTROLS
+   ══════════════════════════════════════════════════════ */
+
+.tex-mode-selector {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.tex-mode-btn {
+  flex: 1;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  color: #a0a0b0;
+  cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.tex-mode-btn:hover {
+  background: rgba(255,255,255,.1);
+  color: #c8a96e;
+}
+.tex-mode-btn.active {
+  background: rgba(99,102,241,.25);
+  border-color: rgba(99,102,241,.6);
+  color: #a5b4fc;
+}
+.tex-mode-btn.eraser-btn {
+  flex: none;
+  width: 100%;
+  margin-top: 4px;
+}
+.tex-mode-btn.eraser-btn.active {
+  background: rgba(248,113,113,.2);
+  border-color: rgba(248,113,113,.5);
+  color: #f87171;
+}
+
+.brush-controls {
+  padding: 6px 0 8px;
+  border-bottom: 1px dashed rgba(255,255,255,.06);
+  margin-bottom: 6px;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   PROP ROOT FOLDERS (categorías fijas)
+   ══════════════════════════════════════════════════════ */
+
+.prop-root-folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.prop-root-btn {
+  background: rgba(200,169,110,0.06);
+  border: 1px solid rgba(200,169,110,0.15);
+  color: #a58b55;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  font-family: 'Segoe UI', sans-serif;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.prop-root-btn:hover {
+  background: rgba(200,169,110,0.15);
+  border-color: rgba(200,169,110,0.35);
+  color: #c8a96e;
+}
+.prop-root-btn.active {
+  background: rgba(200,169,110,0.2);
+  border-color: rgba(200,169,110,0.5);
+  color: #c8a96e;
+  font-weight: 600;
+}
+
+/* Subcarpetas dentro de la galería de props */
+.prop-subfolder-thumb {
+  border-style: dashed !important;
+  border-color: rgba(200,169,110,0.25) !important;
+}
+.prop-subfolder-thumb:hover {
+  border-color: rgba(200,169,110,0.5) !important;
+}
+.prop-subfolder-icon {
+  font-size: 1.6rem;
+  line-height: 1;
 }

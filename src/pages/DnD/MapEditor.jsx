@@ -105,14 +105,20 @@ export default function MapEditor() {
   const [multiSelection, setMultiSelection] = useState([]) // ids de props seleccionados con shift
   const [status, setStatus] = useState('')
   const [propAssets, setPropAssets] = useState({ path: '', folders: [], files: [] })
+  const [propRootFolders, setPropRootFolders] = useState([]) // carpetas raíz siempre visibles
+  const [activePropFolder, setActivePropFolder] = useState(null) // carpeta seleccionada
   const [floorAssets, setFloorAssets] = useState([])
   const [selectedTexture, setSelectedTexture] = useState(null)
+  const [texMode, setTexMode] = useState('polygon') // 'polygon' | 'brush'
+  const [brushSize, setBrushSize] = useState(40)
+  const [brushFeather, setBrushFeather] = useState(0.3) // 0 = hard, 1 = full soft
+  const [brushEraser, setBrushEraser] = useState(false)
   const [clipboard, setClipboard] = useState(null)
   const [drawingFog, setDrawingFog] = useState(null) // { points: [{x,y}], cursor: {x,y} } — polígono en construcción
   const [drawingTex, setDrawingTex] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
-  const [collapsed, setCollapsed] = useState({ fog: false, scene: false, inspector: false, textures: false, groups: false, tools: false, grid: false, props: false, leftTex: false })
+  const [collapsed, setCollapsed] = useState({ fog: true, scene: true, inspector: true, textures: true, groups: true, tools: true, grid: true, props: true, leftTex: true })
   const [expandedGroups, setExpandedGroups] = useState({})
   const [zoom, setZoom] = useState(1)
 
@@ -140,6 +146,12 @@ export default function MapEditor() {
   const drawingFogRef = useRef(null)
   const drawingTexRef = useRef(null)
   const zoomRef = useRef(1)
+  const texModeRef = useRef('polygon')
+  const brushSizeRef = useRef(40)
+  const brushFeatherRef = useRef(0.3)
+  const brushEraserRef = useRef(false)
+  const brushStrokeRef = useRef(null) // trazo en curso: { points, texture, brushSize, feather, eraser }
+  const brushCacheRef = useRef({}) // offscreen canvas cache por layer id
 
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user.id }
 
@@ -150,6 +162,10 @@ export default function MapEditor() {
   useEffect(() => { selectedTexRef.current = selectedTexLayer; dirtyRef.current = true }, [selectedTexLayer])
   useEffect(() => { toolRef.current = tool }, [tool])
   useEffect(() => { zoomRef.current = zoom }, [zoom])
+  useEffect(() => { texModeRef.current = texMode }, [texMode])
+  useEffect(() => { brushSizeRef.current = brushSize }, [brushSize])
+  useEffect(() => { brushFeatherRef.current = brushFeather }, [brushFeather])
+  useEffect(() => { brushEraserRef.current = brushEraser }, [brushEraser])
 
   // Al cambiar de herramienta, cancelar polígonos en curso
   useEffect(() => {
@@ -177,15 +193,29 @@ export default function MapEditor() {
   }, [])
 
   // ── Carga inicial ───────────────────────────────────
-  useEffect(() => { loadPropAssets('') }, [])
+  useEffect(() => {
+    // Cargar carpetas raíz de props
+    fetch('/api/assets/props').then(r => r.json()).then(data => {
+      setPropAssets(data)
+      setPropRootFolders(data.folders || [])
+    })
+  }, [])
   useEffect(() => { fetch('/api/assets/floors').then(r => r.json()).then(setFloorAssets) }, [])
 
   async function loadPropAssets(path) {
     try {
       const q = path ? `?path=${encodeURIComponent(path)}` : ''
       const r = await fetch(`/api/assets/props${q}`)
-      if (r.ok) setPropAssets(await r.json())
+      if (r.ok) {
+        const data = await r.json()
+        setPropAssets(data)
+      }
     } catch {}
+  }
+
+  function selectPropFolder(folder) {
+    setActivePropFolder(folder.path)
+    loadPropAssets(folder.path)
   }
   useEffect(() => {
     fetch(`/api/dnd/maps/${mapId}`, { headers })
@@ -201,6 +231,114 @@ export default function MapEditor() {
       bgCanvas.current = null // forzar rebuild en próximo frame
     }
   }, [map?.hexSize, map?.canvasW, map?.canvasH, map?.gridColor])
+
+  // ── Render de brush strokes en offscreen canvas ──
+  function renderBrushLayer(tex, cw, ch) {
+    if (!tex.brushStrokes || !tex.brushStrokes.length) return null
+    const cacheKey = `${tex.id}|${tex.brushStrokes.length}|${cw}|${ch}`
+    if (brushCacheRef.current[cacheKey]) return brushCacheRef.current[cacheKey]
+    const off = document.createElement('canvas')
+    off.width = cw; off.height = ch
+    const ctx = off.getContext('2d')
+    const img = imgCache.current[tex.imgUrl]
+    if (!img) return null
+
+    tex.brushStrokes.forEach(stroke => {
+      if (!stroke.points || stroke.points.length < 1) return
+      const r = (stroke.brushSize || 40) / 2
+      const feather = stroke.feather ?? 0 // 0 = hard, 0-1 = where 50% opacity sits
+
+      if (stroke.eraser) {
+        // Eraser: stamp circles with destination-out
+        ctx.save()
+        ctx.globalCompositeOperation = 'destination-out'
+        for (let i = 0; i < stroke.points.length; i++) {
+          const p = stroke.points[i]
+          if (i > 0) {
+            const prev = stroke.points[i - 1]
+            const dist = Math.hypot(p.x - prev.x, p.y - prev.y)
+            const step = Math.max(r * 0.25, 2)
+            const steps = Math.ceil(dist / step)
+            for (let s = 1; s < steps; s++) {
+              const t = s / steps
+              const ix = prev.x + (p.x - prev.x) * t
+              const iy = prev.y + (p.y - prev.y) * t
+              ctx.beginPath(); ctx.arc(ix, iy, r, 0, Math.PI * 2)
+              ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill()
+            }
+          }
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+          ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill()
+        }
+        ctx.restore()
+        return
+      }
+
+      // ── Textured brush with radial feather ──
+      // 1. Build a mask canvas with alpha gradient stamps
+      const mask = document.createElement('canvas')
+      mask.width = cw; mask.height = ch
+      const mctx = mask.getContext('2d')
+
+      // Stamp alpha circles along the stroke path
+      for (let i = 0; i < stroke.points.length; i++) {
+        const p = stroke.points[i]
+        const stampAt = (sx, sy) => {
+          if (feather > 0) {
+            // Radial gradient: solid from center to (1-feather)*r, then fade to 0 at r
+            const innerR = r * (1 - feather)
+            const grad = mctx.createRadialGradient(sx, sy, innerR, sx, sy, r)
+            grad.addColorStop(0, 'rgba(255,255,255,1)')
+            grad.addColorStop(1, 'rgba(255,255,255,0)')
+            mctx.beginPath(); mctx.arc(sx, sy, r, 0, Math.PI * 2)
+            mctx.fillStyle = grad; mctx.fill()
+          } else {
+            mctx.beginPath(); mctx.arc(sx, sy, r, 0, Math.PI * 2)
+            mctx.fillStyle = 'rgba(255,255,255,1)'; mctx.fill()
+          }
+        }
+        // Interpolate between points for smooth coverage
+        if (i > 0) {
+          const prev = stroke.points[i - 1]
+          const dist = Math.hypot(p.x - prev.x, p.y - prev.y)
+          const step = Math.max(r * 0.25, 2)
+          const steps = Math.ceil(dist / step)
+          for (let s = 1; s < steps; s++) {
+            const t = s / steps
+            stampAt(prev.x + (p.x - prev.x) * t, prev.y + (p.y - prev.y) * t)
+          }
+        }
+        stampAt(p.x, p.y)
+      }
+
+      // 2. Create a textured canvas (pattern fill over the bounding area)
+      const pat = ctx.createPattern(img, 'repeat')
+      if (!pat) return
+      const scale = tex.scale || 1
+      const dm = new DOMMatrix(); dm.a = scale; dm.d = scale
+      pat.setTransform(dm)
+
+      // 3. Composite: use mask as alpha for the texture
+      // Draw texture into a temp canvas, then mask it
+      const tex2 = document.createElement('canvas')
+      tex2.width = cw; tex2.height = ch
+      const tctx = tex2.getContext('2d')
+      tctx.fillStyle = pat
+      tctx.fillRect(0, 0, cw, ch)
+      // Apply mask: keep only where mask has alpha
+      tctx.globalCompositeOperation = 'destination-in'
+      tctx.drawImage(mask, 0, 0)
+
+      // 4. Draw result onto the layer canvas
+      ctx.drawImage(tex2, 0, 0)
+    })
+
+    Object.keys(brushCacheRef.current).forEach(k => {
+      if (k.startsWith(`${tex.id}|`) && k !== cacheKey) delete brushCacheRef.current[k]
+    })
+    brushCacheRef.current[cacheKey] = off
+    return off
+  }
 
   // ── A: RAF loop principal ────────────────────────────
   useEffect(() => {
@@ -279,42 +417,153 @@ export default function MapEditor() {
         img.onload = () => {
           imgCache.current[tex.imgUrl] = img
           Object.keys(patternCache.current).forEach(k => { if (k.startsWith(tex.imgUrl)) delete patternCache.current[k] })
+          dirtyRef.current = true
         }
         return
       }
-      const pts = texToPoints(tex)
-      if (!pts || pts.length < 3) return
-      const bb = pointsBbox(pts)
-      ctx.save()
       const f = tex.filter || {}
-      const scale = tex.scale || 1
-      ctx.filter = `brightness(${f.brightness??100}%) saturate(${f.saturate??100}%) hue-rotate(${f.hue??0}deg)`
-      // Clip con la forma del polígono
-      tracePolyPath(ctx, pts, tex.smooth)
-      ctx.clip()
-      // Rellenar con patrón tileado
-      const pat = getPattern(ctx, tex.imgUrl, scale)
-      if (pat) {
-        const dm = new DOMMatrix(); dm.a = scale; dm.d = scale; dm.e = bb.minX; dm.f = bb.minY
-        pat.setTransform(dm)
-        ctx.fillStyle = pat
-        ctx.fillRect(bb.minX, bb.minY, bb.maxX - bb.minX, bb.maxY - bb.minY)
-      }
-      ctx.filter = 'none'; ctx.restore()
-      // Borde de selección
-      if (tex.id === selectedTexRef.current) {
+      const filterStr = `brightness(${f.brightness??100}%) saturate(${f.saturate??100}%) hue-rotate(${f.hue??0}deg)`
+
+      if (tex.type === 'brush') {
+        // ── Render brush layer ──
+        const brushCanvas = renderBrushLayer(tex, cw, ch)
+        if (brushCanvas) {
+          ctx.save()
+          ctx.filter = filterStr
+          ctx.drawImage(brushCanvas, 0, 0)
+          ctx.filter = 'none'
+          ctx.restore()
+        }
+        // Highlight selección: borde alrededor del bounding box de los strokes
+        if (tex.id === selectedTexRef.current && tex.brushStrokes?.length) {
+          let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity
+          tex.brushStrokes.forEach(s => s.points?.forEach(p => {
+            const r = (s.brushSize||40)/2
+            if(p.x-r<minX) minX=p.x-r; if(p.y-r<minY) minY=p.y-r
+            if(p.x+r>maxX) maxX=p.x+r; if(p.y+r>maxY) maxY=p.y+r
+          }))
+          ctx.save()
+          ctx.strokeStyle = 'rgba(99,102,241,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([6,3])
+          ctx.strokeRect(minX, minY, maxX-minX, maxY-minY)
+          ctx.setLineDash([]); ctx.restore()
+        }
+      } else {
+        // ── Render polygon layer (existente) ──
+        const pts = texToPoints(tex)
+        if (!pts || pts.length < 3) return
+        const bb = pointsBbox(pts)
         ctx.save()
+        const scale = tex.scale || 1
+        ctx.filter = filterStr
         tracePolyPath(ctx, pts, tex.smooth)
-        ctx.strokeStyle = 'rgba(99,102,241,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([6,3])
-        ctx.stroke(); ctx.setLineDash([])
-        // Vértices
-        pts.forEach(p => {
-          ctx.fillStyle = 'rgba(99,102,241,0.9)'
-          ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill()
-        })
-        ctx.restore()
+        ctx.clip()
+        const pat = getPattern(ctx, tex.imgUrl, scale)
+        if (pat) {
+          const dm = new DOMMatrix(); dm.a = scale; dm.d = scale; dm.e = bb.minX; dm.f = bb.minY
+          pat.setTransform(dm)
+          ctx.fillStyle = pat
+          ctx.fillRect(bb.minX, bb.minY, bb.maxX - bb.minX, bb.maxY - bb.minY)
+        }
+        ctx.filter = 'none'; ctx.restore()
+        if (tex.id === selectedTexRef.current) {
+          ctx.save()
+          tracePolyPath(ctx, pts, tex.smooth)
+          ctx.strokeStyle = 'rgba(99,102,241,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([6,3])
+          ctx.stroke(); ctx.setLineDash([])
+          pts.forEach(p => {
+            ctx.fillStyle = 'rgba(99,102,241,0.9)'
+            ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill()
+          })
+          ctx.restore()
+        }
       }
     })
+
+    // ── Render del trazo de pincel en curso (preview en tiempo real) ──
+    const activeStroke = brushStrokeRef.current
+    if (activeStroke && activeStroke.points.length >= 1) {
+      const img = imgCache.current[activeStroke.texture]
+      if (img) {
+        const r = (activeStroke.brushSize || 40) / 2
+        const feather = activeStroke.feather ?? 0
+        if (activeStroke.eraser) {
+          ctx.save()
+          ctx.globalCompositeOperation = 'destination-out'
+          for (let i = 0; i < activeStroke.points.length; i++) {
+            const p = activeStroke.points[i]
+            if (i > 0) {
+              const prev = activeStroke.points[i - 1]
+              const dist = Math.hypot(p.x - prev.x, p.y - prev.y)
+              const step = Math.max(r * 0.25, 2)
+              const steps = Math.ceil(dist / step)
+              for (let s = 1; s < steps; s++) {
+                const t = s / steps
+                ctx.beginPath(); ctx.arc(prev.x+(p.x-prev.x)*t, prev.y+(p.y-prev.y)*t, r, 0, Math.PI*2)
+                ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill()
+              }
+            }
+            ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2)
+            ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill()
+          }
+          ctx.restore()
+        } else {
+          // Preview con máscara radial (simplificado para rendimiento)
+          const pat = ctx.createPattern(img, 'repeat')
+          if (pat) {
+            const scale = activeStroke.scale || 1
+            const dm = new DOMMatrix(); dm.a = scale; dm.d = scale
+            pat.setTransform(dm)
+            if (feather > 0) {
+              // Stamp con gradiente radial
+              for (let i = 0; i < activeStroke.points.length; i++) {
+                const p = activeStroke.points[i]
+                const stampPrev = (sx, sy) => {
+                  ctx.save()
+                  const innerR = r * (1 - feather)
+                  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.clip()
+                  ctx.fillStyle = pat; ctx.fillRect(sx - r, sy - r, r * 2, r * 2)
+                  // Fade edges con gradiente
+                  ctx.globalCompositeOperation = 'destination-in'
+                  const grad = ctx.createRadialGradient(sx, sy, innerR, sx, sy, r)
+                  grad.addColorStop(0, 'rgba(0,0,0,1)')
+                  grad.addColorStop(1, 'rgba(0,0,0,0)')
+                  ctx.fillStyle = grad; ctx.fillRect(sx - r, sy - r, r * 2, r * 2)
+                  ctx.restore()
+                }
+                if (i > 0) {
+                  const prev = activeStroke.points[i - 1]
+                  const dist = Math.hypot(p.x - prev.x, p.y - prev.y)
+                  const step = Math.max(r * 0.4, 3)
+                  const steps = Math.ceil(dist / step)
+                  for (let s = 1; s < steps; s++) {
+                    const t = s / steps
+                    stampPrev(prev.x + (p.x - prev.x) * t, prev.y + (p.y - prev.y) * t)
+                  }
+                }
+                stampPrev(p.x, p.y)
+              }
+            } else {
+              // Hard brush: simple stroke
+              ctx.save()
+              ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+              ctx.lineWidth = activeStroke.brushSize || 40
+              ctx.strokeStyle = pat
+              ctx.beginPath()
+              ctx.moveTo(activeStroke.points[0].x, activeStroke.points[0].y)
+              for (let i = 1; i < activeStroke.points.length; i++) {
+                const prev = activeStroke.points[i - 1]
+                const cur = activeStroke.points[i]
+                ctx.quadraticCurveTo(prev.x, prev.y, (prev.x+cur.x)/2, (prev.y+cur.y)/2)
+              }
+              const last = activeStroke.points[activeStroke.points.length - 1]
+              ctx.lineTo(last.x, last.y)
+              ctx.stroke()
+              ctx.restore()
+            }
+          }
+        }
+      }
+    }
 
     // Props
     const hiddenPropIds = new Set(
@@ -429,6 +678,13 @@ export default function MapEditor() {
     const m = mapRef.current; if (!m?.textureLayers) return null
     return [...m.textureLayers].reverse().find(t => {
       if (t.locked) return false
+      if (t.type === 'brush') {
+        // Brush layers: check if point is within any stroke's bounding area
+        return (t.brushStrokes||[]).some(s => s.points?.some(p => {
+          const r = (s.brushSize||40)/2 + 5
+          return Math.abs(x-p.x) < r && Math.abs(y-p.y) < r
+        }))
+      }
       const pts = texToPoints(t); if (!pts) return false
       return pointInPolygon(x, y, pts)
     })
@@ -453,9 +709,22 @@ export default function MapEditor() {
       return
     }
     if (tool === 'texture') {
-      // Polígono de textura: cada click añade un vértice
       setSelectedProp(null); setSelectedFog(null); setSelectedTexLayer(null)
       if (!selectedTexture) return
+      if (texModeRef.current === 'brush') {
+        // Brush mode: empezar trazo
+        brushStrokeRef.current = {
+          points: [{x,y}],
+          texture: selectedTexture.url,
+          brushSize: brushSizeRef.current,
+          feather: brushFeatherRef.current,
+          eraser: brushEraserRef.current,
+          scale: 1
+        }
+        dirtyRef.current = true
+        return
+      }
+      // Polygon mode: cada click añade un vértice
       const cur = drawingTexRef.current
       if (!cur) {
         const poly = { points: [{x,y}], cursor: {x,y} }
@@ -539,6 +808,17 @@ export default function MapEditor() {
     }
 
     if (!id || !mode) {
+      // Brush: añadir puntos al trazo en curso
+      if (brushStrokeRef.current) {
+        const pts = brushStrokeRef.current.points
+        const last = pts[pts.length - 1]
+        const dist = Math.hypot(x - last.x, y - last.y)
+        if (dist > 3) { // mínimo 3px entre puntos para no saturar
+          brushStrokeRef.current = { ...brushStrokeRef.current, points: [...pts, {x,y}] }
+          dirtyRef.current = true
+        }
+        return
+      }
       // Preview del polígono en construcción: actualizar posición del cursor
       if (drawingFogRef.current) {
         const poly = { ...drawingFogRef.current, cursor: {x,y} }
@@ -596,6 +876,48 @@ export default function MapEditor() {
   }
 
   function handleMouseUp() {
+    // ── Brush: confirmar trazo ──
+    if (brushStrokeRef.current) {
+      const stroke = brushStrokeRef.current
+      brushStrokeRef.current = null
+      if (stroke.points.length >= 2 && selectedTexture) {
+        // Buscar o crear la brush layer para esta textura
+        const m = mapRef.current
+        let brushLayer = (m.textureLayers || []).find(t => t.type === 'brush' && t.imgUrl === stroke.texture)
+        if (!brushLayer) {
+          brushLayer = {
+            id: Date.now(), type: 'brush', name: `🖌 ${selectedTexture.name}`,
+            imgUrl: stroke.texture, scale: 1,
+            filter: { brightness: 100, saturate: 100, hue: 0 },
+            brushStrokes: []
+          }
+          mapRef.current = { ...m, textureLayers: [...(m.textureLayers || []), brushLayer] }
+        }
+        // Añadir el stroke simplificado (redondear coords)
+        const simplified = {
+          points: stroke.points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
+          brushSize: stroke.brushSize,
+          feather: stroke.feather,
+          eraser: stroke.eraser
+        }
+        // Invalidar cache de este layer
+        Object.keys(brushCacheRef.current).forEach(k => {
+          if (k.startsWith(`${brushLayer.id}|`)) delete brushCacheRef.current[k]
+        })
+        mapRef.current = {
+          ...mapRef.current,
+          textureLayers: mapRef.current.textureLayers.map(t =>
+            t.id === brushLayer.id ? { ...t, brushStrokes: [...(t.brushStrokes || []), simplified] } : t
+          )
+        }
+        dirtyRef.current = true
+        setMap({ ...mapRef.current })
+        setSelectedTexLayer(brushLayer.id)
+        setTimeout(autoSave, 100)
+      }
+      return
+    }
+
     const mode = dragModeRef.current
     const hadDrag = !!draggingIdRef.current
     dragModeRef.current = null; draggingIdRef.current = null
@@ -724,9 +1046,37 @@ export default function MapEditor() {
     if (tex) Object.keys(patternCache.current).forEach(k => { if(k.startsWith(tex.imgUrl)) delete patternCache.current[k] })
   }
   function deleteTexLayer(id) {
+    // Limpiar brush cache si es brush layer
+    Object.keys(brushCacheRef.current).forEach(k => { if (k.startsWith(`${id}|`)) delete brushCacheRef.current[k] })
     updateMap(m => ({ ...m, textureLayers:m.textureLayers.filter(t => t.id!==id) }))
     if (selectedTexRef.current===id) setSelectedTexLayer(null)
     setTimeout(autoSave,100)
+  }
+  function undoBrushStroke(id) {
+    const tex = mapRef.current?.textureLayers?.find(t => t.id === id)
+    if (!tex || !tex.brushStrokes?.length) return
+    Object.keys(brushCacheRef.current).forEach(k => { if (k.startsWith(`${id}|`)) delete brushCacheRef.current[k] })
+    updateMap(m => ({ ...m, textureLayers: m.textureLayers.map(t =>
+      t.id === id ? { ...t, brushStrokes: t.brushStrokes.slice(0, -1) } : t
+    )}))
+    setTimeout(autoSave, 100)
+  }
+  // DnD reorder texturas
+  const texDragItemRef = useRef(null); const texDragOverRef = useRef(null)
+  function handleTexDragStart(id) { texDragItemRef.current = id }
+  function handleTexDragOver(e, id) { e.preventDefault(); texDragOverRef.current = id }
+  function handleTexDrop() {
+    if (!texDragItemRef.current || !texDragOverRef.current || texDragItemRef.current === texDragOverRef.current) return
+    updateMap(m => {
+      const layers = [...(m.textureLayers||[])]
+      const fi = layers.findIndex(t => t.id === texDragItemRef.current)
+      const ti = layers.findIndex(t => t.id === texDragOverRef.current)
+      if (fi === -1 || ti === -1) return m
+      const [item] = layers.splice(fi, 1); layers.splice(ti, 0, item)
+      return { ...m, textureLayers: layers }
+    })
+    texDragItemRef.current = null; texDragOverRef.current = null
+    setTimeout(autoSave, 100)
   }
   function toggleTexLock(id) {
     updateMap(m => ({ ...m, textureLayers:m.textureLayers.map(t => t.id===id?{...t, locked: !t.locked}:t) }))
@@ -918,18 +1268,6 @@ export default function MapEditor() {
         {/* ── Panel izquierdo ── */}
         <div className="editor-panel">
 
-          {/* Herramientas */}
-          <section className="editor-section">
-            <div className="section-header" onClick={() => toggleCollapse('tools')}>
-              <label className="editor-label" style={{cursor:'pointer',margin:0}}>🛠 Herramientas</label>
-              <span className="section-chevron">{collapsed.tools?'▸':'▾'}</span>
-            </div>
-            {!collapsed.tools && <div className="editor-tools">
-              {[{id:'fog',icon:'⬛',label:'Niebla'},{id:'texture',icon:'🖼',label:'Textura'},{id:'prop',icon:'✋',label:'Mover'},{id:'erase',icon:'🗑',label:'Borrar'}]
-                .map(t => <button key={t.id} className={`editor-tool-btn ${tool===t.id?'active':''}`} onClick={()=>setTool(t.id)}>{t.icon} {t.label}</button>)}
-            </div>}
-          </section>
-
           {/* Grid / Canvas */}
           <section className="editor-section">
             <div className="section-header" onClick={() => toggleCollapse('grid')}>
@@ -971,57 +1309,15 @@ export default function MapEditor() {
             </>}
           </section>
 
-          {/* Props */}
+          {/* Herramientas */}
           <section className="editor-section">
-            <div className="section-header" onClick={() => toggleCollapse('props')}>
-              <label className="editor-label" style={{cursor:'pointer',margin:0}}>📦 Props ({propAssets.files?.length || 0})</label>
-              <span className="section-chevron">{collapsed.props?'▸':'▾'}</span>
+            <div className="section-header" onClick={() => toggleCollapse('tools')}>
+              <label className="editor-label" style={{cursor:'pointer',margin:0}}>🛠 Herramientas</label>
+              <span className="section-chevron">{collapsed.tools?'▸':'▾'}</span>
             </div>
-            {!collapsed.props && <div className="editor-prop-browser">
-              {/* Breadcrumb */}
-              {propAssets.path && (
-                <div className="prop-breadcrumb">
-                  <button className="prop-crumb" onClick={() => loadPropAssets('')}>📦 Raíz</button>
-                  {propAssets.path.split('/').map((seg, i, arr) => (
-                    <span key={i}>
-                      <span className="prop-crumb-sep"> / </span>
-                      <button className="prop-crumb" onClick={() => loadPropAssets(arr.slice(0,i+1).join('/'))}>{seg}</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {/* Carpetas */}
-              {(propAssets.folders || []).length > 0 && (
-                <div className="prop-folder-list">
-                  {propAssets.path && (
-                    <button className="prop-folder prop-folder-up" onClick={() => {
-                      const parts = propAssets.path.split('/')
-                      loadPropAssets(parts.slice(0,-1).join('/'))
-                    }}>⬆ ..</button>
-                  )}
-                  {propAssets.folders.map(f => (
-                    <button key={f.path} className="prop-folder" onClick={() => loadPropAssets(f.path)}>📁 {f.name}</button>
-                  ))}
-                </div>
-              )}
-              {propAssets.path && (propAssets.folders || []).length === 0 && (
-                <button className="prop-folder prop-folder-up" onClick={() => {
-                  const parts = propAssets.path.split('/')
-                  loadPropAssets(parts.slice(0,-1).join('/'))
-                }}>⬆ Subir</button>
-              )}
-              {/* Thumbnails */}
-              <div className="editor-prop-gallery">
-                {(propAssets.files || []).map(asset => (
-                  <button key={asset.url} className="editor-prop-thumb" onClick={() => addProp(asset)} title={asset.name}>
-                    <img src={asset.url} alt={asset.name} loading="lazy" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.fontSize='1.5rem'}} />
-                    <span>{asset.name}</span>
-                  </button>
-                ))}
-                {(propAssets.files || []).length === 0 && (propAssets.folders || []).length === 0 && (
-                  <div className="editor-empty-scene">Carpeta vacía</div>
-                )}
-              </div>
+            {!collapsed.tools && <div className="editor-tools">
+              {[{id:'fog',icon:'⬛',label:'Niebla'},{id:'texture',icon:'🖼',label:'Textura'},{id:'prop',icon:'✋',label:'Mover'},{id:'erase',icon:'🗑',label:'Borrar'}]
+                .map(t => <button key={t.id} className={`editor-tool-btn ${tool===t.id?'active':''}`} onClick={()=>setTool(t.id)}>{t.icon} {t.label}</button>)}
             </div>}
           </section>
 
@@ -1031,14 +1327,109 @@ export default function MapEditor() {
               <label className="editor-label" style={{cursor:'pointer',margin:0}}>🖼 Texturas ({floorAssets.length})</label>
               <span className="section-chevron">{collapsed.leftTex?'▸':'▾'}</span>
             </div>
-            {!collapsed.leftTex && <div className="editor-prop-gallery tex-picker">
-              {floorAssets.map(asset => (
-                <button key={asset.url} className={`editor-prop-thumb ${selectedTexture?.url===asset.url?'tex-active':''}`}
-                  onClick={() => { setSelectedTexture(asset); setTool('texture') }} title={asset.name}>
-                  <img src={asset.url} alt={asset.name} onError={e=>{e.target.style.display='none';e.target.nextSibling.style.fontSize='1.1rem'}} />
-                  <span>{asset.name}</span>
-                </button>
-              ))}
+            {!collapsed.leftTex && <>
+              {/* Sub-selector: Polígono / Pincel */}
+              <div className="tex-mode-selector">
+                <button className={`tex-mode-btn ${texMode==='polygon'?'active':''}`}
+                  onClick={() => { setTexMode('polygon'); setBrushEraser(false) }}>⬡ Polígono</button>
+                <button className={`tex-mode-btn ${texMode==='brush'?'active':''}`}
+                  onClick={() => { setTexMode('brush'); setBrushEraser(false) }}>🖌 Pincel</button>
+              </div>
+              {/* Controles del pincel */}
+              {texMode === 'brush' && (
+                <div className="brush-controls">
+                  <div className="editor-filter-row">
+                    <span className="editor-filter-label">⊕ Tamaño</span>
+                    <input type="range" min="5" max="200" value={brushSize} className="editor-range"
+                      onChange={e => setBrushSize(parseInt(e.target.value))} />
+                    <input type="number" min="5" max="200" value={brushSize} className="editor-filter-num"
+                      onChange={e => setBrushSize(Math.min(200, Math.max(5, parseInt(e.target.value)||40)))} />
+                  </div>
+                  <div className="editor-filter-row">
+                    <span className="editor-filter-label">◎ Degradado</span>
+                    <input type="range" min="0" max="0.95" step="0.05" value={brushFeather} className="editor-range"
+                      onChange={e => setBrushFeather(parseFloat(e.target.value))} />
+                    <span className="editor-filter-num" style={{textAlign:'center',cursor:'default'}}>
+                      {brushFeather === 0 ? 'Off' : Math.round(brushFeather * 100) + '%'}
+                    </span>
+                  </div>
+                  <button className={`tex-mode-btn eraser-btn ${brushEraser?'active':''}`}
+                    onClick={() => setBrushEraser(v => !v)}>
+                    {brushEraser ? '🧽 Borrador ON' : '🧽 Borrador'}
+                  </button>
+                </div>
+              )}
+              {/* Galería de texturas */}
+              <div className="editor-prop-gallery tex-picker">
+                {floorAssets.map(asset => (
+                  <button key={asset.url} className={`editor-prop-thumb ${selectedTexture?.url===asset.url?'tex-active':''}`}
+                    onClick={() => { setSelectedTexture(asset); setTool('texture') }} title={asset.name}>
+                    <img src={asset.url} alt={asset.name} onError={e=>{e.target.style.display='none';e.target.nextSibling.style.fontSize='1.1rem'}} />
+                    <span>{asset.name}</span>
+                  </button>
+                ))}
+              </div>
+            </>}
+          </section>
+
+          {/* Props */}
+          <section className="editor-section">
+            <div className="section-header" onClick={() => toggleCollapse('props')}>
+              <label className="editor-label" style={{cursor:'pointer',margin:0}}>📦 Props ({propAssets.files?.length || 0})</label>
+              <span className="section-chevron">{collapsed.props?'▸':'▾'}</span>
+            </div>
+            {!collapsed.props && <div className="editor-prop-browser">
+              {/* Carpetas raíz — siempre visibles */}
+              <div className="prop-root-folders">
+                {propRootFolders.map(f => (
+                  <button key={f.path} className={`prop-root-btn ${activePropFolder === f.path ? 'active' : ''}`}
+                    onClick={() => selectPropFolder(f)}>
+                    📁 {f.name}
+                  </button>
+                ))}
+              </div>
+              {/* Breadcrumb dentro de subcarpetas (solo si estamos más profundo que la raíz) */}
+              {activePropFolder && propAssets.path && propAssets.path !== activePropFolder && (
+                <div className="prop-breadcrumb">
+                  <button className="prop-crumb" onClick={() => { loadPropAssets(activePropFolder) }}>
+                    ← {activePropFolder.split('/').pop()}
+                  </button>
+                  {propAssets.path.replace(activePropFolder + '/', '').split('/').map((seg, i, arr) => (
+                    <span key={i}>
+                      <span className="prop-crumb-sep"> / </span>
+                      <button className="prop-crumb" onClick={() => loadPropAssets(activePropFolder + '/' + arr.slice(0, i + 1).join('/'))}>
+                        {seg}
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Contenido: subcarpetas + archivos */}
+              {activePropFolder && (
+                <div className="editor-prop-gallery">
+                  {/* Subcarpetas como items navegables */}
+                  {(propAssets.folders || []).map(f => (
+                    <button key={f.path} className="editor-prop-thumb prop-subfolder-thumb"
+                      onClick={() => loadPropAssets(f.path)} title={f.name}>
+                      <span className="prop-subfolder-icon">📁</span>
+                      <span>{f.name}</span>
+                    </button>
+                  ))}
+                  {/* Props */}
+                  {(propAssets.files || []).map(asset => (
+                    <button key={asset.url} className="editor-prop-thumb" onClick={() => addProp(asset)} title={asset.name}>
+                      <img src={asset.url} alt={asset.name} loading="lazy" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.fontSize='1.5rem'}} />
+                      <span>{asset.name}</span>
+                    </button>
+                  ))}
+                  {(propAssets.files || []).length === 0 && (propAssets.folders || []).length === 0 && (
+                    <div className="editor-empty-scene">Carpeta vacía</div>
+                  )}
+                </div>
+              )}
+              {!activePropFolder && (
+                <div className="editor-empty-scene" style={{marginTop:4}}>Selecciona una categoría</div>
+              )}
             </div>}
           </section>
 
@@ -1132,8 +1523,13 @@ export default function MapEditor() {
               <button className="fog-poly-btn fog-poly-btn-cancel" onClick={cancelPolygonTex} title="Esc">✕</button>
             </div>
           )}
-          {tool === 'texture' && !drawingTex && selectedTexture && (
+          {tool === 'texture' && !drawingTex && selectedTexture && texMode === 'polygon' && (
             <div className="fog-poly-hint">Click para empezar polígono de textura · Doble click o Enter para cerrar</div>
+          )}
+          {tool === 'texture' && !drawingTex && selectedTexture && texMode === 'brush' && (
+            <div className="fog-poly-hint" style={{borderColor: brushEraser ? 'rgba(248,113,113,0.3)' : 'rgba(99,102,241,0.3)'}}>
+              {brushEraser ? '🧽 Borrador — Arrastra para borrar' : `🖌 Pincel (${brushSize}px) — Arrastra para pintar`}
+            </div>
           )}
           {tool === 'texture' && !drawingTex && !selectedTexture && (
             <div className="fog-poly-hint">Selecciona una textura en el panel izquierdo</div>
@@ -1326,14 +1722,20 @@ export default function MapEditor() {
                 </div>
               )}
               {!(map.textureLayers||[]).length && <div className="editor-empty-scene">Sin capas — dibuja con 🖼 Textura</div>}
-              <div className="editor-scene-list" style={{marginTop:6}}>
+              <div className="editor-scene-list" style={{marginTop:6}} onDragOver={e=>e.preventDefault()}>
                 {(map.textureLayers||[]).map(tex => {
                   const isSel = selectedTexLayer===tex.id
                   const isLocked = !!tex.locked
                   const isHidden = tex.visible === false
-                  return <div key={tex.id} className={`editor-scene-item ${isSel?'selected':''} ${isLocked?'prop-locked':''} ${isHidden?'prop-hidden':''}`} onClick={()=>setSelectedTexLayer(isSel?null:tex.id)}>
+                  return <div key={tex.id} className={`editor-scene-item ${isSel?'selected':''} ${isLocked?'prop-locked':''} ${isHidden?'prop-hidden':''}`}
+                    draggable={!isLocked}
+                    onDragStart={()=>handleTexDragStart(tex.id)}
+                    onDragOver={e=>handleTexDragOver(e,tex.id)}
+                    onDrop={handleTexDrop}
+                    onClick={()=>setSelectedTexLayer(isSel?null:tex.id)}>
+                    <span className="editor-scene-drag">⠿</span>
                     <img src={tex.imgUrl} style={{width:20,height:20,objectFit:'cover',borderRadius:3,flexShrink:0}} alt="" />
-                    <span className="editor-scene-name">{tex.name}</span>
+                    <span className="editor-scene-name">{tex.type==='brush'?'🖌 ':''}{tex.name}</span>
                     <div className="editor-scene-actions">
                       <button onClick={e=>{e.stopPropagation();toggleTexVisible(tex.id)}} title={isHidden?'Mostrar':'Ocultar'}>{isHidden?'🙈':'👁'}</button>
                       <button onClick={e=>{e.stopPropagation();toggleTexLock(tex.id)}} title={isLocked?'Desbloquear':'Bloquear'}>{isLocked?'🔒':'🔓'}</button>
@@ -1343,25 +1745,45 @@ export default function MapEditor() {
                 })}
               </div>
               {selTexLayer && (() => {
-                const selPts = texToPoints(selTexLayer) || []
+                const isBrush = selTexLayer.type === 'brush'
+                const selPts = isBrush ? [] : (texToPoints(selTexLayer) || [])
                 const bb = selPts.length ? pointsBbox(selPts) : null
                 return <div className="fog-inspector" style={{borderColor:'rgba(99,102,241,0.3)'}}>
                 <input className="editor-input-name" value={selTexLayer.name||''} placeholder="Nombre..." onChange={e=>updateTexLayer(selTexLayer.id,'name',e.target.value)} />
-                <div className="editor-inspector-field">
-                  <span className="editor-field-label">Geometría</span>
-                  <div style={{fontSize:'0.72rem',color:'#8b7d5c',padding:'4px 0'}}>
-                    {selPts.length} vértice{selPts.length!==1?'s':''}
-                    {bb && <> · {Math.round(bb.maxX-bb.minX)} × {Math.round(bb.maxY-bb.minY)}px</>}
-                  </div>
-                </div>
-                <button className="editor-prop-action-btn" style={{width:'100%',marginBottom:6,color:'#a5b4fc'}}
-                  onClick={()=>{const cw=map.canvasW||1600;const ch=map.canvasH||1000;updateMap(m=>({...m,textureLayers:m.textureLayers.map(t=>t.id===selTexLayer.id?{...t,points:[{x:0,y:0},{x:cw,y:0},{x:cw,y:ch},{x:0,y:ch}],x:0,y:0,w:cw,h:ch,smooth:false}:t)}))}}>
-                  ⛶ Cubrir canvas
-                </button>
-                <label className="editor-checkbox-label">
-                  <input type="checkbox" checked={selTexLayer.smooth || false}
-                    onChange={e => updateTexLayer(selTexLayer.id, 'smooth', e.target.checked)} /> ∿ Suavizar curvas (Bézier)
-                </label>
+                {isBrush ? (
+                  <>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Trazos</span>
+                      <div style={{fontSize:'0.72rem',color:'#8b7d5c',padding:'4px 0'}}>
+                        {selTexLayer.brushStrokes?.length || 0} trazo{(selTexLayer.brushStrokes?.length||0)!==1?'s':''}
+                      </div>
+                    </div>
+                    {(selTexLayer.brushStrokes?.length||0) > 0 && (
+                      <button className="editor-prop-action-btn" style={{width:'100%',marginBottom:6,color:'#fbbf24',borderColor:'rgba(251,191,36,0.3)'}}
+                        onClick={()=>undoBrushStroke(selTexLayer.id)}>
+                        ↶ Deshacer último trazo
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Geometría</span>
+                      <div style={{fontSize:'0.72rem',color:'#8b7d5c',padding:'4px 0'}}>
+                        {selPts.length} vértice{selPts.length!==1?'s':''}
+                        {bb && <> · {Math.round(bb.maxX-bb.minX)} × {Math.round(bb.maxY-bb.minY)}px</>}
+                      </div>
+                    </div>
+                    <button className="editor-prop-action-btn" style={{width:'100%',marginBottom:6,color:'#a5b4fc'}}
+                      onClick={()=>{const cw=map.canvasW||1600;const ch=map.canvasH||1000;updateMap(m=>({...m,textureLayers:m.textureLayers.map(t=>t.id===selTexLayer.id?{...t,points:[{x:0,y:0},{x:cw,y:0},{x:cw,y:ch},{x:0,y:ch}],x:0,y:0,w:cw,h:ch,smooth:false}:t)}))}}>
+                      ⛶ Cubrir canvas
+                    </button>
+                    <label className="editor-checkbox-label">
+                      <input type="checkbox" checked={selTexLayer.smooth || false}
+                        onChange={e => updateTexLayer(selTexLayer.id, 'smooth', e.target.checked)} /> ∿ Suavizar curvas (Bézier)
+                    </label>
+                  </>
+                )}
                 {[{key:'brightness',label:'☀ Brillo',min:0,max:300},{key:'saturate',label:'🎨 Sat',min:0,max:300},{key:'hue',label:'🌈 Tono',min:0,max:360}].map(({key,label,min,max}) => {
                   const val=(selTexLayer.filter||{})[key]??(key==='hue'?0:100)
                   return <div key={key} className="editor-filter-row">

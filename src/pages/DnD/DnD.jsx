@@ -70,6 +70,124 @@ function ConditionManager({ conditions, onChange }) {
   )
 }
 
+const SOUND_CATEGORIES = ['⚔️ Combate', '🏰 Ambiente', '🚪 Objetos', '✨ Magia', '🐉 Criaturas', '🎭 Social', '💀 Terror']
+const SOUND_ICONS = ['🔈','⚔️','💥','🔥','❄️','⚡','🌊','🌪️','🏹','🛡️','🚪','🔔','💀','👻','🐉','🧙','✨','🎵','🪓','🗡️','💣','🔮','🌿','🪨','🐺','🦇','💎','🏰','🔒','🪄']
+
+function SoundModal({ mode, sound, browsePath, browseData, onBrowse, onSave, onDelete, onClose }) {
+  const [name, setName] = useState(sound?.name || '')
+  const [url, setUrl] = useState(sound?.url || '')
+  const [category, setCategory] = useState(sound?.category || SOUND_CATEGORIES[0])
+  const [icon, setIcon] = useState(sound?.icon || '🔈')
+  const [showBrowser, setShowBrowser] = useState(false)
+  const [showIcons, setShowIcons] = useState(false)
+  const [customCat, setCustomCat] = useState('')
+  const [useCustomCat, setUseCustomCat] = useState(false)
+  const previewRef = useRef(null)
+
+  function handleSelectFile(file) {
+    setUrl(file.url)
+    if (!name) setName(file.name)
+    setShowBrowser(false)
+  }
+
+  function handlePreview() {
+    if (previewRef.current) { previewRef.current.pause(); previewRef.current = null; return }
+    if (!url) return
+    const a = new Audio(url)
+    a.volume = 0.5
+    a.onended = () => { previewRef.current = null }
+    a.play().catch(() => {})
+    previewRef.current = a
+  }
+
+  function handleSave() {
+    if (!name.trim() || !url.trim()) return
+    onSave({ name: name.trim(), url: url.trim(), category: useCustomCat ? customCat.trim() : category, icon })
+  }
+
+  return (
+    <div className="dnd-modal-overlay" onClick={onClose}>
+      <div className="dnd-modal sb-modal" onClick={e => e.stopPropagation()}>
+        <h3>{mode === 'edit' ? '✏️ Editar sonido' : '🔊 Nuevo sonido'}</h3>
+
+        <div className="glossary-form-row">
+          <label>Nombre</label>
+          <input className="dnd-input" value={name} onChange={e => setName(e.target.value)} placeholder="Espada chocando..." autoFocus />
+        </div>
+
+        <div className="glossary-form-row">
+          <label>URL del audio</label>
+          <div className="sb-url-row">
+            <input className="dnd-input" value={url} onChange={e => setUrl(e.target.value)} placeholder="/sounds/sword.mp3 o https://..." style={{flex:1}} />
+            <button className="dnd-btn-sm" onClick={() => { setShowBrowser(true); onBrowse(browsePath || '') }} title="Explorar archivos locales">📂</button>
+            {url && <button className="dnd-btn-sm" onClick={handlePreview} title="Preescuchar">▶️</button>}
+          </div>
+        </div>
+
+        <div className="glossary-form-row">
+          <label>Categoría</label>
+          {!useCustomCat ? (
+            <div className="sb-cat-row">
+              <select className="dnd-input" value={category} onChange={e => setCategory(e.target.value)}>
+                {SOUND_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button className="dnd-btn-sm" onClick={() => setUseCustomCat(true)} title="Categoría personalizada">✏️</button>
+            </div>
+          ) : (
+            <div className="sb-cat-row">
+              <input className="dnd-input" value={customCat} onChange={e => setCustomCat(e.target.value)} placeholder="Mi categoría..." style={{flex:1}} />
+              <button className="dnd-btn-sm" onClick={() => setUseCustomCat(false)}>↩</button>
+            </div>
+          )}
+        </div>
+
+        <div className="glossary-form-row">
+          <label>Icono</label>
+          <div className="sb-icon-row">
+            <button className="sb-icon-preview" onClick={() => setShowIcons(!showIcons)}>{icon}</button>
+            {showIcons && (
+              <div className="sb-icon-grid">
+                {SOUND_ICONS.map(i => (
+                  <button key={i} className={`sb-icon-option ${icon === i ? 'active' : ''}`} onClick={() => { setIcon(i); setShowIcons(false) }}>{i}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* File browser */}
+        {showBrowser && (
+          <div className="sb-browser">
+            <div className="sb-browser-header">
+              <span className="sb-browser-path">📂 /sounds/{browsePath}</span>
+              {browsePath && <button className="dnd-btn-sm" onClick={() => onBrowse(browsePath.split('/').slice(0,-1).join('/'))}>⬆ Subir</button>}
+            </div>
+            <div className="sb-browser-list">
+              {browseData.folders.map(f => (
+                <button key={f.path} className="sb-browser-item sb-browser-folder" onClick={() => onBrowse(f.path)}>📁 {f.name}</button>
+              ))}
+              {browseData.files.map(f => (
+                <button key={f.url} className="sb-browser-item sb-browser-file" onClick={() => handleSelectFile(f)}>🎵 {f.name}</button>
+              ))}
+              {browseData.folders.length === 0 && browseData.files.length === 0 && (
+                <div className="dnd-empty-sm">Carpeta vacía — sube archivos .mp3/.wav/.ogg a <code>public/sounds/</code></div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="dnd-modal-btns">
+          <button className="dnd-btn-primary" onClick={handleSave} disabled={!name.trim() || !url.trim()}>
+            {mode === 'edit' ? 'Guardar' : 'Añadir'}
+          </button>
+          {onDelete && <button className="dnd-btn-danger" onClick={onDelete}>🗑 Eliminar</button>}
+          <button className="dnd-btn-cancel" onClick={onClose}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DnD() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
@@ -104,10 +222,19 @@ export default function DnD() {
   const [partyAddModal, setPartyAddModal] = useState(null) // null | { partyId }
   const [partyCreateModal, setPartyCreateModal] = useState(false)
   const [partyCreateName, setPartyCreateName] = useState('')
+  const [visiblePartyId, setVisiblePartyId] = useState(null)
 
   // Gestor de Imágenes global
   const [globalImages, setGlobalImages] = useState(null)
   const [imageModal, setImageModal] = useState(null)
+
+  // Soundboard
+  const [soundboard, setSoundboard] = useState([])
+  const [soundModal, setSoundModal] = useState(null) // null | { mode: 'create'|'edit'|'browse', sound? }
+  const [soundBrowsePath, setSoundBrowsePath] = useState('')
+  const [soundBrowseData, setSoundBrowseData] = useState({ folders: [], files: [] })
+  const [soundVolume, setSoundVolume] = useState(1)
+  const [soundPlaying, setSoundPlaying] = useState(null) // id del sonido reproduciéndose
 
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
 
@@ -116,7 +243,7 @@ export default function DnD() {
     setParties(ps => ps.map(p => p.id === partyId ? { ...p, conditions: { ...(p.conditions || {}), [key]: conditions } } : p))
   }
 
-  useEffect(() => { if (!user) return; if (isMaster) fetchCampaigns(); fetchViewer(); fetchGlossary(); fetchCharacters(); fetchParties() }, [user])
+  useEffect(() => { if (!user) return; if (isMaster) { fetchCampaigns(); fetchSoundboard() } fetchViewer(); fetchGlossary(); fetchCharacters(); fetchParties() }, [user])
   // Refrescar estado del visor cada 5s (por si alguien más lo cambia)
   useEffect(() => {
     const iv = setInterval(fetchViewer, 5000)
@@ -144,6 +271,53 @@ export default function DnD() {
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 1800)
+  }
+
+  // ── Soundboard ──────────────────────────────────────────
+  async function fetchSoundboard() {
+    try {
+      const r = await fetch('/api/dnd/soundboard', { headers })
+      setSoundboard(await r.json())
+    } catch {}
+  }
+
+  async function fetchSoundFiles(path = '') {
+    try {
+      const r = await fetch(`/api/dnd/sounds/files?path=${encodeURIComponent(path)}`, { headers })
+      const data = await r.json()
+      setSoundBrowsePath(path)
+      setSoundBrowseData(data)
+    } catch {}
+  }
+
+  async function addSound(sound) {
+    try {
+      const r = await fetch('/api/dnd/soundboard', { method: 'POST', headers, body: JSON.stringify(sound) })
+      const s = await r.json()
+      setSoundboard(prev => [...prev, s])
+      showToast('🔊 Sonido añadido')
+    } catch {}
+  }
+
+  async function updateSound(id, data) {
+    await fetch(`/api/dnd/soundboard/${id}`, { method: 'PUT', headers, body: JSON.stringify(data) })
+    fetchSoundboard()
+  }
+
+  async function deleteSound(id) {
+    if (!confirm('¿Eliminar este sonido del soundboard?')) return
+    await fetch(`/api/dnd/soundboard/${id}`, { method: 'DELETE', headers })
+    setSoundboard(prev => prev.filter(s => s.id !== id))
+    showToast('🗑 Sonido eliminado')
+  }
+
+  async function playSound(sound) {
+    setSoundPlaying(sound.id)
+    await fetch('/api/dnd/soundboard/play', {
+      method: 'POST', headers,
+      body: JSON.stringify({ url: sound.url, name: sound.name, volume: soundVolume })
+    })
+    setTimeout(() => setSoundPlaying(null), 2000)
   }
 
   // ── Glosario ─────────────────────────────────────────
@@ -240,7 +414,15 @@ export default function DnD() {
     try {
       const r = await fetch('/api/dnd/parties', { headers })
       if (r.ok) setParties(await r.json())
+      const rv = await fetch('/api/dnd/parties/visible', { headers })
+      if (rv.ok) { const d = await rv.json(); setVisiblePartyId(d.visiblePartyId) }
     } catch {}
+  }
+  async function setPartyVisible(partyId) {
+    const newId = visiblePartyId === partyId ? null : partyId
+    await fetch('/api/dnd/parties/visible', { method: 'PUT', headers, body: JSON.stringify({ partyId: newId }) })
+    setVisiblePartyId(newId)
+    showToast(newId ? '👁 Party visible en el visor' : '👁 Todas las parties visibles')
   }
   async function createParty() {
     const name = partyCreateName.trim()
@@ -447,6 +629,18 @@ export default function DnD() {
     await fetchViewer()
     const label = channel === 'tablet' ? '📱' : '📺'
     showToast(`${label} "${mapName}"`)
+  }
+  async function deleteMap(campaignId, chapterId, mapId) {
+    if (!confirm('¿Borrar este mapa? Esta acción no se puede deshacer.')) return
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/maps/${mapId}`, { method: 'DELETE', headers })
+    fetchCampaigns()
+    showToast('🗑 Mapa eliminado')
+  }
+  async function reorderMaps(campaignId, chapterId, order) {
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/maps/order`, {
+      method: 'PUT', headers, body: JSON.stringify({ order })
+    })
+    fetchCampaigns()
   }
 
   // ── Navegador de imágenes ────────────────────────────
@@ -664,15 +858,32 @@ export default function DnD() {
 
                       {expanded[`ch-${chapter.id}`] && (
                         <div className="dnd-maps">
-                          {chapter.maps.map(map => (
-                            <div key={map.id} className="dnd-map-block">
+                          {chapter.maps.map((map, mapIdx) => (
+                            <div key={map.id} className="dnd-map-block"
+                              draggable onDragStart={e => { e.dataTransfer.setData('text/plain', String(map.id)); e.dataTransfer.effectAllowed = 'move' }}
+                              onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('dnd-map-dragover') }}
+                              onDragLeave={e => e.currentTarget.classList.remove('dnd-map-dragover')}
+                              onDrop={e => {
+                                e.preventDefault(); e.currentTarget.classList.remove('dnd-map-dragover')
+                                const fromId = parseInt(e.dataTransfer.getData('text/plain'))
+                                if (fromId === map.id) return
+                                const ids = chapter.maps.map(m => m.id)
+                                const fromIdx = ids.indexOf(fromId)
+                                const toIdx = ids.indexOf(map.id)
+                                if (fromIdx === -1 || toIdx === -1) return
+                                ids.splice(fromIdx, 1)
+                                ids.splice(toIdx, 0, fromId)
+                                reorderMaps(campaign.id, chapter.id, ids)
+                              }}>
                               <div className="dnd-map-row">
+                                <span className="dnd-map-drag-handle" title="Arrastrar para reordenar">⠿</span>
                                 <span className="dnd-map-icon">🗺️</span>
                                 <span className="dnd-map-name">{map.name}</span>
                                 <div className="dnd-map-actions">
                                   <button className="dnd-btn-sm" onClick={() => window.open(`/dnd/editor/${map.id}`, '_blank')}>Editar</button>
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Main" onClick={() => sendMapToViewer(map.id, map.name, 'main')}>📺</button>
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Tablet" onClick={() => sendMapToViewer(map.id, map.name, 'tablet')}>📱</button>
+                                  <button className="dnd-btn-sm dnd-btn-danger" title="Borrar mapa" onClick={() => deleteMap(campaign.id, chapter.id, map.id)}>✕</button>
                                 </div>
                               </div>
                             </div>
@@ -716,6 +927,66 @@ export default function DnD() {
         </div>}
         </div>}
 
+        {/* ── Soundboard ── */}
+        {isMaster && <div className="dnd-glossary-section">
+          <div className="dnd-glossary-header" onClick={() => toggleExpand('soundboard')}>
+            <span className="dnd-chevron">{expanded.soundboard ? '▾' : '▸'}</span>
+            <span className="dnd-glossary-title">🔊 Soundboard</span>
+            <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setSoundModal({ mode: 'create' }); fetchSoundFiles('') }}>+ Sonido</button>
+          </div>
+          {expanded.soundboard && <div className="dnd-soundboard">
+            {soundboard.length === 0 && <div className="dnd-empty-sm">Sin sonidos — ¡añade el primero!</div>}
+            {(() => {
+              const categories = [...new Set(soundboard.map(s => s.category || 'Sin categoría'))].sort()
+              return categories.map(cat => (
+                <div key={cat} className="sb-category">
+                  <div className="sb-category-label">{cat}</div>
+                  <div className="sb-grid">
+                    {soundboard.filter(s => (s.category || 'Sin categoría') === cat).map(s => (
+                      <button key={s.id}
+                        className={`sb-btn ${soundPlaying === s.id ? 'sb-btn-playing' : ''}`}
+                        onClick={() => playSound(s)}
+                        onContextMenu={e => { e.preventDefault(); setSoundModal({ mode: 'edit', sound: s }) }}
+                        title={`${s.name}\nClic derecho para editar`}>
+                        <span className="sb-btn-icon">{s.icon || '🔈'}</span>
+                        <span className="sb-btn-name">{s.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
+            })()}
+            <div className="sb-volume-row">
+              <span className="sb-volume-label">🔉</span>
+              <input type="range" min="0" max="1" step="0.05" value={soundVolume}
+                onChange={e => setSoundVolume(parseFloat(e.target.value))}
+                className="sb-volume-slider" />
+              <span className="sb-volume-val">{Math.round(soundVolume * 100)}%</span>
+            </div>
+          </div>}
+        </div>}
+
+        {/* ── Sound Modal (crear/editar/explorar) ── */}
+        {soundModal && (
+          <SoundModal
+            mode={soundModal.mode}
+            sound={soundModal.sound}
+            browsePath={soundBrowsePath}
+            browseData={soundBrowseData}
+            onBrowse={fetchSoundFiles}
+            onSave={(data) => {
+              if (soundModal.mode === 'edit' && soundModal.sound) {
+                updateSound(soundModal.sound.id, data)
+              } else {
+                addSound(data)
+              }
+              setSoundModal(null)
+            }}
+            onDelete={soundModal.sound ? () => { deleteSound(soundModal.sound.id); setSoundModal(null) } : null}
+            onClose={() => setSoundModal(null)}
+          />
+        )}
+
         {/* ── Parties ── */}
         {isMaster && <div className="dnd-glossary-section">
           <div className="dnd-glossary-header" onClick={() => toggleExpand('parties')}>
@@ -735,6 +1006,7 @@ export default function DnD() {
                   <span className="dnd-party-block-name">{p.name}</span>
                   <span className="dnd-party-block-count">{(p.members||[]).length} PCs · {(p.enemies||[]).length} enemigos</span>
                   <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
+                    <button className={`dnd-btn-sm ${visiblePartyId === p.id ? 'dnd-btn-visible-active' : ''}`} onClick={() => setPartyVisible(p.id)} title={visiblePartyId === p.id ? 'Visible en visor (click para mostrar todas)' : 'Mostrar en visor'}>{visiblePartyId === p.id ? '👁' : '👁‍🗨'}</button>
                     <button className="dnd-btn-sm" onClick={() => setPartyAddModal({ partyId: p.id })}>+ Añadir</button>
                     <button className="dnd-btn-sm" onClick={() => renameParty(p.id, p.name)} title="Renombrar">✏️</button>
                     <button className="dnd-btn-sm dnd-btn-danger" onClick={() => deleteParty(p.id)}>✕</button>
@@ -768,7 +1040,8 @@ export default function DnD() {
               partyMembers={(parties.find(p => p.id === partyAddModal.partyId)?.members) || []}
               enemies={glossary.entries.filter(e => e.category === 'enemy')}
               onAddCharacter={(id) => { addToParty(partyAddModal.partyId, id); setPartyAddModal(null) }}
-              onAddEnemy={(glossaryId, label, hpMax, surprised) => { addEnemyToParty(partyAddModal.partyId, glossaryId, label, hpMax, surprised); setPartyAddModal(null) }}
+              onAddEnemy={async (glossaryId, label, hpMax, surprised) => { await addEnemyToParty(partyAddModal.partyId, glossaryId, label, hpMax, surprised) }}
+              onDone={() => setPartyAddModal(null)}
               onClose={() => setPartyAddModal(null)}
             />
           )}
@@ -806,7 +1079,8 @@ export default function DnD() {
                   onSave={quickSaveCharacter}
                   onAddToParty={addToParty}
                   parties={parties}
-                  isMaster={isMaster} />
+                  isMaster={isMaster}
+                  glossaryEntries={glossary.entries} />
               ))}
             </div>
           </>}
@@ -939,6 +1213,7 @@ export default function DnD() {
           onClose={() => setCharacterModal(null)}
           template={newCharacterTemplate}
           glossarySpells={glossary.entries.filter(e => e.category === 'spell')}
+          glossaryItems={glossary.entries.filter(e => e.category === 'artifact' || e.category === 'lore')}
         />
       )}
 
@@ -2031,7 +2306,7 @@ function ActionsPanel({ actions, favoriteActions, actionTab, setActionTab, onTog
 }
 
 // ── Componente: Ficha de personaje ─────────────────────────
-function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave, onAddToParty, parties, isMaster }) {
+function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave, onAddToParty, parties, isMaster, glossaryEntries }) {
   const s = character.stats || {}
   const mod = v => { const m = Math.floor((v-10)/2); return m >= 0 ? `+${m}` : `${m}` }
   const [openSections, setOpenSections] = useState({})
@@ -2141,6 +2416,16 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
               </SectionAccordion>
             )})()}
 
+            {(character.languages||[]).length > 0 && (
+              <SectionAccordion id="languages" label="Idiomas" count={character.languages.length}>
+                <div className="glossary-skills">
+                  {character.languages.map((l,i) => (
+                    <span key={i} className="glossary-skill-badge">{l}</span>
+                  ))}
+                </div>
+              </SectionAccordion>
+            )}
+
             {hasTraits && (
               <SectionAccordion id="traits" label="Rasgos" count={allTraits.length}>
                 {allTraits.map((t,i) => (
@@ -2196,6 +2481,38 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
                     <span key={i} className="glossary-skill-badge">{typeof eq === 'string' ? eq : eq.name}{eq.quantity > 1 ? ` ×${eq.quantity}` : ''}</span>
                   ))}
                 </div>
+                {(character.glossaryItems||[]).length > 0 && (
+                  <div className="glossary-linked-items" style={{marginTop:6}}>
+                    {character.glossaryItems.map(gId => {
+                      const g = (glossaryEntries || []).find(x => x.id === gId)
+                      if (!g) return null
+                      return (
+                        <div key={gId} className="glossary-linked-item">
+                          <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
+                          <span className="glossary-linked-name">{g.name}</span>
+                          {g.rarity && <span className="glossary-linked-rarity">{g.rarity}</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </SectionAccordion>
+            )}
+            {!hasEquipment && (character.glossaryItems||[]).length > 0 && (
+              <SectionAccordion id="equipment" label="Equipo" count={(character.glossaryItems||[]).length}>
+                <div className="glossary-linked-items">
+                  {character.glossaryItems.map(gId => {
+                    const g = (glossaryEntries || []).find(x => x.id === gId)
+                    if (!g) return null
+                    return (
+                      <div key={gId} className="glossary-linked-item">
+                        <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
+                        <span className="glossary-linked-name">{g.name}</span>
+                        {g.rarity && <span className="glossary-linked-rarity">{g.rarity}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
               </SectionAccordion>
             )}
 
@@ -2243,13 +2560,14 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
 
 
 // ── Componente: Modal de creación/edición de personaje ─────
-function CharacterModal({ mode, character: initialChar, onSave, onClose, template, glossarySpells }) {
+function CharacterModal({ mode, character: initialChar, onSave, onClose, template, glossarySpells, glossaryItems: availableGlossaryItems }) {
   const [ch, setCh] = useState(() => {
-    if (mode === 'edit' && initialChar) return { ...initialChar }
-    return template()
+    if (mode === 'edit' && initialChar) return { ...initialChar, glossaryItems: initialChar.glossaryItems || [] }
+    return { ...template(), glossaryItems: [] }
   })
   const [tagsInput, setTagsInput] = useState((initialChar?.tags || []).join(', '))
   const [showSpellPicker, setShowSpellPicker] = useState(false)
+  const [showGlossaryPicker, setShowGlossaryPicker] = useState(false)
 
   function update(field, val) { setCh(e => ({ ...e, [field]: val })) }
   function updateStat(key, val) { setCh(e => ({ ...e, stats: { ...e.stats, [key]: val } })) }
@@ -2496,6 +2814,47 @@ function CharacterModal({ mode, character: initialChar, onSave, onClose, templat
         <div className="glossary-form-row">
           <label>Tags (separados por coma)</label>
           <input className="dnd-input" value={tagsInput} onChange={e => setTagsInput(e.target.value)} placeholder="guerrero, tanque, sanador..." />
+        </div>
+
+        <div className="glossary-form-row">
+          <label>Equipo (Lore / Artefactos) <button className="dnd-btn-sm" onClick={() => setShowGlossaryPicker(!showGlossaryPicker)}>+ Vincular</button></label>
+          {showGlossaryPicker && (() => {
+            const linked = new Set(ch.glossaryItems || [])
+            const items = (availableGlossaryItems || []).filter(g => !linked.has(g.id))
+            return (
+              <div className="glossary-picker-list">
+                {items.length === 0 && <div className="dnd-empty-sm">No hay items disponibles</div>}
+                {items.map(g => (
+                  <button key={g.id} className="glossary-picker-item" onClick={() => {
+                    setCh(e => ({ ...e, glossaryItems: [...(e.glossaryItems||[]), g.id] }))
+                    setShowGlossaryPicker(false)
+                  }}>
+                    <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
+                    <span>{g.name}</span>
+                    {g.rarity && <span className="glossary-picker-rarity">{g.rarity}</span>}
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
+          {(ch.glossaryItems||[]).length > 0 ? (
+            <div className="glossary-linked-items">
+              {ch.glossaryItems.map(gId => {
+                const g = (availableGlossaryItems || []).find(x => x.id === gId)
+                if (!g) return null
+                return (
+                  <div key={gId} className="glossary-linked-item">
+                    <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
+                    <span className="glossary-linked-name">{g.name}</span>
+                    {g.rarity && <span className="glossary-linked-rarity">{g.rarity}</span>}
+                    <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(e => ({ ...e, glossaryItems: (e.glossaryItems||[]).filter(id => id !== gId) }))}>✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="dnd-empty-sm">Sin equipo vinculado del glosario</div>
+          )}
         </div>
 
         <div className="dnd-modal-btns">
@@ -2838,13 +3197,15 @@ function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick,
 }
 
 // ── Componente: Modal para añadir PCs o Enemigos al grupo ──
-function PartyAddModal({ characters, partyMembers, enemies, onAddCharacter, onAddEnemy, onClose }) {
+function PartyAddModal({ characters, partyMembers, enemies, onAddCharacter, onAddEnemy, onDone, onClose }) {
   const [tab, setTab] = useState('pc') // 'pc' | 'enemy'
   const [search, setSearch] = useState('')
   const [labelValue, setLabelValue] = useState('')
   const [selectedEnemy, setSelectedEnemy] = useState(null)
   const [maxHpCheck, setMaxHpCheck] = useState(false)
   const [surprisedCheck, setSurprisedCheck] = useState(false)
+  const [quantity, setQuantity] = useState(1)
+  const [adding, setAdding] = useState(false)
 
   const availablePCs = characters.filter(c => !partyMembers.includes(c.id))
   const filteredEnemies = enemies.filter(e => {
@@ -2853,15 +3214,19 @@ function PartyAddModal({ characters, partyMembers, enemies, onAddCharacter, onAd
     return e.name?.toLowerCase().includes(q) || e.tags?.some(t => t.toLowerCase().includes(q))
   })
 
-  function handleAddEnemy() {
-    if (!selectedEnemy) return
+  async function handleAddEnemy() {
+    if (!selectedEnemy || adding) return
+    setAdding(true)
     const hp = selectedEnemy.stats?.hp || {}
     const calcMax = maxHpCheck && hp.dice && hp.sides ? (hp.dice * hp.sides + (hp.modifier || 0)) : undefined
-    onAddEnemy(selectedEnemy.id, labelValue.trim() || '', calcMax, surprisedCheck)
-    setSelectedEnemy(null)
-    setLabelValue('')
-    setMaxHpCheck(false)
-    setSurprisedCheck(false)
+    const baseName = labelValue.trim() || selectedEnemy.name || 'Enemigo'
+    const count = Math.max(1, Math.min(20, quantity))
+    for (let i = 0; i < count; i++) {
+      const label = count > 1 ? `${baseName} ${i + 1}` : baseName
+      await onAddEnemy(selectedEnemy.id, label, calcMax, surprisedCheck)
+    }
+    setAdding(false)
+    onDone()
   }
 
   return (
@@ -2914,6 +3279,17 @@ function PartyAddModal({ characters, partyMembers, enemies, onAddCharacter, onAd
                   <label>Etiqueta (nombre en combate)</label>
                   <input className="dnd-input" value={labelValue} onChange={e => setLabelValue(e.target.value)} placeholder={selectedEnemy.name} />
                 </div>
+                <div className="glossary-form-row">
+                  <label>Cantidad</label>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <button className="dnd-btn-sm" onClick={() => setQuantity(q => Math.max(1, q - 1))}>−</button>
+                    <input className="dnd-input" type="number" min="1" max="20" value={quantity}
+                      onChange={e => setQuantity(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                      style={{width:50,textAlign:'center'}} />
+                    <button className="dnd-btn-sm" onClick={() => setQuantity(q => Math.min(20, q + 1))}>+</button>
+                    {quantity > 1 && <span style={{fontSize:'0.75rem',color:'#a58b55'}}>Se nombrarán {labelValue.trim() || selectedEnemy.name} 1, 2, 3…</span>}
+                  </div>
+                </div>
                 <label className="glossary-add-party-check" style={{marginTop:8}}>
                   <input type="checkbox" checked={maxHpCheck} onChange={e => setMaxHpCheck(e.target.checked)} />
                   <span>PG máximos {selectedEnemy.stats?.hp ? `(${selectedEnemy.stats.hp.dice * selectedEnemy.stats.hp.sides + (selectedEnemy.stats.hp.modifier || 0)} PG)` : ''}</span>
@@ -2922,8 +3298,8 @@ function PartyAddModal({ characters, partyMembers, enemies, onAddCharacter, onAd
                   <input type="checkbox" checked={surprisedCheck} onChange={e => setSurprisedCheck(e.target.checked)} />
                   <span>Sorprendido</span>
                 </label>
-                <button className="dnd-btn-primary" style={{width:'100%', marginTop:8}} onClick={handleAddEnemy}>
-                  💀 Añadir al combate
+                <button className="dnd-btn-primary" style={{width:'100%', marginTop:8}} onClick={handleAddEnemy} disabled={adding}>
+                  {adding ? '⏳ Añadiendo...' : `💀 Añadir ${quantity > 1 ? quantity + ' enemigos' : 'al combate'}`}
                 </button>
               </div>
             )}

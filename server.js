@@ -433,6 +433,37 @@ app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps', requireUser,
   res.json(map)
 })
 
+// Borrar mapa
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/:mapId', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  chapter.maps = chapter.maps.filter(m => m.id !== parseInt(req.params.mapId))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Reordenar mapas de un capítulo
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/order', requireUser, requireDnDMaster, (req, res) => {
+  const { order } = req.body // array de map ids
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  const mapById = {}
+  chapter.maps.forEach(m => { mapById[m.id] = m })
+  const reordered = (order || []).map(id => mapById[id]).filter(Boolean)
+  const remaining = chapter.maps.filter(m => !order.includes(m.id))
+  chapter.maps = [...reordered, ...remaining]
+  saveDB(db)
+  res.json({ ok: true })
+})
+
 // Obtener mapa (público para el visor)
 app.get('/api/dnd/maps/:mapId', (req, res) => {
   const db = getDB()
@@ -781,7 +812,25 @@ app.get('/api/dnd/parties/view', (req, res) => {
   const dnd = getDnDData(db)
   const parties = getParties(dnd)
   saveDB(db)
-  res.json(parties.map(p => enrichParty(dnd, p)))
+  const visibleId = dnd.visiblePartyId || null
+  const visible = visibleId ? parties.filter(p => p.id === visibleId) : parties
+  res.json(visible.map(p => enrichParty(dnd, p)))
+})
+
+// Cambiar party visible en el viewer
+app.put('/api/dnd/parties/visible', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  dnd.visiblePartyId = req.body.partyId || null
+  saveDB(db)
+  res.json({ ok: true, visiblePartyId: dnd.visiblePartyId })
+})
+
+// Obtener party visible actual
+app.get('/api/dnd/parties/visible', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  res.json({ visiblePartyId: dnd.visiblePartyId || null })
 })
 
 // Listar todas las parties
@@ -1032,6 +1081,96 @@ app.delete('/api/dnd/characters/:id', requireUser, (req, res) => {
   res.json({ ok: true })
 })
 
+// ── API: D&D Soundboard ──────────────────────────────────
+const SOUNDS_ROOT = resolve('./public/sounds')
+
+function getSoundboard(db) {
+  const dnd = getDnDData(db)
+  if (!dnd.soundboard) dnd.soundboard = []
+  return dnd.soundboard
+}
+
+// Listar sonidos disponibles en public/sounds (navegación de carpetas)
+app.get('/api/dnd/sounds/files', requireUser, requireDnDMaster, (req, res) => {
+  const sub = (req.query.path || '').replace(/^\/+|\/+$/g, '')
+  const full = normalize(join(SOUNDS_ROOT, sub))
+  if (!full.startsWith(SOUNDS_ROOT)) return res.status(400).json({ error: 'Ruta inválida' })
+  try {
+    mkdirSync(full, { recursive: true })
+    const entries = readdirSync(full)
+    const folders = []
+    const files = []
+    for (const name of entries) {
+      if (name.startsWith('.')) continue
+      const entryPath = join(full, name)
+      let stat
+      try { stat = statSync(entryPath) } catch { continue }
+      if (stat.isDirectory()) {
+        folders.push({ name, path: sub ? `${sub}/${name}` : name })
+      } else if (/\.(mp3|wav|ogg|m4a|webm|aac)$/i.test(name)) {
+        const relPath = sub ? `${sub}/${name}` : name
+        const urlPath = relPath.split('/').map(encodeURIComponent).join('/')
+        files.push({ name: name.replace(/\.[^.]+$/, ''), file: name, url: `/sounds/${urlPath}` })
+      }
+    }
+    folders.sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    files.sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    res.json({ path: sub, folders, files })
+  } catch { res.json({ path: sub, folders: [], files: [] }) }
+})
+
+// CRUD del soundboard (array de { id, name, category, url, icon })
+app.get('/api/dnd/soundboard', requireUser, (req, res) => {
+  const db = getDB()
+  res.json(getSoundboard(db))
+})
+
+app.post('/api/dnd/soundboard', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const sb = getSoundboard(db)
+  const sound = { id: Date.now(), ...req.body }
+  sb.push(sound)
+  saveDB(db)
+  res.json(sound)
+})
+
+app.put('/api/dnd/soundboard/:id', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const sb = getSoundboard(db)
+  const idx = sb.findIndex(s => s.id === parseInt(req.params.id))
+  if (idx === -1) return res.status(404).json({ error: 'Sonido no encontrado' })
+  sb[idx] = { ...sb[idx], ...req.body, id: sb[idx].id }
+  saveDB(db)
+  res.json(sb[idx])
+})
+
+app.delete('/api/dnd/soundboard/:id', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const sb = getSoundboard(db)
+  const dnd = getDnDData(db)
+  dnd.soundboard = sb.filter(s => s.id !== parseInt(req.params.id))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Disparar sonido en el viewer (escribe un comando que el viewer recoge por polling)
+app.post('/api/dnd/soundboard/play', requireUser, requireDnDMaster, (req, res) => {
+  const { url, name, volume } = req.body
+  if (!url) return res.status(400).json({ error: 'URL requerida' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  dnd.soundCommand = { url, name: name || '', volume: volume ?? 1, ts: Date.now() }
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Endpoint para que el viewer lea el último comando de sonido
+app.get('/api/dnd/sound-command', (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  res.json(dnd.soundCommand || null)
+})
+
 // ── Serve React build ────────────────────────────────────
 // Servir imágenes de texturas directamente desde public/ (no depende del build)
 const PUBLIC_TEXTURES = resolve('./public/textures')
@@ -1047,6 +1186,13 @@ app.use('/dndImages', (req, res, next) => {
   res.setHeader('Vary', 'Accept-Encoding')
   next()
 }, express.static(DND_IMAGES_ROOT))
+
+// Servir archivos de audio para el soundboard
+app.use('/sounds', (req, res, next) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400, no-transform')
+  res.setHeader('Vary', 'Accept-Encoding')
+  next()
+}, express.static(SOUNDS_ROOT))
 
 app.use(express.static(DIST))
 app.get('*', (req, res) => {
