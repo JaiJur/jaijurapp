@@ -5,6 +5,187 @@
   font-family: 'Segoe UI', sans-serif;
 }
 
+/* ── Soundboard button actions ── */
+.sb-btn-wrap { position: relative; }
+.sb-btn-actions {
+  position: absolute; top: 2px; right: 2px;
+  display: flex; gap: 2px; opacity: 0; transition: opacity .15s;
+}
+.sb-btn-wrap:hover .sb-btn-actions { opacity: 1; }
+.sb-action-btn {
+  background: rgba(0,0,0,0.6); border: none; border-radius: 3px;
+  color: #ccc; font-size: 0.65rem; padding: 2px 4px; cursor: pointer;
+  line-height: 1;
+}
+.sb-action-btn:hover { color: #fff; background: rgba(0,0,0,0.8); }
+.sb-action-delete:hover { color: #f87171; }
+
+/* ── Gestor Multimedia: Sonidos ── */
+.mm-sounds-section {
+  margin-top: 12px;
+  border-top: 1px solid rgba(200,169,110,0.15);
+  padding-top: 10px;
+}
+.mm-sounds-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.mm-sounds-title {
+  font-size: 0.82rem; font-weight: 600;
+  color: #c8a96e;
+}
+.mm-sounds-list {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mm-sound-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+}
+.mm-sound-icon { font-size: 1rem; flex-shrink: 0; }
+.mm-sound-name {
+  font-size: 0.78rem; color: #d4c8a8;
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mm-sound-player {
+  height: 28px; flex-shrink: 0; max-width: 200px;
+}
+
+/* ── Lore/Artifact detail modal ── */
+.lore-detail-modal {
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.lore-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(200,169,110,0.2);
+}
+.lore-detail-icon { font-size: 1.4rem; }
+.lore-detail-title {
+  margin: 0; font-size: 1.1rem;
+  color: #c8a96e; flex: 1;
+}
+.lore-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.lore-detail-text {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #d4c8a8;
+  white-space: pre-wrap;
+  margin: 0 0 10px;
+}
+.lore-detail-close {
+  margin-top: 12px;
+  width: 100%;
+}
+
+/* ── Glossary linked items clickable ── */
+.glossary-linked-clickable {
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.glossary-linked-clickable:hover {
+  background: rgba(200,169,110,0.12);
+  border-color: rgba(200,169,110,0.4);
+}
+
+/* ── Lore images ── */
+.lore-images-grid {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+}
+.lore-image-thumb {
+  position: relative; width: 80px; height: 80px;
+  border-radius: 6px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.lore-image-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.lore-image-remove {
+  position: absolute; top: 2px; right: 2px;
+  background: rgba(0,0,0,0.7); border: none;
+  color: #f87171; font-size: 0.7rem;
+  width: 18px; height: 18px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.lore-detail-images {
+  display: flex; flex-direction: column; gap: 10px; margin: 10px 0;
+}
+.lore-detail-img {
+  width: 100%; border-radius: 8px;
+  border: 1px solid rgba(200,169,110,0.2);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.lore-detail-img:hover {
+  border-color: rgba(200,169,110,0.5);
+}
+
+/* ── Trait Cards ── */
+.trait-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.trait-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background .12s, border-color .15s;
+}
+.trait-card:hover {
+  background: rgba(200,169,110,0.08);
+  border-color: rgba(200,169,110,0.3);
+}
+.trait-card-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #c8a96e;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trait-card-uses {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: #8b7d5c;
+}
+.trait-card-preview {
+  font-size: 0.75rem;
+  color: #a09880;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Player badge ── */
+.glossary-card-player {
+  font-size: 0.68rem;
+  color: #7c9edb;
+  background: rgba(124,158,219,0.1);
+  border: 1px solid rgba(124,158,219,0.2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 .dnd-bg {
   position: fixed; inset: 0; z-index: 0;
   background: radial-gradient(ellipse at 20% 50%, #1a0a2e 0%, #0f0f1a 70%);

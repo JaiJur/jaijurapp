@@ -166,6 +166,10 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
               <input className="dnd-input" type="number" min="1" max="20" value={ch.level||1} onChange={e => update('level', parseInt(e.target.value)||1)} />
             </div>
             <div className="glossary-form-row">
+              <label>Jugador</label>
+              <input className="dnd-input" value={ch.player||''} onChange={e => update('player', e.target.value)} placeholder="Nombre del jugador..." />
+            </div>
+            <div className="glossary-form-row">
               <label>Descripción</label>
               <textarea className="dnd-input glossary-textarea" value={ch.description||''} onChange={e => update('description', e.target.value)} placeholder="Apariencia, personalidad..." rows={3} />
             </div>

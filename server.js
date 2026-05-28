@@ -290,6 +290,8 @@ function getDnDData(db) {
   if (!db.dnd) db.dnd = { campaigns: [], characters: [] }
   if (!db.dnd.campaigns) db.dnd.campaigns = []
   if (!db.dnd.characters) db.dnd.characters = []
+  // Migración: asignar player a personajes existentes
+  db.dnd.characters.forEach(ch => { if (!ch.player) ch.player = 'Jai' })
   return db.dnd
 }
 
@@ -573,6 +575,7 @@ app.get('/api/dnd/images', (req, res) => {
     const entries = readdirSync(full)
     const folders = []
     const images = []
+    const sounds = []
     for (const name of entries) {
       if (name.startsWith('.')) continue
       const entryPath = join(full, name)
@@ -586,9 +589,29 @@ app.get('/api/dnd/images', (req, res) => {
         images.push({ name, url: `/dndImages/${urlPath}` })
       }
     }
+    // Also scan sounds folder
+    try {
+      const soundsSub = req.query.soundsPath || ''
+      const soundsFull = normalize(join(SOUNDS_ROOT, (soundsSub || '').replace(/^\/+|\/+$/g, '')))
+      if (soundsFull.startsWith(SOUNDS_ROOT)) {
+        const sEntries = readdirSync(soundsFull)
+        for (const name of sEntries) {
+          if (name.startsWith('.')) continue
+          const entryPath = join(soundsFull, name)
+          let stat
+          try { stat = statSync(entryPath) } catch { continue }
+          if (/\.(mp3|wav|ogg|m4a|webm|aac)$/i.test(name)) {
+            const relPath = soundsSub ? `${soundsSub}/${name}` : name
+            const urlPath = relPath.split('/').map(encodeURIComponent).join('/')
+            sounds.push({ name: name.replace(/\.[^.]+$/, ''), file: name, url: `/sounds/${urlPath}` })
+          }
+        }
+        sounds.sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      }
+    } catch {}
     folders.sort((a, b) => a.name.localeCompare(b.name, 'es'))
     images.sort((a, b) => a.name.localeCompare(b.name, 'es'))
-    res.json({ path: sub, folders, images })
+    res.json({ path: sub, folders, images, sounds })
   } catch (e) {
     res.status(404).json({ error: 'Carpeta no encontrada' })
   }
@@ -612,6 +635,26 @@ app.post('/api/dnd/images/upload', requireUser, requireDnDMaster, (req, res) => 
     res.json({ url: `/dndImages/${urlPath}`, name: finalName })
   } catch (e) {
     console.error('Image upload error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Subir sonido a public/sounds
+app.post('/api/dnd/sounds/upload', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { data, filename } = req.body
+    if (!data || !filename) return res.status(400).json({ error: 'Datos requeridos' })
+    mkdirSync(SOUNDS_ROOT, { recursive: true })
+    const ext = filename.split('.').pop().toLowerCase()
+    if (!/^(mp3|wav|ogg|m4a|webm|aac)$/.test(ext)) return res.status(400).json({ error: 'Formato no soportado' })
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const finalName = safeName.length > 3 ? safeName : `${Date.now()}.${ext}`
+    const buf = Buffer.from(data.replace(/^data:[^;]+;base64,/, ''), 'base64')
+    writeFileSync(join(SOUNDS_ROOT, finalName), buf)
+    const urlPath = encodeURIComponent(finalName)
+    res.json({ url: `/sounds/${urlPath}`, name: finalName.replace(/\.[^.]+$/, '') })
+  } catch (e) {
+    console.error('Sound upload error:', e)
     res.status(500).json({ error: e.message })
   }
 })

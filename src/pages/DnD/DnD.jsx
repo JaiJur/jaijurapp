@@ -216,6 +216,7 @@ export default function DnD() {
   const [characters, setCharacters] = useState([])
   const [characterModal, setCharacterModal] = useState(null) // null | { mode: 'create'|'edit', character }
   const [expandedCharacter, setExpandedCharacter] = useState(null)
+  const [charSearch, setCharSearch] = useState('')
 
   // Parties (multi-party)
   const [parties, setParties] = useState([])
@@ -311,13 +312,36 @@ export default function DnD() {
     showToast('🗑 Sonido eliminado')
   }
 
-  async function playSound(sound) {
+  const audioRef = useRef(null)
+
+  function playSound(sound) {
+    // Parar audio anterior si existe
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    if (soundPlaying === sound.id) {
+      // Click en el mismo botón → parar
+      setSoundPlaying(null)
+      return
+    }
     setSoundPlaying(sound.id)
-    await fetch('/api/dnd/soundboard/play', {
-      method: 'POST', headers,
-      body: JSON.stringify({ url: sound.url, name: sound.name, volume: soundVolume })
+    const audio = new Audio(sound.url)
+    audio.volume = soundVolume
+    audioRef.current = audio
+    audio.play().catch(err => {
+      console.error('Error reproduciendo sonido:', err)
+      setSoundPlaying(null)
     })
-    setTimeout(() => setSoundPlaying(null), 2000)
+    audio.onended = () => {
+      setSoundPlaying(null)
+      audioRef.current = null
+    }
+    audio.onerror = () => {
+      console.error('Error cargando sonido:', sound.url)
+      setSoundPlaying(null)
+      audioRef.current = null
+    }
   }
 
   // ── Glosario ─────────────────────────────────────────
@@ -368,7 +392,7 @@ export default function DnD() {
     return { category: 'artifact', name: '', description: '', rarity: 'Común', properties: '', tags: [] }
   }
   function newLoreTemplate() {
-    return { category: 'lore', name: '', description: '', tags: [] }
+    return { category: 'lore', name: '', description: '', images: [], tags: [] }
   }
   function newSpellTemplate() {
     return {
@@ -502,6 +526,27 @@ export default function DnD() {
     fetchParties()
     showToast('💀 Enemigo eliminado')
   }
+  async function clearEnemies(partyId) {
+    if (!confirm('¿Eliminar todos los enemigos de este grupo?')) return
+    const party = parties.find(p => p.id === partyId)
+    for (const e of (party?.enemies || [])) {
+      await fetch(`/api/dnd/parties/${partyId}/enemy/${e.id}`, { method: 'DELETE', headers })
+    }
+    fetchParties()
+    showToast('💀 Enemigos eliminados')
+  }
+  async function clearParty(partyId) {
+    if (!confirm('¿Vaciar todo el grupo (PCs y enemigos)?')) return
+    const party = parties.find(p => p.id === partyId)
+    for (const e of (party?.enemies || [])) {
+      await fetch(`/api/dnd/parties/${partyId}/enemy/${e.id}`, { method: 'DELETE', headers })
+    }
+    for (const memberId of (party?.members || [])) {
+      await fetch(`/api/dnd/parties/${partyId}/member/${memberId}`, { method: 'DELETE', headers })
+    }
+    fetchParties()
+    showToast('🧹 Grupo vaciado')
+  }
   async function updateEnemyHp(partyId, enemyId, hp) {
     await fetch(`/api/dnd/parties/${partyId}/enemy/${enemyId}/hp`, { method: 'PATCH', headers, body: JSON.stringify({ hp }) })
     setParties(ps => ps.map(p => p.id === partyId ? {
@@ -549,6 +594,7 @@ export default function DnD() {
       spellSlots: { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 },
       actions: [],
       // Misc
+      player: user?.name || 'Jai',
       traits: [],
       abilities: [],
       tags: []
@@ -943,14 +989,19 @@ export default function DnD() {
                   <div className="sb-category-label">{cat}</div>
                   <div className="sb-grid">
                     {soundboard.filter(s => (s.category || 'Sin categoría') === cat).map(s => (
-                      <button key={s.id}
-                        className={`sb-btn ${soundPlaying === s.id ? 'sb-btn-playing' : ''}`}
-                        onClick={() => playSound(s)}
-                        onContextMenu={e => { e.preventDefault(); setSoundModal({ mode: 'edit', sound: s }) }}
-                        title={`${s.name}\nClic derecho para editar`}>
-                        <span className="sb-btn-icon">{s.icon || '🔈'}</span>
-                        <span className="sb-btn-name">{s.name}</span>
-                      </button>
+                      <div key={s.id} className="sb-btn-wrap">
+                        <button
+                          className={`sb-btn ${soundPlaying === s.id ? 'sb-btn-playing' : ''}`}
+                          onClick={() => playSound(s)}
+                          title={s.name}>
+                          <span className="sb-btn-icon">{s.icon || '🔈'}</span>
+                          <span className="sb-btn-name">{s.name}</span>
+                        </button>
+                        <div className="sb-btn-actions">
+                          <button className="sb-action-btn" onClick={() => setSoundModal({ mode: 'edit', sound: s })} title="Editar">✏️</button>
+                          <button className="sb-action-btn sb-action-delete" onClick={() => { if (confirm(`¿Eliminar "${s.name}"?`)) deleteSound(s.id) }} title="Eliminar">✕</button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -959,7 +1010,7 @@ export default function DnD() {
             <div className="sb-volume-row">
               <span className="sb-volume-label">🔉</span>
               <input type="range" min="0" max="1" step="0.05" value={soundVolume}
-                onChange={e => setSoundVolume(parseFloat(e.target.value))}
+                onChange={e => { const v = parseFloat(e.target.value); setSoundVolume(v); if (audioRef.current) audioRef.current.volume = v }}
                 className="sb-volume-slider" />
               <span className="sb-volume-val">{Math.round(soundVolume * 100)}%</span>
             </div>
@@ -1017,6 +1068,9 @@ export default function DnD() {
                     <div className="dnd-party-rest-bar">
                       <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'short')}>☀️ Descanso corto</button>
                       <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'long')}>🌙 Descanso largo</button>
+                      <span style={{flex:1}} />
+                      {(p.enemies||[]).length > 0 && <button className="dnd-btn-sm dnd-btn-danger" onClick={() => clearEnemies(p.id)} title="Eliminar todos los enemigos">💀 Vaciar enemigos</button>}
+                      <button className="dnd-btn-sm dnd-btn-danger" onClick={() => clearParty(p.id)} title="Vaciar todo el grupo">🧹 Vaciar todo</button>
                     </div>
                     <PartyTracker
                       party={p}
@@ -1068,9 +1122,23 @@ export default function DnD() {
             <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setCharacterModal({ mode: 'create', character: null }) }}>+ Personaje</button>
           </div>
           {expanded.characters && <>
+            <input className="dnd-glossary-search" placeholder="Buscar por nombre, clase, nivel o jugador..." value={charSearch} onChange={e => setCharSearch(e.target.value)} style={{marginBottom:8}} />
             <div className="dnd-glossary-list">
               {characters.length === 0 && <div className="dnd-empty-sm">Sin personajes — ¡crea el primero!</div>}
-              {characters.map(ch => (
+              {(() => {
+                const q = charSearch.toLowerCase().trim()
+                const filtered = q ? characters.filter(ch => {
+                  const name = (ch.name||'').toLowerCase()
+                  const cls = (ch.class||'').toLowerCase()
+                  const sub = (ch.subclass||'').toLowerCase()
+                  const race = (ch.race||'').toLowerCase()
+                  const player = (ch.player||'').toLowerCase()
+                  const lvl = String(ch.level||1)
+                  return name.includes(q) || cls.includes(q) || sub.includes(q) || race.includes(q) || player.includes(q) || lvl === q
+                }) : characters
+                return filtered.length === 0 && q ? (
+                  <div className="dnd-empty-sm">Sin resultados para "{charSearch}"</div>
+                ) : filtered.map(ch => (
                 <CharacterCard key={ch.id} character={ch}
                   expanded={expandedCharacter === ch.id}
                   onToggle={() => setExpandedCharacter(expandedCharacter === ch.id ? null : ch.id)}
@@ -1081,7 +1149,8 @@ export default function DnD() {
                   parties={parties}
                   isMaster={isMaster}
                   glossaryEntries={glossary.entries} />
-              ))}
+              ))
+              })()}
             </div>
           </>}
         </div>
@@ -1146,11 +1215,11 @@ export default function DnD() {
           </>}
         </div>
 
-        {/* ── Gestor de Imágenes ── */}
+        {/* ── Gestor Multimedia ── */}
         {isMaster && <div className="dnd-glossary-section">
           <div className="dnd-glossary-header" onClick={() => { toggleExpand('imageManager'); if (!globalImages) loadGlobalImages() }}>
             <span className="dnd-chevron">{expanded.imageManager ? '▾' : '▸'}</span>
-            <span className="dnd-glossary-title">🖼️ Gestor de Imágenes</span>
+            <span className="dnd-glossary-title">📁 Gestor Multimedia</span>
           </div>
           {expanded.imageManager && (
             <ImageManager
@@ -1158,6 +1227,7 @@ export default function DnD() {
               onNavigate={loadGlobalImages}
               onSend={sendImageToViewer}
               onImageClick={img => setImageModal({ img })}
+              onSoundAdded={() => fetchSoundboard()}
             />
           )}
         </div>}
@@ -1222,11 +1292,12 @@ export default function DnD() {
   )
 }
 
-// ── Componente: Gestor de Imágenes global ─────────────────
-function ImageManager({ data, onNavigate, onSend, onImageClick }) {
+// ── Componente: Gestor Multimedia ─────────────────
+function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAdded }) {
   const { user } = useAuth()
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
   const fileInputRef = useRef(null)
+  const soundInputRef = useRef(null)
   const [uploads, setUploads] = useState([]) // [{ name, status: 'wait'|'sending'|'success'|'error', progress, error }]
 
   if (!data) return <div className="dnd-empty-sm">Cargando...</div>
@@ -1282,6 +1353,28 @@ function ImageManager({ data, onNavigate, onSend, onImageClick }) {
 
   function clearUploads() {
     setUploads(prev => prev.filter(u => u.status === 'sending'))
+  }
+
+  async function handleSoundFiles(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    for (const file of files) {
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('Error leyendo archivo'))
+          reader.readAsDataURL(file)
+        })
+        await fetch('/api/dnd/sounds/upload', {
+          method: 'POST', headers,
+          body: JSON.stringify({ data: base64, filename: file.name })
+        })
+      } catch (err) { console.error('Sound upload error:', err) }
+    }
+    onNavigate(data.path || '')
+    if (onSoundAdded) onSoundAdded()
+    if (soundInputRef.current) soundInputRef.current.value = ''
   }
 
   const statusIcons = { wait: '⏳', sending: '📤', success: '✅', error: '❌' }
@@ -1344,9 +1437,29 @@ function ImageManager({ data, onNavigate, onSend, onImageClick }) {
           ))}
         </div>
       )}
-      {data.folders.length === 0 && data.images.length === 0 && (
+      {data.folders.length === 0 && data.images.length === 0 && !data.sounds?.length && (
         <div className="dnd-empty-sm">Carpeta vacía</div>
       )}
+
+      {/* ── Sonidos ── */}
+      <div className="mm-sounds-section">
+        <div className="mm-sounds-header">
+          <span className="mm-sounds-title">🔊 Sonidos ({data.sounds?.length || 0})</span>
+          <button className="dnd-btn-sm" onClick={() => soundInputRef.current?.click()}>📤 Subir sonidos</button>
+          <input ref={soundInputRef} type="file" accept=".mp3,.wav,.ogg,.m4a,.webm,.aac" multiple onChange={handleSoundFiles} style={{display:'none'}} />
+        </div>
+        {(data.sounds || []).length > 0 && (
+          <div className="mm-sounds-list">
+            {data.sounds.map(s => (
+              <div key={s.url} className="mm-sound-item">
+                <span className="mm-sound-icon">🎵</span>
+                <span className="mm-sound-name">{s.name}</span>
+                <audio src={s.url} controls preload="none" className="mm-sound-player" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -1651,13 +1764,11 @@ function GlossaryCard({ entry, expanded, onToggle, onEdit, onDelete, onSendImage
 
               {hasAbilities && (
                 <GlossaryAccordion id="abilities" label="Habilidades especiales" count={entry.abilities.length}>
-                  {entry.abilities.map((ab,i) => (
-                    <div key={i} className="glossary-ability">
-                      <strong>{ab.name}</strong>
-                      {ab.uses && <span className="glossary-ability-uses">({ab.uses})</span>}
-                      <span className="glossary-ability-desc">. {ab.description}</span>
-                    </div>
-                  ))}
+                  <div className="trait-cards-grid">
+                    {entry.abilities.map((ab,i) => (
+                      <TraitCard key={i} trait={{ name: ab.name, description: ab.description, uses: ab.uses }} />
+                    ))}
+                  </div>
                 </GlossaryAccordion>
               )}
             </div>
@@ -1694,6 +1805,14 @@ function GlossaryCard({ entry, expanded, onToggle, onEdit, onDelete, onSendImage
 
           {entry.category === 'artifact' && entry.properties && (
             <div className="glossary-props-text">{entry.properties}</div>
+          )}
+
+          {(entry.images||[]).length > 0 && (
+            <div className="lore-detail-images" style={{marginTop:8}}>
+              {entry.images.map((url, i) => (
+                <img key={i} src={url} alt="" className="lore-detail-img" onClick={() => window.open(url, '_blank')} />
+              ))}
+            </div>
           )}
 
           {entry.tags?.length > 0 && (
@@ -1814,6 +1933,32 @@ function GlossaryModal({ mode, entry: initialEntry, onSave, onClose, templates, 
   const [showSpellPicker, setShowSpellPicker] = useState(false)
   const [uploadingPortrait, setUploadingPortrait] = useState(false)
   const portraitInputRef = useRef(null)
+  const loreImgRef = useRef(null)
+
+  async function handleLoreImages(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    for (const file of files) {
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('Error leyendo archivo'))
+          reader.readAsDataURL(file)
+        })
+        const res = await fetch('/api/dnd/images/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': '1' },
+          body: JSON.stringify({ data: base64, filename: file.name, path: 'lore' })
+        })
+        if (res.ok) {
+          const { url } = await res.json()
+          setEntry(en => ({ ...en, images: [...(en.images || []), url] }))
+        }
+      } catch (err) { console.error('Lore image upload error:', err) }
+    }
+    if (loreImgRef.current) loreImgRef.current.value = ''
+  }
 
   async function handlePortraitUpload(e) {
     const files = Array.from(e.target.files || [])
@@ -2191,6 +2336,23 @@ function GlossaryModal({ mode, entry: initialEntry, onSave, onClose, templates, 
           </div>
         </>}
 
+        {entry.category === 'lore' && (
+          <div className="glossary-form-row">
+            <label>Imágenes <button className="dnd-btn-sm" onClick={() => loreImgRef.current?.click()}>📤 Subir</button></label>
+            <input ref={loreImgRef} type="file" accept="image/*" multiple onChange={handleLoreImages} style={{display:'none'}} />
+            {(entry.images||[]).length > 0 && (
+              <div className="lore-images-grid">
+                {entry.images.map((url, i) => (
+                  <div key={i} className="lore-image-thumb">
+                    <img src={url} alt="" />
+                    <button className="lore-image-remove" onClick={() => setEntry(e => ({...e, images: e.images.filter((_,j) => j !== i)}))}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="glossary-form-row">
           <label>Tags (separados por coma)</label>
           <input className="dnd-input" value={tagsInput} onChange={e => setTagsInput(e.target.value)} placeholder="goblin, bosque, CR1..." />
@@ -2207,6 +2369,56 @@ function GlossaryModal({ mode, entry: initialEntry, onSave, onClose, templates, 
 
 
 
+
+// ── Componente: Action Card individual ─────────────────────
+function ActionCard({ a, isFav, onToggleFav }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const cardContent = () => (
+    <>
+      <div className="action-card-top">
+        <button className={`action-card-fav ${isFav ? 'active' : ''}`} onClick={e => { e.stopPropagation(); onToggleFav(a._idx) }}>
+          {isFav ? '★' : '☆'}
+        </button>
+        <span className="action-card-name">{a.name}</span>
+        {a.actionType && a.actionType !== 'normal' && (
+          <span className="action-card-type">{a.actionType === 'bonus' ? 'Adic.' : a.actionType === 'reaction' ? 'Reacción' : 'Ritual'}</span>
+        )}
+      </div>
+      <div className="action-card-body">
+        {a.isSpell && <span className="action-card-spell">🔮 {a.spellLevel === 'truco' ? 'Truco' : `Nv.${a.spellLevel}`}</span>}
+        {a.range && <span className="action-card-range">📏 {a.range}</span>}
+        {a.aoe && <span className="action-card-aoe">◎ {a.aoe}</span>}
+        {a.modifier != null && a.modifier !== '' && a.modifier !== 0 && (
+          <span className="action-card-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>
+        )}
+      </div>
+      {(a.damage || a.secondaryDamage) && (
+        <div className="action-card-dmg">
+          {a.damage && <span className="action-card-dmg-main">⚔ {a.damage}</span>}
+          {a.secondaryDamage && <span className="action-card-dmg-sec">+ {a.secondaryDamage}</span>}
+        </div>
+      )}
+      {a.concentration && <div className="action-card-conc">🎯 Concentración</div>}
+      {a.note && <div className="action-card-note">{a.note}</div>}
+    </>
+  )
+
+  return (
+    <>
+      <div className="action-card" onClick={e => { e.stopPropagation(); setIsOpen(true) }}>
+        {cardContent()}
+      </div>
+      {isOpen && (
+        <div className="action-card-overlay" onClick={e => { e.stopPropagation(); setIsOpen(false) }}>
+          <div className="action-card-modal" onClick={e => e.stopPropagation()}>
+            {cardContent()}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 // ── Componente: Panel de acciones con categorías y cards ───
 function ActionsPanel({ actions, favoriteActions, actionTab, setActionTab, onToggleFav, openActionIdx, setOpenActionIdx }) {
@@ -2225,60 +2437,6 @@ function ActionsPanel({ actions, favoriteActions, actionTab, setActionTab, onTog
   const activeTab = actionTab === 'fav' && favs.length === 0 ? 'melee' : actionTab
 
   const tabActions = activeTab === 'fav' ? favs : activeTab === 'spell' ? spells : melee
-  // Fallback local si no se pasan props
-  const [localOpen, setLocalOpen] = useState(null)
-  const effectiveOpen = openActionIdx !== undefined ? openActionIdx : localOpen
-  const effectiveSetOpen = setOpenActionIdx || setLocalOpen
-
-  function ActionCard({ a }) {
-    const isFav = favSet.has(a._idx)
-    const isOpen = effectiveOpen === a._idx
-
-    const cardContent = () => (
-      <>
-        <div className="action-card-top">
-          <button className={`action-card-fav ${isFav ? 'active' : ''}`} onClick={e => { e.stopPropagation(); onToggleFav(a._idx) }}>
-            {isFav ? '★' : '☆'}
-          </button>
-          <span className="action-card-name">{a.name}</span>
-          {a.actionType && a.actionType !== 'normal' && (
-            <span className="action-card-type">{a.actionType === 'bonus' ? 'Adic.' : a.actionType === 'reaction' ? 'Reacción' : 'Ritual'}</span>
-          )}
-        </div>
-        <div className="action-card-body">
-          {a.isSpell && <span className="action-card-spell">🔮 {a.spellLevel === 'truco' ? 'Truco' : `Nv.${a.spellLevel}`}</span>}
-          {a.range && <span className="action-card-range">📏 {a.range}</span>}
-          {a.aoe && <span className="action-card-aoe">◎ {a.aoe}</span>}
-          {a.modifier != null && a.modifier !== '' && a.modifier !== 0 && (
-            <span className="action-card-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>
-          )}
-        </div>
-        {(a.damage || a.secondaryDamage) && (
-          <div className="action-card-dmg">
-            {a.damage && <span className="action-card-dmg-main">⚔ {a.damage}</span>}
-            {a.secondaryDamage && <span className="action-card-dmg-sec">+ {a.secondaryDamage}</span>}
-          </div>
-        )}
-        {a.concentration && <div className="action-card-conc">🎯 Concentración</div>}
-        {a.note && <div className="action-card-note">{a.note}</div>}
-      </>
-    )
-
-    return (
-      <>
-        <div className="action-card" onClick={() => effectiveSetOpen(a._idx)}>
-          {cardContent()}
-        </div>
-        {isOpen && (
-          <div className="action-card-overlay" onClick={() => effectiveSetOpen(null)}>
-            <div className="action-card-modal" onClick={e => e.stopPropagation()}>
-              {cardContent()}
-            </div>
-          </div>
-        )}
-      </>
-    )
-  }
 
   return (
     <div className="actions-panel">
@@ -2299,8 +2457,55 @@ function ActionsPanel({ actions, favoriteActions, actionTab, setActionTab, onTog
             {activeTab === 'fav' ? 'Sin favoritos — marca acciones con ★' : 'Sin acciones en esta categoría'}
           </div>
         )}
-        {tabActions.map(a => <ActionCard key={a._idx} a={a} />)}
+        {tabActions.map(a => <ActionCard key={a._idx} a={a} isFav={favSet.has(a._idx)} onToggleFav={onToggleFav} />)}
       </div>
+    </div>
+  )
+}
+
+// ── Componente: Trait Card con modal ─────────────────────────
+function TraitCard({ trait }) {
+  const [open, setOpen] = useState(false)
+  const desc = trait.description || ''
+  return (
+    <>
+      <div className="trait-card" onClick={e => { e.stopPropagation(); setOpen(true) }}>
+        <div className="trait-card-name">
+          {trait.name}
+          {trait.uses && <span className="trait-card-uses">({trait.uses})</span>}
+        </div>
+        <div className="trait-card-preview">{desc}</div>
+      </div>
+      {open && (
+        <div className="dnd-modal-overlay" onClick={e => { e.stopPropagation(); setOpen(false) }}>
+          <div className="dnd-modal lore-detail-modal" onClick={e => e.stopPropagation()}>
+            <div className="lore-detail-header">
+              <span className="lore-detail-icon">📋</span>
+              <h3 className="lore-detail-title">{trait.name}</h3>
+              {trait.uses && <span className="glossary-linked-rarity">{trait.uses}</span>}
+            </div>
+            <div className="lore-detail-body">
+              <p className="lore-detail-text">{desc}</p>
+            </div>
+            <button className="dnd-btn-cancel lore-detail-close" onClick={e => { e.stopPropagation(); setOpen(false) }}>Cerrar</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── Componente: Accordion reutilizable para secciones ──────
+function SectionAccordion({ id, label, count, openSections, toggleSec, children }) {
+  const isOpen = openSections[id]
+  return (
+    <div className="cc-accordion">
+      <div className="cc-accordion-header" onClick={() => toggleSec(id)}>
+        <span className="cc-accordion-chevron">{isOpen ? '▾' : '▸'}</span>
+        <span className="cc-accordion-label">{label}</span>
+        {count != null && <span className="cc-accordion-count">{count}</span>}
+      </div>
+      {isOpen && <div className="cc-accordion-body">{children}</div>}
     </div>
   )
 }
@@ -2312,21 +2517,8 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
   const [openSections, setOpenSections] = useState({})
   const [actionTab, setActionTab] = useState('fav')
   const [openActionIdx, setOpenActionIdx] = useState(null)
+  const [loreModal, setLoreModal] = useState(null)
   const toggleSec = key => setOpenSections(p => ({ ...p, [key]: !p[key] }))
-
-  const SectionAccordion = ({ id, label, children, count }) => {
-    const isOpen = openSections[id]
-    return (
-      <div className="cc-accordion">
-        <div className="cc-accordion-header" onClick={() => toggleSec(id)}>
-          <span className="cc-accordion-chevron">{isOpen ? '▾' : '▸'}</span>
-          <span className="cc-accordion-label">{label}</span>
-          {count != null && <span className="cc-accordion-count">{count}</span>}
-        </div>
-        {isOpen && <div className="cc-accordion-body">{children}</div>}
-      </div>
-    )
-  }
 
   const hasSaves = character.savingThrows && Object.values(character.savingThrows).some(v => v)
   const hasSkills = (character.skills||[]).length > 0
@@ -2345,6 +2537,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
       <div className="glossary-card-header" onClick={onToggle}>
         <span className="glossary-card-cat">🛡️</span>
         <span className="glossary-card-name">{character.name || 'Sin nombre'}</span>
+        {character.player && <span className="glossary-card-player">🎮 {character.player}</span>}
         {character.race && <span className="glossary-card-cr">{character.race}</span>}
         {character.class && <span className="glossary-card-rarity">{character.class}{character.subclass ? ` (${character.subclass})` : ''} Nv.{character.level || 1}</span>}
         <span className="glossary-card-chevron">{expanded ? '▾' : '▸'}</span>
@@ -2382,7 +2575,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
           </div>
 
             {hasSaves && (
-              <SectionAccordion id="saves" label="Tiradas de salvación" count={[['FUE','str'],['DES','dex'],['CON','con'],['INT','int'],['SAB','wis'],['CAR','cha']].filter(([,k]) => character.savingThrows[k]).length}>
+              <SectionAccordion id="saves" label="Tiradas de salvación" count={[['FUE','str'],['DES','dex'],['CON','con'],['INT','int'],['SAB','wis'],['CAR','cha']].filter(([,k]) => character.savingThrows[k]).length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="glossary-skills">
                   {[['FUE','str'],['DES','dex'],['CON','con'],['INT','int'],['SAB','wis'],['CAR','cha']]
                     .filter(([,key]) => character.savingThrows[key])
@@ -2395,7 +2588,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
             )}
 
             {hasSkills && (
-              <SectionAccordion id="skills" label="Habilidades" count={character.skills.length}>
+              <SectionAccordion id="skills" label="Habilidades" count={character.skills.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="glossary-skills">
                   {character.skills.map((sk,i) => (
                     <span key={i} className="glossary-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>
@@ -2407,7 +2600,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
             {hasProficiencies && (() => {
               const allProfs = [...(character.proficiencies||[]), ...(character.bgTools||[])]
               return (
-              <SectionAccordion id="profs" label="Competencias" count={allProfs.length}>
+              <SectionAccordion id="profs" label="Competencias" count={allProfs.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="glossary-skills">
                   {allProfs.map((p,i) => (
                     <span key={i} className="glossary-skill-badge">{p}</span>
@@ -2417,7 +2610,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
             )})()}
 
             {(character.languages||[]).length > 0 && (
-              <SectionAccordion id="languages" label="Idiomas" count={character.languages.length}>
+              <SectionAccordion id="languages" label="Idiomas" count={character.languages.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="glossary-skills">
                   {character.languages.map((l,i) => (
                     <span key={i} className="glossary-skill-badge">{l}</span>
@@ -2427,17 +2620,17 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
             )}
 
             {hasTraits && (
-              <SectionAccordion id="traits" label="Rasgos" count={allTraits.length}>
-                {allTraits.map((t,i) => (
-                  <div key={i} className="glossary-trait">
-                    <strong>{t.name}.</strong> {t.description}
-                  </div>
-                ))}
+              <SectionAccordion id="traits" label="Rasgos" count={allTraits.length} openSections={openSections} toggleSec={toggleSec}>
+                <div className="trait-cards-grid">
+                  {allTraits.map((t,i) => (
+                    <TraitCard key={i} trait={t} />
+                  ))}
+                </div>
               </SectionAccordion>
             )}
 
             {(hasActions || hasSpellSlots) && (
-              <SectionAccordion id="actions" label="Acciones" count={hasActions ? character.actions.length : undefined}>
+              <SectionAccordion id="actions" label="Acciones" count={hasActions ? character.actions.length : undefined} openSections={openSections} toggleSec={toggleSec}>
                 {hasSpellSlots && (
                   <div className="glossary-spell-slots">
                     <span className="glossary-spell-slots-label">🔮 Huecos de conjuro:</span>
@@ -2463,19 +2656,17 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
             )}
 
             {hasAbilities && (
-              <SectionAccordion id="abilities" label="Habilidades especiales" count={character.abilities.length}>
-                {character.abilities.map((ab,i) => (
-                  <div key={i} className="glossary-ability">
-                    <strong>{ab.name}</strong>
-                    {ab.uses && <span className="glossary-ability-uses">({ab.uses})</span>}
-                    <span className="glossary-ability-desc">. {ab.description}</span>
-                  </div>
-                ))}
+              <SectionAccordion id="abilities" label="Habilidades especiales" count={character.abilities.length} openSections={openSections} toggleSec={toggleSec}>
+                <div className="trait-cards-grid">
+                  {character.abilities.map((ab,i) => (
+                    <TraitCard key={i} trait={{ name: ab.name, description: ab.description, uses: ab.uses }} />
+                  ))}
+                </div>
               </SectionAccordion>
             )}
 
             {hasEquipment && (
-              <SectionAccordion id="equipment" label="Equipo" count={allEquipment.length}>
+              <SectionAccordion id="equipment" label="Equipo" count={allEquipment.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="glossary-skills">
                   {allEquipment.map((eq,i) => (
                     <span key={i} className="glossary-skill-badge">{typeof eq === 'string' ? eq : eq.name}{eq.quantity > 1 ? ` ×${eq.quantity}` : ''}</span>
@@ -2487,7 +2678,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
                       const g = (glossaryEntries || []).find(x => x.id === gId)
                       if (!g) return null
                       return (
-                        <div key={gId} className="glossary-linked-item">
+                        <div key={gId} className="glossary-linked-item glossary-linked-clickable" onClick={() => setLoreModal(g)}>
                           <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
                           <span className="glossary-linked-name">{g.name}</span>
                           {g.rarity && <span className="glossary-linked-rarity">{g.rarity}</span>}
@@ -2499,13 +2690,13 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
               </SectionAccordion>
             )}
             {!hasEquipment && (character.glossaryItems||[]).length > 0 && (
-              <SectionAccordion id="equipment" label="Equipo" count={(character.glossaryItems||[]).length}>
+              <SectionAccordion id="equipment" label="Equipo" count={(character.glossaryItems||[]).length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="glossary-linked-items">
                   {character.glossaryItems.map(gId => {
                     const g = (glossaryEntries || []).find(x => x.id === gId)
                     if (!g) return null
                     return (
-                      <div key={gId} className="glossary-linked-item">
+                      <div key={gId} className="glossary-linked-item glossary-linked-clickable" onClick={() => setLoreModal(g)}>
                         <span>{g.category === 'artifact' ? '💎' : '📜'}</span>
                         <span className="glossary-linked-name">{g.name}</span>
                         {g.rarity && <span className="glossary-linked-rarity">{g.rarity}</span>}
@@ -2517,7 +2708,7 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
             )}
 
             {hasConsumables && (
-              <SectionAccordion id="consumables" label="Consumibles" count={character.consumables.length}>
+              <SectionAccordion id="consumables" label="Consumibles" count={character.consumables.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="cc-consumables-list">
                   {character.consumables.map((c,i) => (
                     <div key={i} className="cc-consumable-item">
@@ -2551,6 +2742,35 @@ function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave
               </div>
             )}
             <button className="dnd-btn-sm dnd-btn-danger" onClick={onDelete}>✕ Borrar</button>
+          </div>
+        </div>
+      )}
+
+      {loreModal && (
+        <div className="dnd-modal-overlay" onClick={() => setLoreModal(null)}>
+          <div className="dnd-modal lore-detail-modal" onClick={e => e.stopPropagation()}>
+            <div className="lore-detail-header">
+              <span className="lore-detail-icon">{loreModal.category === 'artifact' ? '💎' : '📜'}</span>
+              <h3 className="lore-detail-title">{loreModal.name}</h3>
+              {loreModal.rarity && <span className="glossary-linked-rarity">{loreModal.rarity}</span>}
+            </div>
+            <div className="lore-detail-body">
+              {loreModal.description && <p className="lore-detail-text">{loreModal.description}</p>}
+              {loreModal.properties && <p className="lore-detail-text">{loreModal.properties}</p>}
+              {(loreModal.images||[]).length > 0 && (
+                <div className="lore-detail-images">
+                  {loreModal.images.map((url, i) => (
+                    <img key={i} src={url} alt="" className="lore-detail-img" onClick={() => window.open(url, '_blank')} />
+                  ))}
+                </div>
+              )}
+              {loreModal.tags?.length > 0 && (
+                <div className="glossary-tags" style={{marginTop:8}}>
+                  {loreModal.tags.map((t,i) => <span key={i} className="glossary-tag">{t}</span>)}
+                </div>
+              )}
+            </div>
+            <button className="dnd-btn-cancel lore-detail-close" onClick={() => setLoreModal(null)}>Cerrar</button>
           </div>
         </div>
       )}
