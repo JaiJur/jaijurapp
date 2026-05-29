@@ -20,6 +20,7 @@ export default function DnD() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const isMaster = user?.role === 'master' || user?.role === 'dndMaster'
+  const isPlayer = user?.role === 'dnd' || user?.role === 'dndPlayer'
   const [campaigns, setCampaigns] = useState([])
   const [expanded, setExpanded] = useState({})
   const [modal, setModal] = useState(null) // { type, campaignId?, chapterId? }
@@ -57,6 +58,9 @@ export default function DnD() {
   const [globalImages, setGlobalImages] = useState(null)
   const [imageModal, setImageModal] = useState(null)
 
+  // Jugadores D&D (para selector en CharacterWizard)
+  const [dndPlayers, setDndPlayers] = useState([])
+
   // Soundboard
   const [soundboard, setSoundboard] = useState([])
   const [soundModal, setSoundModal] = useState(null) // null | { mode: 'create'|'edit'|'browse', sound? }
@@ -72,12 +76,29 @@ export default function DnD() {
     setParties(ps => ps.map(p => p.id === partyId ? { ...p, conditions: { ...(p.conditions || {}), [key]: conditions } } : p))
   }
 
-  useEffect(() => { if (!user) return; if (isMaster) { fetchCampaigns(); fetchSoundboard() } fetchViewer(); fetchGlossary(); fetchCharacters(); fetchParties() }, [user])
-  // Refrescar estado del visor cada 5s (por si alguien más lo cambia)
   useEffect(() => {
+    if (!user) return
+    if (isMaster) { fetchCampaigns(); fetchSoundboard(); fetchViewer(); fetchDndPlayers() }
+    fetchGlossary(); fetchCharacters(); fetchParties()
+    if (isPlayer) { setExpanded({ characters: true, parties: true, glossary: true }); setGlossaryFilter('spell') }
+  }, [user])
+
+  // Auto-expandir parties individuales para jugadores
+  useEffect(() => {
+    if (isPlayer && parties.length > 0) {
+      setExpanded(prev => {
+        const next = { ...prev }
+        parties.forEach(p => { next[`party-${p.id}`] = true })
+        return next
+      })
+    }
+  }, [parties, isPlayer])
+  // Refrescar estado del visor cada 5s (solo master)
+  useEffect(() => {
+    if (!isMaster) return
     const iv = setInterval(fetchViewer, 5000)
     return () => clearInterval(iv)
-  }, [])
+  }, [isMaster])
 
   async function fetchCampaigns() {
     try {
@@ -88,6 +109,13 @@ export default function DnD() {
       console.error('fetchCampaigns error:', e)
       setCampaigns([])
     }
+  }
+
+  async function fetchDndPlayers() {
+    try {
+      const r = await fetch('/api/dnd/players', { headers })
+      if (r.ok) setDndPlayers(await r.json())
+    } catch {}
   }
 
   async function fetchViewer() {
@@ -201,6 +229,13 @@ export default function DnD() {
       method: 'PUT', headers, body: JSON.stringify({ ids: next })
     })
     fetchGlossary()
+  }
+  async function toggleUnlocked(entryId, unlocked) {
+    const entry = glossary.entries.find(e => e.id === entryId)
+    if (!entry) return
+    await fetch(`/api/dnd/glossary/${entryId}`, { method: 'PUT', headers, body: JSON.stringify({ ...entry, unlocked }) })
+    fetchGlossary()
+    showToast(unlocked ? '🔓 Desbloqueado para jugadores' : '🔒 Bloqueado para jugadores')
   }
   function newEnemyTemplate() {
     return {
@@ -437,6 +472,11 @@ export default function DnD() {
     let items = glossary.entries.filter(e => {
       // Ocultar entradas marcadas como hidden para jugadores
       if (!isMaster && e.hidden) return false
+      // Jugadores solo ven hechizos y lore desbloqueado
+      if (isPlayer) {
+        if (e.category !== 'spell' && e.category !== 'lore') return false
+        if (e.category === 'lore' && !e.unlocked) return false
+      }
       if (glossaryFilter !== 'all' && e.category !== glossaryFilter) return false
       // Subfiltro: spell por nivel
       if (glossaryFilter === 'spell' && glossarySubFilter !== 'all') {
@@ -867,14 +907,14 @@ export default function DnD() {
         )}
 
         {/* ── Parties ── */}
-        {isMaster && <div className="dnd-glossary-section">
+        {(isMaster || isPlayer) && <div className="dnd-glossary-section">
           <div className="dnd-glossary-header" onClick={() => toggleExpand('parties')}>
             <span className="dnd-chevron">{expanded.parties ? '▾' : '▸'}</span>
             <span className="dnd-glossary-title">⚔️ Parties</span>
-            <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
+            {isMaster && <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
               <button className="dnd-btn-sm" onClick={() => window.open('/dnd/party','_blank')}>🖥 Ver</button>
               <button className="dnd-btn-primary" onClick={() => setPartyCreateModal(true)}>+ Party</button>
-            </div>
+            </div>}
           </div>
           {expanded.parties && <>
             {parties.length === 0 && <div className="dnd-empty-sm">Sin parties — ¡crea la primera!</div>}
@@ -884,24 +924,26 @@ export default function DnD() {
                   <span className="dnd-chevron">{expanded[`party-${p.id}`] ? '▾' : '▸'}</span>
                   <span className="dnd-party-block-name">{p.name}</span>
                   <span className="dnd-party-block-count">{(p.members||[]).length} PCs · {(p.enemies||[]).length} enemigos</span>
-                  <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
+                  {isMaster && <div style={{marginLeft:'auto', display:'flex', gap:6}} onClick={e => e.stopPropagation()}>
                     <button className={`dnd-btn-sm ${visiblePartyId === p.id ? 'dnd-btn-visible-active' : ''}`} onClick={() => setPartyVisible(p.id)} title={visiblePartyId === p.id ? 'Visible en visor (click para mostrar todas)' : 'Mostrar en visor'}>{visiblePartyId === p.id ? '👁' : '👁‍🗨'}</button>
                     <button className="dnd-btn-sm" onClick={() => setPartyAddModal({ partyId: p.id })}>+ Añadir</button>
                     <button className="dnd-btn-sm" onClick={() => renameParty(p.id, p.name)} title="Renombrar">✏️</button>
                     <button className="dnd-btn-sm dnd-btn-danger" onClick={() => deleteParty(p.id)}>✕</button>
-                  </div>
+                  </div>}
                 </div>
                 {expanded[`party-${p.id}`] && (
                   <div className="dnd-party-block-body">
-                    <div className="dnd-party-rest-bar">
+                    {isMaster && <div className="dnd-party-rest-bar">
                       <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'short')}>☀️ Descanso corto</button>
                       <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'long')}>🌙 Descanso largo</button>
                       <span style={{flex:1}} />
                       {(p.enemies||[]).length > 0 && <button className="dnd-btn-sm dnd-btn-danger" onClick={() => clearEnemies(p.id)} title="Eliminar todos los enemigos">💀 Vaciar enemigos</button>}
                       <button className="dnd-btn-sm dnd-btn-danger" onClick={() => clearParty(p.id)} title="Vaciar todo el grupo">🧹 Vaciar todo</button>
-                    </div>
+                    </div>}
                     <PartyTracker
                       party={p}
+                      isMaster={isMaster}
+                      userId={user?.id}
                       onReorder={(newOrder) => updateInitiative(p.id, newOrder)}
                       onHpChange={(charId, hp) => updatePartyHp(p.id, charId, hp)}
                       onSlotsChange={(charId, slots) => updatePartySlots(p.id, charId, slots)}
@@ -947,7 +989,7 @@ export default function DnD() {
           <div className="dnd-glossary-header" onClick={() => toggleExpand('characters')}>
             <span className="dnd-chevron">{expanded.characters ? '▾' : '▸'}</span>
             <span className="dnd-glossary-title">🛡️ Personajes</span>
-            <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setCharacterModal({ mode: 'create', character: null }) }}>+ Personaje</button>
+            {isMaster && <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setCharacterModal({ mode: 'create', character: null }) }}>+ Personaje</button>}
           </div>
           {expanded.characters && <>
             <input className="dnd-glossary-search" placeholder="Buscar por nombre, clase, nivel o jugador..." value={charSearch} onChange={e => setCharSearch(e.target.value)} style={{marginBottom:8}} />
@@ -993,7 +1035,10 @@ export default function DnD() {
           {expanded.glossary && <>
             <div className="dnd-glossary-controls">
               <div className="dnd-glossary-filters">
-                {[{id:'all',label:'Todos'},{id:'enemy',label:'⚔️ Enemigos'},{id:'artifact',label:'💎 Artefactos'},{id:'spell',label:'🔮 Hechizos'},{id:'lore',label:'📜 Lore'}].map(f => (
+                {(isPlayer
+                  ? [{id:'spell',label:'🔮 Hechizos'},{id:'lore',label:'📜 Lore'}]
+                  : [{id:'all',label:'Todos'},{id:'enemy',label:'⚔️ Enemigos'},{id:'artifact',label:'💎 Artefactos'},{id:'spell',label:'🔮 Hechizos'},{id:'lore',label:'📜 Lore'}]
+                ).map(f => (
                   <button key={f.id} className={`dnd-glossary-filter ${glossaryFilter===f.id?'active':''}`}
                     onClick={() => { setGlossaryFilter(f.id); setGlossarySubFilter('all'); setGlossaryPage(0) }}>{f.label}</button>
                 ))}
@@ -1030,7 +1075,8 @@ export default function DnD() {
                   campaigns={campaigns} favorites={glossary.favorites}
                   onToggleFav={toggleFavorite}
                   isFavorite={isGlobalFavorite(entry.id)}
-                  canEdit={isMaster} />
+                  canEdit={isMaster}
+                  onToggleUnlocked={toggleUnlocked} />
               ))}
             </div>
             {glossaryTotalPages > 1 && (
@@ -1112,6 +1158,7 @@ export default function DnD() {
           template={newCharacterTemplate}
           glossarySpells={glossary.entries.filter(e => e.category === 'spell')}
           glossaryItems={glossary.entries.filter(e => e.category === 'artifact' || e.category === 'lore')}
+          dndPlayers={dndPlayers}
         />
       )}
 

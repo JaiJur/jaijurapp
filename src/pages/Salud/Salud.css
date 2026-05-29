@@ -1,0 +1,561 @@
+.salud-root {
+  min-height: 100vh;
+  background: #0a0a0f;
+  color: #e0e0e0;
+  box-sizing: border-box;
+}
+.salud-root *, .salud-root *::before, .salud-root *::after {
+  box-sizing: border-box;
+}
+.salud-loading {
+  display: flex; align-items: center; justify-content: center;
+  height: 100vh; color: #888; font-family: sans-serif;
+}
+.salud-main {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+}
+.salud-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 1.2rem;
+  color: #fff;
+}
+
+/* ── Week summary ── */
+.salud-section-title {
+  font-size: .95rem;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin: 0 0 .6rem;
+}
+.salud-week {
+  margin-bottom: 1.5rem;
+}
+
+/* ── Tabs ── */
+.salud-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: .5rem;
+  background: #12121a;
+  border-radius: 10px;
+  padding: 3px;
+}
+.salud-tab {
+  flex: 1;
+  padding: .4rem 0;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: #666;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.salud-tab.active {
+  background: #1e2030;
+  color: #e0e0e0;
+}
+
+/* ── Chart scroll ── */
+.salud-chart-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #0c0c14;
+  border-radius: 12px;
+  border: 1px solid #1a1a28;
+}
+.salud-chart-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.salud-chart-scroll::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+.salud-chart-svg {
+  display: block;
+  min-width: 100%;
+}
+
+/* ── Legend ── */
+.salud-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: .4rem;
+  justify-content: center;
+}
+.salud-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .7rem;
+  color: #888;
+}
+.salud-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.salud-legend-line {
+  width: 12px;
+  height: 2px;
+  flex-shrink: 0;
+  border-radius: 1px;
+}
+
+/* ── Today button ── */
+.salud-btn-today {
+  width: 100%;
+  padding: .85rem;
+  background: linear-gradient(135deg, #1e6eff, #4b90ff);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  transition: opacity .2s;
+}
+.salud-btn-today:active {
+  opacity: .85;
+}
+
+/* ── Form ── */
+.salud-form {
+  background: #14141c;
+  border: 1px solid #2a2a3a;
+  border-radius: 14px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.salud-form-date {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 1rem;
+  text-transform: capitalize;
+}
+.salud-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: .9rem;
+}
+.salud-field-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.salud-label {
+  font-size: .85rem;
+  font-weight: 500;
+  color: #bbb;
+}
+.salud-input {
+  background: #1c1c28;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: .6rem .75rem;
+  color: #e0e0e0;
+  font-size: .95rem;
+  outline: none;
+  transition: border-color .2s;
+  width: 100%;
+  min-width: 0;
+}
+.salud-input:focus {
+  border-color: #4b90ff;
+}
+.salud-textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* Sleep buttons */
+.salud-sleep-row {
+  display: flex;
+  gap: 6px;
+}
+.salud-sleep-btn {
+  flex: 1;
+  padding: .5rem;
+  font-size: 1.3rem;
+  background: #1c1c28;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.salud-sleep-btn.active {
+  border-color: #4b90ff;
+  background: #1a2540;
+}
+
+/* Toggle */
+.salud-toggle {
+  padding: .4rem 1rem;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 600;
+  border: 1px solid #444;
+  background: #1c1c28;
+  color: #888;
+  cursor: pointer;
+  transition: all .15s;
+}
+.salud-toggle.on {
+  background: #1a3a20;
+  border-color: #2a6a35;
+  color: #6dff6d;
+}
+
+/* Form actions */
+.salud-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 1rem;
+}
+.salud-btn {
+  flex: 1;
+  padding: .7rem;
+  border-radius: 10px;
+  font-size: .9rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+.salud-btn-save {
+  background: #1e6eff;
+  color: #fff;
+}
+.salud-btn-cancel {
+  background: #2a2a3a;
+  color: #aaa;
+}
+
+/* ── History ── */
+.salud-history {
+  margin-top: .5rem;
+}
+.salud-empty {
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+.salud-entry {
+  background: #14141c;
+  border: 1px solid #1e1e2e;
+  border-radius: 12px;
+  padding: .8rem 1rem;
+  margin-bottom: .6rem;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.salud-entry:active {
+  border-color: #4b90ff;
+}
+.salud-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .4rem;
+}
+.salud-entry-date {
+  font-weight: 600;
+  font-size: .9rem;
+  color: #ccc;
+  text-transform: capitalize;
+}
+.salud-entry-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.salud-metric {
+  font-size: .8rem;
+  background: #1c1c28;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: #bbb;
+}
+.salud-entry-notes {
+  font-size: .8rem;
+  color: #888;
+  margin: .4rem 0 0;
+  font-style: italic;
+}
+
+/* ── Action row (hoy + otro día) ── */
+.salud-action-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+.salud-action-row .salud-btn-today {
+  flex: 1;
+  margin-bottom: 0;
+}
+.salud-btn-other {
+  padding: .85rem 1rem;
+  background: #1c1c28;
+  color: #aaa;
+  border: 1px solid #333;
+  border-radius: 12px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .2s;
+}
+.salud-btn-other:active {
+  border-color: #4b90ff;
+}
+
+/* ── Date picker ── */
+.salud-date-picker {
+  background: #14141c;
+  border: 1px solid #2a2a3a;
+  border-radius: 14px;
+  padding: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+.salud-date-picker .salud-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: .8rem;
+  color-scheme: dark;
+}
+.salud-date-picker-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ── BMR config ── */
+.salud-bmr-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #14141c;
+  border: 1px solid #1e1e2e;
+  border-radius: 10px;
+  padding: .6rem .9rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.salud-bmr-bar:active {
+  border-color: #4b90ff;
+}
+.salud-bmr-values {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.salud-bmr-value {
+  font-size: .85rem;
+  color: #bbb;
+}
+.salud-bmr-value strong {
+  color: #ff9040;
+}
+.salud-bmr-empty {
+  color: #666;
+}
+.salud-bmr-edit {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: .6;
+  transition: opacity .15s;
+}
+.salud-bmr-edit:hover {
+  opacity: 1;
+}
+.salud-bmr-form {
+  background: #14141c;
+  border: 1px solid #2a2a3a;
+  border-radius: 14px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+}
+.salud-bmr-hint {
+  font-size: .78rem;
+  color: #777;
+  margin: .2rem 0 .6rem;
+}
+.salud-bmr-form .salud-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Deficit indicator ── */
+.salud-deficit {
+  font-size: .8rem;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.salud-deficit.deficit {
+  color: #4dff88;
+}
+.salud-deficit.surplus {
+  color: #ff6060;
+}
+.salud-deficit.even {
+  color: #888;
+}
+.salud-metric-deficit.deficit {
+  color: #4dff88;
+  background: #0d2a15;
+}
+.salud-metric-deficit.surplus {
+  color: #ff6060;
+  background: #2a0d0d;
+}
+
+/* ── Delete button in form ── */
+.salud-form-delete {
+  margin-top: 1rem;
+  padding-top: .8rem;
+  border-top: 1px solid #222;
+  text-align: center;
+}
+.salud-btn-delete {
+  background: none;
+  border: none;
+  color: #884040;
+  font-size: .85rem;
+  cursor: pointer;
+  padding: .4rem .8rem;
+  transition: color .15s;
+}
+.salud-btn-delete:active {
+  color: #ff4040;
+}
+.salud-delete-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.salud-delete-msg {
+  font-size: .85rem;
+  color: #aaa;
+}
+.salud-btn-delete-yes {
+  background: #6b1a1a;
+  color: #ff8080;
+  border: none;
+  border-radius: 8px;
+  padding: .4rem .9rem;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.salud-btn-delete-no {
+  background: #2a2a3a;
+  color: #aaa;
+  border: none;
+  border-radius: 8px;
+  padding: .4rem .9rem;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Meals grid ── */
+.salud-meals {
+  margin-bottom: .9rem;
+}
+.salud-meals > .salud-label {
+  margin-bottom: 6px;
+  display: block;
+}
+.salud-meals-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.salud-meal-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.salud-meal-label {
+  font-size: .78rem;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.salud-meal-input {
+  padding: .5rem .6rem;
+  font-size: .9rem;
+  width: 100%;
+  min-width: 0;
+}
+.salud-meals-total {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: .5rem .7rem;
+  background: #1a1a26;
+  border-radius: 8px;
+}
+.salud-meals-total-label {
+  font-size: .82rem;
+  color: #888;
+  font-weight: 600;
+}
+.salud-meals-total-value {
+  font-size: .95rem;
+  font-weight: 700;
+  color: #ff9040;
+}
+.salud-meals-total .salud-deficit {
+  margin-top: 0;
+}
+
+/* ── Mobile adjustments ── */
+@media (max-width: 480px) {
+  .salud-main {
+    padding: .75rem .75rem 3rem;
+  }
+  .salud-form {
+    padding: .85rem;
+  }
+  .salud-sleep-btn {
+    padding: .4rem .2rem;
+    font-size: 1.1rem;
+  }
+  .salud-title {
+    font-size: 1.35rem;
+  }
+  .salud-btn-today {
+    padding: .75rem;
+    font-size: .9rem;
+  }
+  .salud-btn-other {
+    padding: .75rem .8rem;
+    font-size: .82rem;
+  }
+  .salud-meal-label {
+    font-size: .72rem;
+  }
+  .salud-meal-input {
+    padding: .45rem .5rem;
+    font-size: .85rem;
+  }
+}

@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import AppHeader from '../components/AppHeader'
+import UserManager from './UserManager'
 import './Home.css'
 
 const APPS = [
@@ -54,10 +56,29 @@ const APPS = [
     ),
     href: '/dnd',
   },
+  {
+    id: 'salud',
+    label: 'Salud',
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M24 42s-14-8.5-14-18.5C10 15.5 14 12 19 12c2.8 0 4.5 1.5 5 2.5.5-1 2.2-2.5 5-2.5 5 0 9 3.5 9 11.5S24 42 24 42z"
+          stroke="currentColor" strokeWidth="2.2" fill="none"/>
+        <path d="M20 26h8M24 22v8" stroke="#ff4060" strokeWidth="2.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    href: '/salud',
+  },
 ]
 
 export default function Home() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  // Filtrar apps según rol/apps del usuario
+  const APP_ID_MAP = { mealplanner: 'planner', ginbro: 'ginbro', hogar: 'hogar', dnd: 'dnd', salud: 'salud' }
+  const visibleApps = (user?.role === 'master' || user?.role === 'premium')
+    ? APPS
+    : APPS.filter(app => (user?.apps || []).includes(APP_ID_MAP[app.id] || app.id))
 
   return (
     <div className="home-root">
@@ -70,13 +91,15 @@ export default function Home() {
 
       <main className="home-main">
         <div className="app-grid">
-          {APPS.map(app => (
+          {visibleApps.map(app => (
             <button key={app.id} className="app-icon" onClick={() => navigate(app.href)}>
               <div className="app-icon-img">{app.icon}</div>
               <span className="app-icon-label">{app.label}</span>
             </button>
           ))}
         </div>
+
+        {user?.role === 'master' && <UserManager />}
       </main>
     </div>
   )

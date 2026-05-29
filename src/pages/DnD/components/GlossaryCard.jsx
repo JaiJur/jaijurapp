@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { ActionsPanel, TraitCard } from './shared'
 
-export default function GlossaryCard({ entry, expanded, onToggle, onEdit, onDelete, onSendImage, campaigns, favorites, onToggleFav, isFavorite, canEdit }) {
+export default function GlossaryCard({ entry, expanded, onToggle, onEdit, onDelete, onSendImage, campaigns, favorites, onToggleFav, isFavorite, canEdit, onToggleUnlocked }) {
   const catIcons = { enemy: '⚔️', artifact: '💎', lore: '📜', spell: '🔮' }
   const s = entry.stats || {}
   const mod = v => { const m = Math.floor((v-10)/2); return m >= 0 ? `+${m}` : `${m}` }
@@ -34,6 +34,7 @@ export default function GlossaryCard({ entry, expanded, onToggle, onEdit, onDele
       <div className="glossary-card-header" onClick={onToggle}>
         {isFavorite && <span className="glossary-card-fav-star">★</span>}
         {entry.hidden && <span className="glossary-hidden-badge" title="Oculto para jugadores">🙈</span>}
+        {entry.category === 'lore' && canEdit && <span className="glossary-hidden-badge" title={entry.unlocked ? 'Visible para jugadores' : 'Bloqueado para jugadores'}>{entry.unlocked ? '🔓' : '🔒'}</span>}
         {entry.category === 'enemy' && (entry.portraits||[]).length > 0 ? (
           <img src={entry.portraits[0]} alt="" className="glossary-card-enemy-thumb" />
         ) : (
@@ -154,6 +155,13 @@ export default function GlossaryCard({ entry, expanded, onToggle, onEdit, onDele
 
           <div className="glossary-card-actions">
             {canEdit && <button className="dnd-btn-sm" onClick={onEdit}>✏ Editar</button>}
+            {canEdit && entry.category === 'lore' && onToggleUnlocked && (
+              <button className={`dnd-btn-sm ${entry.unlocked ? 'dnd-btn-visible-active' : ''}`}
+                onClick={() => onToggleUnlocked(entry.id, !entry.unlocked)}
+                title={entry.unlocked ? 'Bloquear para jugadores' : 'Desbloquear para jugadores'}>
+                {entry.unlocked ? '🔓' : '🔒'}
+              </button>
+            )}
             {canEdit && <button className="dnd-btn-sm dnd-btn-danger" onClick={onDelete}>✕</button>}
             {canEdit && campaigns.map(c => {
               const isFav = (favorites[c.id] || []).includes(entry.id)

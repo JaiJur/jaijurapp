@@ -90,3 +90,109 @@
   .app-icon-img { width: 64px; height: 64px; border-radius: 16px; }
   .app-icon-img svg { width: 30px; height: 30px; }
 }
+
+/* ── UserManager ───────────────────────────────────────── */
+.um-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+.um-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.um-title { font-size: 1.1rem; font-weight: 600; color: #333; }
+.um-btn-create {
+  padding: 6px 14px; border: 1px solid #ff6a00; border-radius: 8px;
+  background: transparent; color: #ff6a00; font-size: .8rem; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+}
+.um-btn-create:hover { background: #ff6a00; color: #fff; }
+
+.um-list { display: flex; flex-direction: column; gap: 8px; }
+.um-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-radius: 10px; background: #fff;
+  border: 1px solid #e8e8e8; transition: border-color .15s;
+}
+.um-card:hover { border-color: #ccc; }
+.um-card-self { border-left: 3px solid #ff6a00; }
+.um-card-main { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.um-card-name { font-weight: 600; font-size: .9rem; color: #222; }
+.um-card-role {
+  font-size: .7rem; padding: 2px 8px; border-radius: 6px;
+  background: #f0f0f0; color: #555; white-space: nowrap;
+}
+.um-card-apps {
+  font-size: .65rem; color: #888; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+}
+.um-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.um-btn-edit, .um-btn-delete {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e0e0e0;
+  background: #fff; cursor: pointer; font-size: .8rem; display: flex;
+  align-items: center; justify-content: center; transition: all .15s;
+}
+.um-btn-edit:hover { border-color: #ff6a00; background: #fff7f0; }
+.um-btn-delete:hover { border-color: #e53935; background: #fff5f5; color: #e53935; }
+
+/* ── Modal ── */
+.um-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.um-modal {
+  background: #fff; border-radius: 14px; padding: 1.5rem;
+  width: 100%; max-width: 420px; max-height: 90dvh; overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,.15);
+}
+.um-modal-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #222; }
+.um-label { display: block; font-size: .75rem; font-weight: 500; color: #666; margin: 10px 0 4px; }
+.um-input {
+  width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px;
+  font-size: .85rem; font-family: inherit; outline: none; transition: border-color .15s;
+}
+.um-input:focus { border-color: #ff6a00; }
+
+.um-roles { display: flex; flex-wrap: wrap; gap: 6px; }
+.um-role-btn {
+  display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid #e0e0e0;
+  border-radius: 8px; background: #fff; cursor: pointer; transition: all .15s;
+  text-align: left; min-width: 0;
+}
+.um-role-btn:hover { border-color: #ccc; }
+.um-role-btn.active { border-color: #ff6a00; background: #fff7f0; }
+.um-role-label { font-size: .8rem; font-weight: 500; }
+.um-role-desc { font-size: .6rem; color: #999; margin-top: 1px; }
+
+.um-apps { display: flex; flex-wrap: wrap; gap: 6px; }
+.um-app-btn {
+  padding: 5px 10px; border: 1px solid #e0e0e0; border-radius: 7px;
+  background: #fff; cursor: pointer; font-size: .75rem; transition: all .15s;
+}
+.um-app-btn:hover { border-color: #ccc; }
+.um-app-btn.active { border-color: #ff6a00; background: #fff7f0; color: #ff6a00; }
+
+.um-error {
+  margin-top: 8px; padding: 8px 12px; border-radius: 8px;
+  background: #fff5f5; color: #e53935; font-size: .8rem;
+}
+
+.um-modal-btns { display: flex; gap: 8px; margin-top: 1rem; }
+.um-btn-save {
+  flex: 1; padding: 10px; border: none; border-radius: 8px;
+  background: #ff6a00; color: #fff; font-weight: 600; font-size: .85rem;
+  cursor: pointer; transition: background .15s;
+}
+.um-btn-save:hover { background: #e55d00; }
+.um-btn-cancel {
+  padding: 10px 16px; border: 1px solid #ddd; border-radius: 8px;
+  background: #fff; color: #666; font-size: .85rem; cursor: pointer;
+}
+.um-btn-cancel:hover { border-color: #ccc; }
+
+.um-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  padding: 10px 20px; border-radius: 10px; background: #222; color: #fff;
+  font-size: .85rem; z-index: 200; animation: fadeUp .3s ease;
+}

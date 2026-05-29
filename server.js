@@ -67,7 +67,7 @@ app.post('/api/login', async (req, res) => {
   db.rememberTokens[token] = { userId: user.id, expires }
   saveDB(db)
 
-  res.json({ user: { id: user.id, username: user.username, role: user.role }, rememberToken: token })
+  res.json({ user: { id: user.id, username: user.username, role: user.role, apps: user.apps || [] }, rememberToken: token })
 })
 
 // ── API: Registro D&D Player ─────────────────────────────
@@ -75,7 +75,7 @@ app.post('/api/dnd/register', async (req, res) => {
   const { username, password } = req.body
   if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' })
   if (username.length < 3) return res.status(400).json({ error: 'El usuario debe tener al menos 3 caracteres' })
-  if (password.length < 4) return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' })
+  if (password.length < 1) return res.status(400).json({ error: 'Contraseña requerida' })
   const db = getDB()
   if (db.users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
     return res.status(409).json({ error: 'Ese nombre de usuario ya existe' })
@@ -92,7 +92,7 @@ app.post('/api/dnd/register', async (req, res) => {
   db.rememberTokens[token] = { userId: newUser.id, expires }
   saveDB(db)
 
-  res.json({ user: { id: newUser.id, username: newUser.username, role: newUser.role }, rememberToken: token })
+  res.json({ user: { id: newUser.id, username: newUser.username, role: newUser.role, apps: newUser.apps || [] }, rememberToken: token })
 })
 
 // ── API: Validar remember token ──────────────────────────
@@ -109,7 +109,7 @@ app.post('/api/auth/token', (req, res) => {
   }
   const user = db.users.find(u => u.id === entry.userId)
   if (!user) return res.status(401).json({ error: 'Usuario no encontrado' })
-  res.json({ user: { id: user.id, username: user.username, role: user.role } })
+  res.json({ user: { id: user.id, username: user.username, role: user.role, apps: user.apps || [] } })
 })
 
 // ── API: MealPlanner ─────────────────────────────────────
@@ -818,6 +818,11 @@ function isDnDMaster(db, userId) {
   return user && (user.role === 'master' || user.role === 'dndMaster')
 }
 
+function isDnDPlayer(db, userId) {
+  const user = db.users.find(u => u.id === userId)
+  return user && (user.role === 'dnd' || user.role === 'dndPlayer')
+}
+
 function requireDnDMaster(req, res, next) {
   const db = getDB()
   if (!isDnDMaster(db, req.userId)) return res.status(403).json({ error: 'Solo el DM puede hacer esto' })
@@ -882,7 +887,16 @@ app.get('/api/dnd/parties', requireUser, (req, res) => {
   const dnd = getDnDData(db)
   const parties = getParties(dnd)
   saveDB(db) // guardar posible migración
-  res.json(parties.map(p => enrichParty(dnd, p)))
+  if (isDnDMaster(db, req.userId)) {
+    res.json(parties.map(p => enrichParty(dnd, p)))
+  } else {
+    // Jugadores solo ven parties donde tienen un personaje asignado
+    const myCharIds = dnd.characters
+      .filter(c => c.playerUserId === req.userId || c.ownerId === req.userId)
+      .map(c => c.id)
+    const myParties = parties.filter(p => (p.members || []).some(id => myCharIds.includes(id)))
+    res.json(myParties.map(p => enrichParty(dnd, p)))
+  }
 })
 
 // Crear party
@@ -1078,11 +1092,11 @@ app.post('/api/dnd/parties/:partyId/rest', requireUser, requireDnDMaster, (req, 
 app.get('/api/dnd/characters', requireUser, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
-  // master ve todos, dndPlayer solo los suyos
+  // master ve todos; jugadores ven solo su personaje (por playerUserId o ownerId)
   if (isDnDMaster(db, req.userId)) {
     res.json(dnd.characters)
   } else {
-    res.json(dnd.characters.filter(c => c.ownerId === req.userId))
+    res.json(dnd.characters.filter(c => c.playerUserId === req.userId || c.ownerId === req.userId))
   }
 })
 
@@ -1101,11 +1115,16 @@ app.put('/api/dnd/characters/:id', requireUser, (req, res) => {
   const idx = dnd.characters.findIndex(c => c.id === parseInt(req.params.id))
   if (idx === -1) return res.status(404).json({ error: 'Personaje no encontrado' })
   const ch = dnd.characters[idx]
-  // Solo el dueño o master puede editar
-  if (ch.ownerId && ch.ownerId !== req.userId && !isDnDMaster(db, req.userId)) {
+  // Solo el dueño, el jugador asignado, o master puede editar
+  const canEdit = isDnDMaster(db, req.userId) || ch.ownerId === req.userId || ch.playerUserId === req.userId
+  if (!canEdit) {
     return res.status(403).json({ error: 'Sin permiso' })
   }
-  dnd.characters[idx] = { ...ch, ...req.body, id: ch.id, ownerId: ch.ownerId || req.userId }
+  // Master puede cambiar playerUserId, jugadores no
+  const newPlayerUserId = isDnDMaster(db, req.userId) && req.body.playerUserId !== undefined
+    ? req.body.playerUserId
+    : ch.playerUserId
+  dnd.characters[idx] = { ...ch, ...req.body, id: ch.id, ownerId: ch.ownerId || req.userId, playerUserId: newPlayerUserId }
   saveDB(db)
   res.json(dnd.characters[idx])
 })
@@ -1212,6 +1231,181 @@ app.get('/api/dnd/sound-command', (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   res.json(dnd.soundCommand || null)
+})
+
+// ── API: Admin — Gestión de usuarios (solo master) ───────
+function requireMaster(req, res, next) {
+  const db = getDB()
+  const user = db.users.find(u => u.id === req.userId)
+  if (!user || user.role !== 'master') return res.status(403).json({ error: 'Solo el administrador puede hacer esto' })
+  next()
+}
+
+const AVAILABLE_ROLES = ['master', 'premium', 'dnd', 'dndPlayer', 'user']
+const AVAILABLE_APPS = ['dnd', 'planner', 'stardewpedia', 'ginbro', 'hogar']
+
+app.get('/api/admin/users', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  res.json(db.users.map(u => ({ id: u.id, username: u.username, role: u.role, apps: u.apps || [], sharedMealWith: u.sharedMealWith })))
+})
+
+// Listar jugadores D&D (para selector de personaje)
+app.get('/api/dnd/players', requireUser, (req, res) => {
+  const db = getDB()
+  const players = db.users.filter(u => u.role === 'dnd' || u.role === 'dndPlayer')
+  res.json(players.map(u => ({ id: u.id, username: u.username })))
+})
+
+app.post('/api/admin/users', requireUser, requireMaster, async (req, res) => {
+  const { username, password, role, apps } = req.body
+  if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' })
+  if (username.length < 1) return res.status(400).json({ error: 'Usuario requerido' })
+  if (password.length < 1) return res.status(400).json({ error: 'Contraseña requerida' })
+  if (role && !AVAILABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Rol inválido' })
+  const db = getDB()
+  if (db.users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+    return res.status(409).json({ error: 'Ese nombre de usuario ya existe' })
+  }
+  const hashedPw = await bcrypt.hash(password, 12)
+  const maxId = Math.max(...db.users.map(u => u.id), 0)
+  const newUser = { id: maxId + 1, username, password: hashedPw, role: role || 'user' }
+  if (apps && apps.length > 0) newUser.apps = apps.filter(a => AVAILABLE_APPS.includes(a))
+  db.users.push(newUser)
+  saveDB(db)
+  res.json({ id: newUser.id, username: newUser.username, role: newUser.role, apps: newUser.apps || [] })
+})
+
+app.put('/api/admin/users/:id', requireUser, requireMaster, async (req, res) => {
+  const db = getDB()
+  const userId = parseInt(req.params.id)
+  const user = db.users.find(u => u.id === userId)
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+  const { username, password, role, apps, sharedMealWith } = req.body
+  if (username !== undefined) {
+    if (username.length < 1) return res.status(400).json({ error: 'Usuario requerido' })
+    const dup = db.users.find(u => u.id !== userId && u.username.toLowerCase() === username.toLowerCase())
+    if (dup) return res.status(409).json({ error: 'Ese nombre de usuario ya existe' })
+    user.username = username
+  }
+  if (password) {
+    if (password.length < 1) return res.status(400).json({ error: 'Contraseña requerida' })
+    user.password = await bcrypt.hash(password, 12)
+  }
+  if (role !== undefined) {
+    if (!AVAILABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Rol inválido' })
+    user.role = role
+  }
+  if (apps !== undefined) user.apps = apps.filter(a => AVAILABLE_APPS.includes(a))
+  if (sharedMealWith !== undefined) {
+    if (sharedMealWith === null || sharedMealWith === '') delete user.sharedMealWith
+    else user.sharedMealWith = parseInt(sharedMealWith)
+  }
+  saveDB(db)
+  res.json({ id: user.id, username: user.username, role: user.role, apps: user.apps || [], sharedMealWith: user.sharedMealWith })
+})
+
+app.delete('/api/admin/users/:id', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  const userId = parseInt(req.params.id)
+  if (userId === req.userId) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' })
+  const user = db.users.find(u => u.id === userId)
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+  db.users = db.users.filter(u => u.id !== userId)
+  // Limpiar tokens del usuario eliminado
+  if (db.rememberTokens) {
+    for (const [token, entry] of Object.entries(db.rememberTokens)) {
+      if (entry.userId === userId) delete db.rememberTokens[token]
+    }
+  }
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// ── API: Salud (registro diario) ─────────────────────────
+function getSaludData(db, userId) {
+  if (!db.salud) db.salud = {}
+  if (!db.salud[userId]) db.salud[userId] = { entries: [], config: {} }
+  if (!db.salud[userId].config) db.salud[userId].config = {}
+  return db.salud[userId]
+}
+
+// GET — todas las entradas + config
+app.get('/api/salud', requireUser, (req, res) => {
+  const db = getDB()
+  const data = getSaludData(db, req.userId)
+  res.json(data)
+})
+
+// PUT — guardar config (metabolismo basal, etc.)
+app.put('/api/salud/config', requireUser, (req, res) => {
+  const db = getDB()
+  const data = getSaludData(db, req.userId)
+  Object.assign(data.config, req.body)
+  saveDB(db)
+  res.json(data.config)
+})
+
+// PUT — guardar/actualizar entrada de un día
+app.put('/api/salud/:date', requireUser, (req, res) => {
+  const db = getDB()
+  const data = getSaludData(db, req.userId)
+  const { date } = req.params
+  const idx = data.entries.findIndex(e => e.date === date)
+  const entry = { date, ...req.body, updatedAt: new Date().toISOString() }
+  if (idx >= 0) data.entries[idx] = entry
+  else data.entries.push(entry)
+  // mantener ordenado por fecha desc
+  data.entries.sort((a, b) => b.date.localeCompare(a.date))
+  saveDB(db)
+  res.json(entry)
+})
+
+// DELETE — borrar entrada de un día
+app.delete('/api/salud/:date', requireUser, (req, res) => {
+  const db = getDB()
+  const data = getSaludData(db, req.userId)
+  data.entries = data.entries.filter(e => e.date !== req.params.date)
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// ── API: D&D Props upload ────────────────────────────────
+app.post('/api/dnd/props/upload', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { data, filename, path: subPath } = req.body
+    if (!data || !filename) return res.status(400).json({ error: 'Datos requeridos' })
+    const clean = (subPath || '').replace(/^\/+|\/+$/g, '')
+    const targetDir = normalize(join(PROPS_ROOT, clean))
+    if (!targetDir.startsWith(PROPS_ROOT)) return res.status(400).json({ error: 'Ruta inválida' })
+    mkdirSync(targetDir, { recursive: true })
+    const ext = filename.split('.').pop().toLowerCase()
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const finalName = safeName.length > 3 ? safeName : `${Date.now()}.${ext}`
+    const buf = Buffer.from(data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+    writeFileSync(join(targetDir, finalName), buf)
+    const relPath = clean ? `${clean}/${finalName}` : finalName
+    const urlPath = relPath.split('/').map(encodeURIComponent).join('/')
+    res.json({ url: `/textures/props/${urlPath}`, name: finalName })
+  } catch (e) {
+    console.error('Prop upload error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Crear carpeta de props
+app.post('/api/dnd/props/folder', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { name, path: subPath } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+    const clean = (subPath || '').replace(/^\/+|\/+$/g, '')
+    const safeName = name.trim().replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ._\- ]/g, '_')
+    const targetDir = normalize(join(PROPS_ROOT, clean, safeName))
+    if (!targetDir.startsWith(PROPS_ROOT)) return res.status(400).json({ error: 'Ruta inválida' })
+    mkdirSync(targetDir, { recursive: true })
+    res.json({ ok: true, path: clean ? `${clean}/${safeName}` : safeName })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 // ── Serve React build ────────────────────────────────────

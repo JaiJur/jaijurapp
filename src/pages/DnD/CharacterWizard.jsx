@@ -68,7 +68,7 @@ const ALL_SKILLS = [
   'Religión','Sigilo','Supervivencia','Trato con animales'
 ]
 
-export default function CharacterWizard({ mode, character: initialChar, onSave, onClose, template, glossarySpells, glossaryItems: availableGlossaryItems }) {
+export default function CharacterWizard({ mode, character: initialChar, onSave, onClose, template, glossarySpells, glossaryItems: availableGlossaryItems, dndPlayers }) {
   const { user } = useAuth()
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
   const [step, setStep] = useState(0)
@@ -167,7 +167,18 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
             </div>
             <div className="glossary-form-row">
               <label>Jugador</label>
-              <input className="dnd-input" value={ch.player||''} onChange={e => update('player', e.target.value)} placeholder="Nombre del jugador..." />
+              {(dndPlayers || []).length > 0 ? (
+                <select className="dnd-input" value={ch.playerUserId || ''} onChange={e => {
+                  const pid = parseInt(e.target.value) || null
+                  const p = dndPlayers.find(u => u.id === pid)
+                  setCh(prev => ({ ...prev, playerUserId: pid, player: p ? p.username : '' }))
+                }}>
+                  <option value="">— Sin asignar —</option>
+                  {dndPlayers.map(p => <option key={p.id} value={p.id}>{p.username}</option>)}
+                </select>
+              ) : (
+                <input className="dnd-input" value={ch.player||''} onChange={e => update('player', e.target.value)} placeholder="Nombre del jugador..." />
+              )}
             </div>
             <div className="glossary-form-row">
               <label>Descripción</label>

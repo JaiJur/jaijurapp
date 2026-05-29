@@ -405,11 +405,15 @@ export default function MapEditor() {
     const bg = getBgCanvas(m, cw, ch)
     ctx.drawImage(bg, 0, 0)
 
-    // Capas de textura
+    // Capas de textura — separar en debajo/encima de props
     const hiddenTexIds = new Set(
       (m.groups||[]).filter(g=>!g.visible).flatMap(g=>g.texIds||[])
     )
-    ;(m.textureLayers || []).forEach(tex => {
+    const allTex = [...(m.textureLayers || [])].reverse()
+    const texBelow = allTex.filter(t => !t.aboveProps)
+    const texAbove = allTex.filter(t => t.aboveProps)
+
+    function renderTexLayer(tex) {
       if (tex.visible === false) return
       if (hiddenTexIds.has(tex.id)) return
       if (!imgCache.current[tex.imgUrl]) {
@@ -477,7 +481,10 @@ export default function MapEditor() {
           ctx.restore()
         }
       }
-    })
+    }
+
+    // Pasada 1: texturas debajo de props
+    texBelow.forEach(renderTexLayer)
 
     // ── Render del trazo de pincel en curso (preview en tiempo real) ──
     const activeStroke = brushStrokeRef.current
@@ -603,6 +610,9 @@ export default function MapEditor() {
         ctx.strokeRect(-w/2-4, -h/2-4, w+8, h+8); ctx.setLineDash([]); ctx.restore()
       }
     })
+
+    // Pasada 2: texturas encima de props
+    texAbove.forEach(renderTexLayer)
 
     // Niebla (polígonos)
     ;(m.fogLayers || []).forEach(fog => {
@@ -1784,6 +1794,10 @@ export default function MapEditor() {
                     </label>
                   </>
                 )}
+                <label className="editor-checkbox-label">
+                  <input type="checkbox" checked={selTexLayer.aboveProps || false}
+                    onChange={e => updateTexLayer(selTexLayer.id, 'aboveProps', e.target.checked)} /> ⬆ Encima de props
+                </label>
                 {[{key:'brightness',label:'☀ Brillo',min:0,max:300},{key:'saturate',label:'🎨 Sat',min:0,max:300},{key:'hue',label:'🌈 Tono',min:0,max:360}].map(({key,label,min,max}) => {
                   const val=(selTexLayer.filter||{})[key]??(key==='hue'?0:100)
                   return <div key={key} className="editor-filter-row">

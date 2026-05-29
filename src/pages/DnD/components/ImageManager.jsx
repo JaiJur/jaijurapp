@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 
 export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAdded }) {
@@ -6,7 +6,75 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
   const fileInputRef = useRef(null)
   const soundInputRef = useRef(null)
+  const propInputRef = useRef(null)
   const [uploads, setUploads] = useState([])
+
+  // ── Props state ──
+  const [propsData, setPropsData] = useState(null)
+  const [propsPath, setPropsPath] = useState('')
+  const [propsCollapsed, setPropsCollapsed] = useState(true)
+  const [propUploads, setPropUploads] = useState([])
+  const [newFolderName, setNewFolderName] = useState('')
+  const [showNewFolder, setShowNewFolder] = useState(false)
+
+  useEffect(() => {
+    if (!propsCollapsed) loadProps(propsPath)
+  }, [propsCollapsed])
+
+  async function loadProps(path) {
+    try {
+      const q = path ? `?path=${encodeURIComponent(path)}` : ''
+      const r = await fetch(`/api/assets/props${q}`)
+      if (r.ok) { setPropsData(await r.json()); setPropsPath(path) }
+    } catch {}
+  }
+
+  function navigateProps(path) { loadProps(path) }
+
+  async function handlePropFiles(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const entries = files.map(f => ({ name: f.name, status: 'wait', progress: 0, error: '' }))
+    setPropUploads(prev => [...prev, ...entries])
+    const startIdx = propUploads.length
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const idx = startIdx + i
+      setPropUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'sending', progress: 10 } : u))
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('Error leyendo archivo'))
+          reader.readAsDataURL(file)
+        })
+        setPropUploads(prev => prev.map((u, j) => j === idx ? { ...u, progress: 50 } : u))
+        const res = await fetch('/api/dnd/props/upload', {
+          method: 'POST', headers,
+          body: JSON.stringify({ data: base64, filename: file.name, path: propsPath })
+        })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || res.statusText) }
+        setPropUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'success', progress: 100 } : u))
+      } catch (err) {
+        setPropUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'error', progress: 0, error: err.message } : u))
+      }
+    }
+    loadProps(propsPath)
+    if (propInputRef.current) propInputRef.current.value = ''
+  }
+
+  async function createPropFolder() {
+    if (!newFolderName.trim()) return
+    try {
+      await fetch('/api/dnd/props/folder', {
+        method: 'POST', headers,
+        body: JSON.stringify({ name: newFolderName.trim(), path: propsPath })
+      })
+      setNewFolderName('')
+      setShowNewFolder(false)
+      loadProps(propsPath)
+    } catch {}
+  }
 
   if (!data) return <div className="dnd-empty-sm">Cargando...</div>
 
@@ -142,6 +210,74 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
             ))}
           </div>
         )}
+      </div>
+      {/* ── Sección Props (Map Editor) ── */}
+      <div className="mm-sounds-section">
+        <div className="mm-sounds-header" onClick={() => setPropsCollapsed(c => !c)} style={{cursor:'pointer'}}>
+          <span className="mm-sounds-title">{propsCollapsed ? '▶' : '▼'} 🧩 Props — Editor de Mapas ({propsData?.files?.length ?? '…'})</span>
+        </div>
+        {!propsCollapsed && propsData && (() => {
+          const pCrumbs = propsData.path ? propsData.path.split('/') : []
+          const pParent = pCrumbs.length > 1 ? pCrumbs.slice(0, -1).join('/') : ''
+          const statusIcons = { wait: '⏳', sending: '📤', success: '✅', error: '❌' }
+          return (
+            <div className="mm-props-browser">
+              <div className="dnd-breadcrumb" style={{marginBottom:6}}>
+                <button className="dnd-crumb" onClick={() => navigateProps('')}>🏠</button>
+                {pCrumbs.map((c, i) => (
+                  <span key={i}>
+                    <span className="dnd-crumb-sep"> / </span>
+                    <button className="dnd-crumb" onClick={() => navigateProps(pCrumbs.slice(0, i + 1).join('/'))}>{c}</button>
+                  </span>
+                ))}
+                <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={() => propInputRef.current?.click()}>📤 Subir props</button>
+                <input ref={propInputRef} type="file" accept="image/*" multiple onChange={handlePropFiles} style={{display:'none'}} />
+                <button className="dnd-btn-sm" style={{marginLeft:4}} onClick={() => setShowNewFolder(v => !v)} title="Nueva carpeta">📁+</button>
+              </div>
+              {showNewFolder && (
+                <div style={{display:'flex',gap:4,marginBottom:6}}>
+                  <input className="dnd-input" style={{flex:1,fontSize:'.82rem'}} placeholder="Nombre de carpeta…" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createPropFolder()} />
+                  <button className="dnd-btn-sm" onClick={createPropFolder}>✓</button>
+                  <button className="dnd-btn-sm" onClick={() => { setShowNewFolder(false); setNewFolderName('') }}>✕</button>
+                </div>
+              )}
+              {propsData.path && <button className="dnd-folder-up" onClick={() => navigateProps(pParent)}>⬆ Subir</button>}
+              {propUploads.length > 0 && (
+                <div className="img-upload-table" style={{marginBottom:6}}>
+                  <div className="img-upload-table-header">
+                    <span>Subidas props</span>
+                    <button className="dnd-btn-sm" onClick={() => setPropUploads(prev => prev.filter(u => u.status === 'sending'))}>✕</button>
+                  </div>
+                  {propUploads.map((u, i) => (
+                    <div key={i} className={`img-upload-row img-upload-${u.status}`}>
+                      <span className="img-upload-status">{statusIcons[u.status]}</span>
+                      <span className="img-upload-name">{u.name}</span>
+                      {u.status === 'sending' && <div className="img-upload-progress-bar"><div className="img-upload-progress-fill" style={{width:`${u.progress}%`}} /></div>}
+                      {u.status === 'success' && <span className="img-upload-pct">100%</span>}
+                      {u.status === 'error' && <span className="img-upload-error" title={u.error}>Error</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(propsData.folders || []).length > 0 && (
+                <div className="dnd-folder-list">
+                  {propsData.folders.map(f => <button key={f.path} className="dnd-folder" onClick={() => navigateProps(f.path)}>📁 {f.name}</button>)}
+                </div>
+              )}
+              {(propsData.files || []).length > 0 && (
+                <div className="dnd-image-grid">
+                  {propsData.files.map(p => (
+                    <div key={p.url} className="dnd-image-thumb" title={p.name}>
+                      <img src={p.url} alt={p.name} loading="lazy" />
+                      <div className="dnd-image-overlay"><span className="dnd-image-name">{p.name}</span></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(propsData.folders || []).length === 0 && (propsData.files || []).length === 0 && <div className="dnd-empty-sm">Carpeta vacía</div>}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

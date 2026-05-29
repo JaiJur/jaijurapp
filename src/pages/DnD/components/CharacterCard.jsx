@@ -112,7 +112,7 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
             {hasTraits && (
               <SectionAccordion id="traits" label="Rasgos" count={allTraits.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="trait-cards-grid">
-                  {allTraits.map((t,i) => (
+                  {[...allTraits].sort((a,b) => (a.name||'').localeCompare(b.name||'', 'es')).map((t,i) => (
                     <TraitCard key={i} trait={t} />
                   ))}
                 </div>
@@ -217,7 +217,7 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
             </div>
           )}
 
-          <div className="glossary-card-actions">
+          {isMaster && <div className="glossary-card-actions">
             <button className="dnd-btn-sm" onClick={onEdit}>✏ Editar</button>
             {isMaster && parties && parties.length > 0 && (
               <div className="char-party-assign">
@@ -231,8 +231,8 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
                 })}
               </div>
             )}
-            <button className="dnd-btn-sm dnd-btn-danger" onClick={onDelete}>✕ Borrar</button>
-          </div>
+            {isMaster && <button className="dnd-btn-sm dnd-btn-danger" onClick={onDelete}>✕ Borrar</button>}
+          </div>}
         </div>
       )}
 

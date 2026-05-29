@@ -56,6 +56,96 @@ function pointsBbox(pts) {
   return { minX, minY, maxX, maxY }
 }
 
+// ── Render de brush strokes a offscreen canvas ──
+function renderBrushLayer(tex, cw, ch, img) {
+  if (!tex.brushStrokes || !tex.brushStrokes.length || !img) return null
+  const off = document.createElement('canvas')
+  off.width = cw; off.height = ch
+  const ctx = off.getContext('2d')
+
+  tex.brushStrokes.forEach(stroke => {
+    if (!stroke.points || stroke.points.length < 1) return
+    const r = (stroke.brushSize || 40) / 2
+    const feather = stroke.feather ?? 0
+
+    if (stroke.eraser) {
+      ctx.save()
+      ctx.globalCompositeOperation = 'destination-out'
+      for (let i = 0; i < stroke.points.length; i++) {
+        const p = stroke.points[i]
+        if (i > 0) {
+          const prev = stroke.points[i - 1]
+          const dist = Math.hypot(p.x - prev.x, p.y - prev.y)
+          const step = Math.max(r * 0.25, 2)
+          const steps = Math.ceil(dist / step)
+          for (let s = 1; s < steps; s++) {
+            const t = s / steps
+            const ix = prev.x + (p.x - prev.x) * t
+            const iy = prev.y + (p.y - prev.y) * t
+            ctx.beginPath(); ctx.arc(ix, iy, r, 0, Math.PI * 2)
+            ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill()
+          }
+        }
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fill()
+      }
+      ctx.restore()
+      return
+    }
+
+    // Textured brush with radial feather
+    const mask = document.createElement('canvas')
+    mask.width = cw; mask.height = ch
+    const mctx = mask.getContext('2d')
+
+    for (let i = 0; i < stroke.points.length; i++) {
+      const p = stroke.points[i]
+      const stampAt = (sx, sy) => {
+        if (feather > 0) {
+          const innerR = r * (1 - feather)
+          const grad = mctx.createRadialGradient(sx, sy, innerR, sx, sy, r)
+          grad.addColorStop(0, 'rgba(255,255,255,1)')
+          grad.addColorStop(1, 'rgba(255,255,255,0)')
+          mctx.beginPath(); mctx.arc(sx, sy, r, 0, Math.PI * 2)
+          mctx.fillStyle = grad; mctx.fill()
+        } else {
+          mctx.beginPath(); mctx.arc(sx, sy, r, 0, Math.PI * 2)
+          mctx.fillStyle = 'rgba(255,255,255,1)'; mctx.fill()
+        }
+      }
+      if (i > 0) {
+        const prev = stroke.points[i - 1]
+        const dist = Math.hypot(p.x - prev.x, p.y - prev.y)
+        const step = Math.max(r * 0.25, 2)
+        const steps = Math.ceil(dist / step)
+        for (let s = 1; s < steps; s++) {
+          const t = s / steps
+          stampAt(prev.x + (p.x - prev.x) * t, prev.y + (p.y - prev.y) * t)
+        }
+      }
+      stampAt(p.x, p.y)
+    }
+
+    const pat = ctx.createPattern(img, 'repeat')
+    if (!pat) return
+    const scale = tex.scale || 1
+    const dm = new DOMMatrix(); dm.a = scale; dm.d = scale
+    pat.setTransform(dm)
+
+    const tex2 = document.createElement('canvas')
+    tex2.width = cw; tex2.height = ch
+    const tctx = tex2.getContext('2d')
+    tctx.fillStyle = pat
+    tctx.fillRect(0, 0, cw, ch)
+    tctx.globalCompositeOperation = 'destination-in'
+    tctx.drawImage(mask, 0, 0)
+
+    ctx.drawImage(tex2, 0, 0)
+  })
+
+  return off
+}
+
 export default function MapViewer() {
   const { channel: channelParam } = useParams()
   const channel = channelParam && ['main','tablet'].includes(channelParam) ? channelParam : 'main'
@@ -209,42 +299,55 @@ export default function MapViewer() {
     const rows = Math.ceil(canvas.height / (Math.sqrt(3) * hexSize)) + 2
 
     // Suelo base — color neutro
-    for (let col = 0; col < cols; col++) {
-      for (let row = 0; row < rows; row++) {
-        const { x, y } = hexCenter(col, row, hexSize)
-        const corners = hexCorners(x, y, hexSize - 1)
-        ctx.beginPath(); ctx.moveTo(corners[0].x, corners[0].y)
-        corners.forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath()
-        ctx.fillStyle = '#1a1a22'
-        ctx.fill()
-      }
-    }
+    ctx.fillStyle = '#1a1a22'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Capas de textura (polígono con clip; soporta rect antiguo)
-    textureLayers.forEach(tex => {
+    // Capas de textura — separar debajo/encima de props
+    const allTex = [...textureLayers].reverse()
+    const texBelow = allTex.filter(t => !t.aboveProps)
+    const texAbove = allTex.filter(t => t.aboveProps)
+
+    function renderTex(tex) {
+      if (tex.visible === false) return
       if (!imgCache.current[tex.imgUrl]) {
         const img = new Image(); img.src = tex.imgUrl
         img.onload = () => { imgCache.current[tex.imgUrl] = img; setMap(mm => mm ? {...mm} : mm) }
         return
       }
-      const pts = texToPoints(tex)
-      if (!pts || pts.length < 3) return
-      const bb = pointsBbox(pts)
-      ctx.save()
       const f = tex.filter || {}
-      const scale = tex.scale || 1
-      ctx.filter = `brightness(${f.brightness??100}%) saturate(${f.saturate??100}%) hue-rotate(${f.hue??0}deg)`
-      tracePolyPath(ctx, pts, tex.smooth)
-      ctx.clip()
-      const pat = ctx.createPattern(imgCache.current[tex.imgUrl], 'repeat')
-      const dm = new DOMMatrix()
-      dm.a = scale; dm.d = scale; dm.e = bb.minX; dm.f = bb.minY
-      pat.setTransform(dm)
-      ctx.fillStyle = pat
-      ctx.fillRect(bb.minX, bb.minY, bb.maxX - bb.minX, bb.maxY - bb.minY)
-      ctx.filter = 'none'
-      ctx.restore()
-    })
+      const filterStr = `brightness(${f.brightness??100}%) saturate(${f.saturate??100}%) hue-rotate(${f.hue??0}deg)`
+
+      if (tex.type === 'brush') {
+        const brushCanvas = renderBrushLayer(tex, canvas.width, canvas.height, imgCache.current[tex.imgUrl])
+        if (brushCanvas) {
+          ctx.save()
+          ctx.filter = filterStr
+          ctx.drawImage(brushCanvas, 0, 0)
+          ctx.filter = 'none'
+          ctx.restore()
+        }
+      } else {
+        const pts = texToPoints(tex)
+        if (!pts || pts.length < 3) return
+        const bb = pointsBbox(pts)
+        ctx.save()
+        const scale = tex.scale || 1
+        ctx.filter = filterStr
+        tracePolyPath(ctx, pts, tex.smooth)
+        ctx.clip()
+        const pat = ctx.createPattern(imgCache.current[tex.imgUrl], 'repeat')
+        const dm = new DOMMatrix()
+        dm.a = scale; dm.d = scale; dm.e = bb.minX; dm.f = bb.minY
+        pat.setTransform(dm)
+        ctx.fillStyle = pat
+        ctx.fillRect(bb.minX, bb.minY, bb.maxX - bb.minX, bb.maxY - bb.minY)
+        ctx.filter = 'none'
+        ctx.restore()
+      }
+    }
+
+    // Pasada 1: texturas debajo de props
+    texBelow.forEach(renderTex)
 
     // Props
     ;(props || []).forEach(prop => {
@@ -269,6 +372,9 @@ export default function MapViewer() {
       }
       ctx.restore()
     })
+
+    // Pasada 2: texturas encima de props
+    texAbove.forEach(renderTex)
 
     // Capas de niebla (polígonos; soporta formato antiguo x,y,w,h)
     fogLayers.forEach(fog => {
