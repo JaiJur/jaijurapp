@@ -2855,3 +2855,103 @@ textarea.dnd-input {
 }
 .sb-browser-folder { color: #c8a96e; font-weight: 600; }
 .sb-browser-file { color: #b0c8a0; }
+
+/* ── Datos de Referencia SRD ──────────────────── */
+.ref-data-browser { padding-top: 4px; }
+.ref-data-tabs {
+  display: flex; gap: 4px; margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.ref-data-tab {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(200,169,110,0.15);
+  border-radius: 6px; padding: 5px 10px;
+  color: #a09880; font-size: 0.76rem;
+  cursor: pointer; transition: all 0.12s;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ref-data-tab.active {
+  background: rgba(200,169,110,0.12);
+  border-color: rgba(200,169,110,0.4);
+  color: #c8a96e; font-weight: 600;
+}
+.ref-data-tab:hover { border-color: rgba(200,169,110,0.3); }
+.ref-data-list { display: flex; flex-direction: column; gap: 4px; }
+.ref-data-group { margin-bottom: 6px; }
+.ref-data-group-title {
+  font-size: 0.72rem; font-weight: 700;
+  color: #8b7d5c; text-transform: uppercase;
+  letter-spacing: 0.4px; padding: 4px 0 2px;
+  border-bottom: 1px solid rgba(200,169,110,0.1);
+  margin-bottom: 4px;
+}
+.ref-data-item {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px; padding: 6px 8px;
+  cursor: pointer; transition: all 0.12s;
+}
+.ref-data-item:hover {
+  background: rgba(200,169,110,0.06);
+  border-color: rgba(200,169,110,0.2);
+}
+.ref-data-item.expanded {
+  background: rgba(200,169,110,0.08);
+  border-color: rgba(200,169,110,0.25);
+}
+.ref-data-item-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem;
+}
+.ref-data-item-name {
+  font-weight: 600; color: #e8e0d0;
+  flex: 1; min-width: 0;
+}
+.ref-data-item-meta {
+  color: #8b7d5c; font-size: 0.74rem;
+  white-space: nowrap;
+}
+.ref-data-item-mastery {
+  background: rgba(124,58,237,0.15);
+  border: 1px solid rgba(124,58,237,0.3);
+  color: #b794f6; font-size: 0.68rem;
+  padding: 1px 6px; border-radius: 4px;
+  white-space: nowrap; font-weight: 600;
+}
+.ref-data-item-tag {
+  background: rgba(200,169,110,0.1);
+  border: 1px solid rgba(200,169,110,0.2);
+  color: #c8a96e; font-size: 0.66rem;
+  padding: 1px 5px; border-radius: 3px;
+  white-space: nowrap;
+}
+.ref-data-tag-warn {
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.25);
+  color: #f87171;
+}
+.ref-data-item-detail {
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.ref-data-props {
+  font-size: 0.74rem; color: #a09880;
+  margin-bottom: 3px; line-height: 1.4;
+}
+.ref-data-mastery-desc {
+  font-size: 0.74rem; color: #b794f6;
+  line-height: 1.5; margin-top: 4px;
+  padding: 4px 6px;
+  background: rgba(124,58,237,0.06);
+  border-radius: 4px;
+}
+.ref-data-item-actions {
+  display: flex; gap: 4px; margin-top: 6px;
+  justify-content: flex-end;
+}
+.ref-data-edit-form {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(200,169,110,0.2);
+  border-radius: 8px; padding: 12px;
+  margin-bottom: 8px;
+}

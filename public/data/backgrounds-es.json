@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Acólito",
+    "nameEn": "Acolyte",
+    "desc": "Has dedicado tu vida al servicio de un templo de un dios o panteón de dioses específico. Actúas como intermediario entre el reino de lo sagrado y el mundo mortal, realizando ritos sagrados y ofreciendo sacrificios para conducir a los fieles ante la presencia de lo divino.",
+    "skillProficiencies": [
+      "Perspicacia",
+      "Religión"
+    ],
+    "toolProficiencies": [
+      "Suministros de calígrafo"
+    ],
+    "languages": 1,
+    "equipment": "Símbolo sagrado, libro de oraciones, 5 varillas de incienso, vestiduras, ropa común, bolsa con 15 po",
+    "feat": "Iniciado en la Magia",
+    "featDesc": "Obtienes la dote Iniciado en la Magia (Clérigo). Aprendes dos trucos y un conjuro de nivel 1 de la lista de conjuros de Clérigo.",
+    "abilityScores": "+2 a una, +1 a otra (o +1 a tres)",
+    "source": "SRD 5.2"
+  },
+  {
+    "name": "Criminal",
+    "nameEn": "Criminal",
+    "desc": "Tienes un historial de actividades delictivas. Quizás fuiste un carterista, un matón, un contrabandista o un ladrón profesional. Sea lo que fuera, te acostumbraste a quebrantar la ley y a enfrentarte a las consecuencias.",
+    "skillProficiencies": [
+      "Engaño",
+      "Sigilo"
+    ],
+    "toolProficiencies": [
+      "Herramientas de ladrón"
+    ],
+    "languages": 0,
+    "equipment": "Palanca, ropa oscura común con capucha, bolsa con 15 po",
+    "feat": "Alerta",
+    "featDesc": "Obtienes la dote Alerta. Sumas tu bonificador de competencia a la iniciativa, no puedes ser sorprendido mientras estés consciente, y otras criaturas no obtienen Ventaja en tiradas de ataque contra ti por estar ocultas.",
+    "abilityScores": "+2 a una, +1 a otra (o +1 a tres)",
+    "source": "SRD 5.2"
+  },
+  {
+    "name": "Sabio",
+    "nameEn": "Sage",
+    "desc": "Has pasado años aprendiendo sobre el multiverso. Has examinado manuscritos, estudiado pergaminos y escuchado a los mayores expertos en los temas que te interesan. Tus esfuerzos te han convertido en un maestro en tu campo de estudio.",
+    "skillProficiencies": [
+      "Arcanos",
+      "Historia"
+    ],
+    "toolProficiencies": [
+      "Suministros de calígrafo"
+    ],
+    "languages": 1,
+    "equipment": "Tintero, pluma, cuchillo pequeño, carta de un colega muerto planteando una pregunta que aún no has podido responder, ropa común, bolsa con 10 po",
+    "feat": "Iniciado en la Magia",
+    "featDesc": "Obtienes la dote Iniciado en la Magia (Mago). Aprendes dos trucos y un conjuro de nivel 1 de la lista de conjuros de Mago.",
+    "abilityScores": "+2 a una, +1 a otra (o +1 a tres)",
+    "source": "SRD 5.2"
+  },
+  {
+    "name": "Soldado",
+    "nameEn": "Soldier",
+    "desc": "Has luchado en una fuerza militar durante años. Puede que hayas sido parte de una milicia permanente, un ejército mercenario o una fuerza de guardia local. Has entrenado con armas y armaduras, aprendido tácticas básicas de supervivencia y cómo mantenerte con vida en el campo de batalla.",
+    "skillProficiencies": [
+      "Atletismo",
+      "Intimidación"
+    ],
+    "toolProficiencies": [
+      "Un tipo de juego"
+    ],
+    "languages": 0,
+    "equipment": "Insignia de rango, trofeo tomado de un enemigo caído (daga, hoja rota o trozo de estandarte), juego de dados o baraja de cartas, ropa común, bolsa con 10 po",
+    "feat": "Luchador con Escudo",
+    "featDesc": "Obtienes la dote Luchador con Escudo. Mientras llevas un escudo, obtienes sus beneficios de CA y puedes usar una Reacción para reducir el daño recibido por un ataque en 1d6 + tu bonificador de competencia.",
+    "abilityScores": "+2 a una, +1 a otra (o +1 a tres)",
+    "source": "SRD 5.2"
+  }
+]

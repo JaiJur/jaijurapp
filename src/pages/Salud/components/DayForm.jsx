@@ -15,6 +15,15 @@ const MEALS = [
   { key: 'dinner', label: '🌙 Cena' },
 ]
 
+const CONTORNO_FIELDS = [
+  { key: 'brazo', label: '💪 Brazo' },
+  { key: 'pecho', label: '🫁 Pecho' },
+  { key: 'cadera', label: '🍑 Cadera' },
+  { key: 'tripa', label: '🫃 Tripa' },
+  { key: 'cintura', label: '📏 Cintura' },
+  { key: 'pierna', label: '🦵 Pierna' },
+]
+
 export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelete }) {
   const [meals, setMeals] = useState({
     breakfast: existing?.meals?.breakfast ?? '',
@@ -28,6 +37,13 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
   const [weight, setWeight] = useState(existing?.weight ?? '')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [contorno, setContorno] = useState(() => {
+    const c = existing?.contorno || {}
+    return Object.fromEntries(CONTORNO_FIELDS.map(f => [f.key, c[f.key] ?? '']))
+  })
+  const [contornoOpen, setContornoOpen] = useState(() =>
+    CONTORNO_FIELDS.some(f => existing?.contorno?.[f.key] != null)
+  )
 
   const setMeal = (key, val) => setMeals(prev => ({ ...prev, [key]: val }))
 
@@ -50,6 +66,15 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
       strength,
       weight: weight !== '' ? Number(weight) : null,
       notes: notes.trim() || null,
+      contorno: (() => {
+        const c = {}
+        let any = false
+        CONTORNO_FIELDS.forEach(f => {
+          c[f.key] = contorno[f.key] !== '' ? Number(contorno[f.key]) : null
+          if (c[f.key] != null) any = true
+        })
+        return any ? c : null
+      })(),
     }
     onSave(data)
   }
@@ -147,6 +172,36 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
           inputMode="decimal"
         />
       </label>
+
+      {/* ── Medidas de contorno ── */}
+      <div className="salud-contorno">
+        <button
+          className={`salud-contorno-toggle ${contornoOpen ? 'open' : ''}`}
+          onClick={() => setContornoOpen(!contornoOpen)}
+          type="button"
+        >
+          <span className="salud-label">📐 Medidas de contorno (cm)</span>
+          <span className="salud-contorno-chevron">{contornoOpen ? '▲' : '▼'}</span>
+        </button>
+        {contornoOpen && (
+          <div className="salud-contorno-grid">
+            {CONTORNO_FIELDS.map(f => (
+              <label key={f.key} className="salud-contorno-item">
+                <span className="salud-contorno-label">{f.label}</span>
+                <input
+                  type="number"
+                  className="salud-input salud-contorno-input"
+                  placeholder="cm"
+                  step="0.1"
+                  value={contorno[f.key]}
+                  onChange={e => setContorno(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  inputMode="decimal"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       <label className="salud-field">
         <span className="salud-label">📝 Notas</span>

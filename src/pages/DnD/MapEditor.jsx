@@ -375,7 +375,7 @@ export default function MapEditor() {
         const corners = hexCorners(x, y, hexSize - 1)
         ctx.beginPath(); ctx.moveTo(corners[0].x, corners[0].y)
         corners.forEach(p => ctx.lineTo(p.x, p.y)); ctx.closePath()
-        ctx.fillStyle = '#1a1a22'; ctx.fill()
+        ctx.fillStyle = '#000000'; ctx.fill()
       }
     }
     bgCanvas.current = bg
@@ -399,7 +399,8 @@ export default function MapEditor() {
     if (canvas.width !== cw || canvas.height !== ch) {
       canvas.width = cw; canvas.height = ch
     }
-    ctx.clearRect(0, 0, cw, ch)
+    ctx.fillStyle = '#000000'
+    ctx.fillRect(0, 0, cw, ch)
 
     // B: Suelo + grid desde offscreen cacheado
     const bg = getBgCanvas(m, cw, ch)
@@ -1096,6 +1097,23 @@ export default function MapEditor() {
     updateMap(m => ({ ...m, textureLayers:(m.textureLayers||[]).map(t => t.id===id?{...t, visible: t.visible === false ? true : false}:t) }))
     setTimeout(autoSave, 100)
   }
+  // DnD reorder nieblas
+  const fogDragItemRef = useRef(null); const fogDragOverRef = useRef(null)
+  function handleFogDragStart(id) { fogDragItemRef.current = id }
+  function handleFogDragOver(e, id) { e.preventDefault(); fogDragOverRef.current = id }
+  function handleFogDrop() {
+    if (!fogDragItemRef.current || !fogDragOverRef.current || fogDragItemRef.current === fogDragOverRef.current) return
+    updateMap(m => {
+      const layers = [...(m.fogLayers||[])]
+      const fi = layers.findIndex(f => f.id === fogDragItemRef.current)
+      const ti = layers.findIndex(f => f.id === fogDragOverRef.current)
+      if (fi === -1 || ti === -1) return m
+      const [item] = layers.splice(fi, 1); layers.splice(ti, 0, item)
+      return { ...m, fogLayers: layers }
+    })
+    fogDragItemRef.current = null; fogDragOverRef.current = null
+    setTimeout(autoSave, 100)
+  }
   function toggleFogLock(id) {
     updateMap(m => ({ ...m, fogLayers:m.fogLayers.map(f => f.id===id?{...f, locked: !f.locked}:f) }))
     setTimeout(autoSave, 100)
@@ -1584,7 +1602,9 @@ export default function MapEditor() {
                   const isSel = selectedFog===fog.id
                   const isLocked = !!fog.locked
                   return <div key={fog.id} className={`editor-scene-item ${isSel?'selected':''} ${fog.visible?'fog-visible':''} ${isLocked?'prop-locked':''}`}
+                    draggable onDragStart={()=>handleFogDragStart(fog.id)} onDragOver={e=>handleFogDragOver(e,fog.id)} onDrop={handleFogDrop}
                     onClick={() => setSelectedFog(isSel?null:fog.id)}>
+                    <span className="editor-scene-drag" title="Arrastrar para reordenar">⠿</span>
                     <span className="editor-scene-icon">{fog.visible?'👁':'⬛'}</span>
                     <span className="editor-scene-name">{fog.name}</span>
                     <div className="editor-scene-actions">

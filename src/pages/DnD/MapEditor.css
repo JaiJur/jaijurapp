@@ -77,7 +77,7 @@
 
 .editor-canvas-wrap {
   flex: 1; overflow: auto; display: flex;
-  background: #080810;
+  background: #000000;
   cursor: crosshair;
   position: relative;
 }

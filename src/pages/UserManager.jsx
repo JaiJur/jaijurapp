@@ -13,8 +13,6 @@ const APPS = [
   { id: 'dnd', label: '🎲 D&D' },
   { id: 'planner', label: '🍽 Meal Planner' },
   { id: 'stardewpedia', label: '🌾 StardewPedia' },
-  { id: 'ginbro', label: '💪 GinBro' },
-  { id: 'hogar', label: '🏠 HogarQuest' },
 ]
 
 export default function UserManager() {

@@ -33,15 +33,6 @@ function getMealData(db, userId) {
   return db.mealplanner[effectiveId]
 }
 
-function getGinBroData(db, userId) {
-  if (!db.ginbro) db.ginbro = {}
-  if (!db.ginbro[userId]) {
-    db.ginbro[userId] = { routines: [], sessions: [], activeSession: null, weightLog: [] }
-  }
-  if (!db.ginbro[userId].weightLog) db.ginbro[userId].weightLog = []
-  return db.ginbro[userId]
-}
-
 // ── Middleware: autenticación ────────────────────────────
 function requireUser(req, res, next) {
   const userId = parseInt(req.headers['x-user-id'])
@@ -126,121 +117,6 @@ app.put('/api/mealplanner', requireUser, (req, res) => {
   if (lista      !== undefined) data.lista      = lista
   if (preparados !== undefined) data.preparados = preparados
   if (favoritos  !== undefined) data.favoritos  = favoritos
-  saveDB(db)
-  res.json({ ok: true })
-})
-
-// ── API: GinBro — datos generales ────────────────────────
-app.get('/api/ginbro', requireUser, (req, res) => {
-  const db = getDB()
-  res.json(getGinBroData(db, req.userId))
-})
-
-app.put('/api/ginbro', requireUser, (req, res) => {
-  const { routines, sessions, weightLog } = req.body
-  const db = getDB()
-  const data = getGinBroData(db, req.userId)
-  if (routines   !== undefined) data.routines   = routines
-  if (sessions   !== undefined) data.sessions   = sessions
-  if (weightLog  !== undefined) data.weightLog  = weightLog
-  saveDB(db)
-  res.json({ ok: true })
-})
-
-// ── API: GinBro — sesión activa (autosave) ───────────────
-app.get('/api/ginbro/active-session', requireUser, (req, res) => {
-  const db = getDB()
-  const data = getGinBroData(db, req.userId)
-  res.json({ activeSession: data.activeSession || null })
-})
-
-app.put('/api/ginbro/active-session', requireUser, (req, res) => {
-  const { activeSession } = req.body
-  const db = getDB()
-  const data = getGinBroData(db, req.userId)
-  data.activeSession = activeSession   // null para limpiar al terminar
-  saveDB(db)
-  res.json({ ok: true })
-})
-
-// ── API: HogarQuest ──────────────────────────────────────
-const HOGAR_MASTER_ID = 1  // datos compartidos viven bajo el usuario 1
-
-function getHogarData(db, userId) {
-  if (!db.hogar) db.hogar = {}
-  // Datos compartidos (zonas, tareas, monstruos, pool, jefe)
-  if (!db.hogar[HOGAR_MASTER_ID]) {
-    db.hogar[HOGAR_MASTER_ID] = {
-      tasks: [], zones: [], monsters: [],
-      allCompletions: [], poolXP: 0,
-      boss: { name: 'Balrog', xpRequired: 500 },
-      bossHistory: [], weekStart: null
-    }
-  }
-  // Datos individuales (xp personal, logros, completions propias)
-  if (!db.hogar[userId]) {
-    db.hogar[userId] = { myXP: 0, completions: [], logros: [] }
-  }
-  // Merge: shared + personal
-  return { ...db.hogar[HOGAR_MASTER_ID], ...db.hogar[userId] }
-}
-
-function saveHogarData(db, userId, body) {
-  if (!db.hogar) db.hogar = {}
-  if (!db.hogar[HOGAR_MASTER_ID]) db.hogar[HOGAR_MASTER_ID] = {}
-  if (!db.hogar[userId]) db.hogar[userId] = {}
-
-  const sharedFields = ['tasks','zones','monsters','allCompletions','poolXP','boss','bossHistory','weekStart']
-  const personalFields = ['myXP','completions','logros']
-
-  sharedFields.forEach(f => { if (body[f] !== undefined) db.hogar[HOGAR_MASTER_ID][f] = body[f] })
-  personalFields.forEach(f => { if (body[f] !== undefined) db.hogar[userId][f] = body[f] })
-}
-
-function resetWeeklyBossIfNeeded(data) {
-  const now = new Date()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  monday.setHours(0, 0, 0, 0)
-  const weekKey = monday.toISOString().slice(0, 10)
-  if (data.weekStart !== weekKey) {
-    // Nueva semana: guardar resultado anterior en historial
-    if (data.weekStart && data.boss) {
-      const defeated = (data.poolXP || 0) >= (data.boss?.xpRequired || 9999)
-      data.bossHistory = [...(data.bossHistory || []), {
-        name: data.boss.name, week: data.weekStart, defeated
-      }]
-    }
-    // Rotar al siguiente jefe
-    const BOSSES = [
-      { name: 'Balrog',        xpRequired: 500  },
-      { name: 'Dragón Rojo',   xpRequired: 750  },
-      { name: 'Lich',          xpRequired: 1000 },
-      { name: 'Hidra',         xpRequired: 800  },
-      { name: 'Behemoth',      xpRequired: 1200 },
-    ]
-    const idx = data.bossHistory.length % BOSSES.length
-    data.boss = BOSSES[idx]
-    data.poolXP = 0
-    data.weekStart = weekKey
-  }
-  return data
-}
-
-app.get('/api/hogar', requireUser, (req, res) => {
-  const db = getDB()
-  let shared = db.hogar?.[HOGAR_MASTER_ID] || {}
-  shared = resetWeeklyBossIfNeeded(shared)
-  if (!db.hogar) db.hogar = {}
-  db.hogar[HOGAR_MASTER_ID] = shared
-  saveDB(db)
-  const personal = db.hogar[req.userId] || {}
-  res.json({ ...shared, ...personal })
-})
-
-app.put('/api/hogar', requireUser, (req, res) => {
-  const db = getDB()
-  saveHogarData(db, req.userId, req.body)
   saveDB(db)
   res.json({ ok: true })
 })
@@ -635,6 +511,22 @@ app.post('/api/dnd/images/upload', requireUser, requireDnDMaster, (req, res) => 
     res.json({ url: `/dndImages/${urlPath}`, name: finalName })
   } catch (e) {
     console.error('Image upload error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Crear carpeta en dndImages
+app.post('/api/dnd/images/folder', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { name, path: subPath } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+    const clean = (subPath || '').replace(/^\/+|\/+$/g, '')
+    const safeName = name.trim().replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ._\- ]/g, '_')
+    const targetDir = normalize(join(DND_IMAGES_ROOT, clean, safeName))
+    if (!targetDir.startsWith(DND_IMAGES_ROOT)) return res.status(400).json({ error: 'Ruta inválida' })
+    mkdirSync(targetDir, { recursive: true })
+    res.json({ ok: true, path: clean ? `${clean}/${safeName}` : safeName })
+  } catch (e) {
     res.status(500).json({ error: e.message })
   }
 })
@@ -1242,7 +1134,7 @@ function requireMaster(req, res, next) {
 }
 
 const AVAILABLE_ROLES = ['master', 'premium', 'dnd', 'dndPlayer', 'user']
-const AVAILABLE_APPS = ['dnd', 'planner', 'stardewpedia', 'ginbro', 'hogar']
+const AVAILABLE_APPS = ['dnd', 'planner', 'stardewpedia']
 
 app.get('/api/admin/users', requireUser, requireMaster, (req, res) => {
   const db = getDB()
@@ -1406,6 +1298,67 @@ app.post('/api/dnd/props/folder', requireUser, requireDnDMaster, (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
+})
+
+// ── API: D&D Reference Data (armas, armaduras, trasfondos) ──
+function getRefData(db) {
+  const dnd = getDnDData(db)
+  if (!dnd.refData) dnd.refData = { weapons: [], armor: [], backgrounds: [] }
+  return dnd.refData
+}
+
+// Inicializar desde JSON estáticos si está vacío
+function initRefDataIfEmpty(db) {
+  const ref = getRefData(db)
+  if (ref.weapons.length === 0 && ref.armor.length === 0 && ref.backgrounds.length === 0) {
+    try {
+      const eq = JSON.parse(readFileSync(resolve('./public/data/equipment-es.json'), 'utf8'))
+      const bg = JSON.parse(readFileSync(resolve('./public/data/backgrounds-es.json'), 'utf8'))
+      ref.weapons = (eq.weapons || []).map((w, i) => ({ id: Date.now() + i, ...w }))
+      ref.armor = (eq.armor || []).map((a, i) => ({ id: Date.now() + 1000 + i, ...a }))
+      ref.backgrounds = (bg || []).map((b, i) => ({ id: Date.now() + 2000 + i, ...b }))
+      saveDB(db)
+    } catch (e) { console.error('Error loading ref data:', e) }
+  }
+  return ref
+}
+
+app.get('/api/dnd/refdata', requireUser, (req, res) => {
+  const db = getDB()
+  res.json(initRefDataIfEmpty(db))
+})
+
+// CRUD genérico para cada tipo
+;['weapons', 'armor', 'backgrounds'].forEach(type => {
+  // Crear
+  app.post(`/api/dnd/refdata/${type}`, requireUser, requireDnDMaster, (req, res) => {
+    const db = getDB()
+    const ref = getRefData(db)
+    const item = { id: Date.now(), ...req.body }
+    ref[type].push(item)
+    saveDB(db)
+    res.json(item)
+  })
+
+  // Editar
+  app.put(`/api/dnd/refdata/${type}/:id`, requireUser, requireDnDMaster, (req, res) => {
+    const db = getDB()
+    const ref = getRefData(db)
+    const idx = ref[type].findIndex(i => i.id === parseInt(req.params.id))
+    if (idx === -1) return res.status(404).json({ error: 'No encontrado' })
+    ref[type][idx] = { ...ref[type][idx], ...req.body, id: ref[type][idx].id }
+    saveDB(db)
+    res.json(ref[type][idx])
+  })
+
+  // Borrar
+  app.delete(`/api/dnd/refdata/${type}/:id`, requireUser, requireDnDMaster, (req, res) => {
+    const db = getDB()
+    const ref = getRefData(db)
+    ref[type] = ref[type].filter(i => i.id !== parseInt(req.params.id))
+    saveDB(db)
+    res.json({ ok: true })
+  })
 })
 
 // ── Serve React build ────────────────────────────────────

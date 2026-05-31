@@ -1,0 +1,597 @@
+{
+  "weapons": [
+    {
+      "name": "Bastón",
+      "damage": "1d6",
+      "damageType": "Contundente",
+      "mastery": "Derribar",
+      "masteryDesc": "Si aciertas a una criatura, puedes forzarla a hacer una tirada de salvación de Constitución (CD 8 + mod. de característica del ataque + bonif. competencia). Si falla, queda Derribada.",
+      "properties": [
+        "Versatil (1d8)"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Clava",
+      "damage": "1d4",
+      "damageType": "Contundente",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Ligera"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Daga",
+      "damage": "1d4",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Sutil",
+        "Ligera",
+        "Arrojadiza (6/18 m)"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Gran clava",
+      "damage": "1d8",
+      "damageType": "Contundente",
+      "mastery": "Empujar",
+      "masteryDesc": "Si aciertas a una criatura, puedes empujarla hasta 10 pies en línea recta lejos de ti si es Grande o menor.",
+      "properties": [
+        "Dos manos"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Hacha de mano",
+      "damage": "1d6",
+      "damageType": "Cortante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Ligera",
+        "Arrojadiza (6/18 m)"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Hoz",
+      "damage": "1d4",
+      "damageType": "Cortante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Ligera"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Jabalina",
+      "damage": "1d6",
+      "damageType": "Perforante",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Arrojadiza (9/36 m)"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Lanza",
+      "damage": "1d6",
+      "damageType": "Perforante",
+      "mastery": "Debilitar",
+      "masteryDesc": "Si aciertas a una criatura, esa criatura tiene Desventaja en su siguiente tirada de ataque antes del inicio de tu siguiente turno.",
+      "properties": [
+        "Arrojadiza (6/18 m)",
+        "Versatil (1d8)"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Martillo ligero",
+      "damage": "1d4",
+      "damageType": "Contundente",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Ligera",
+        "Arrojadiza (6/18 m)"
+      ],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Maza",
+      "damage": "1d6",
+      "damageType": "Contundente",
+      "mastery": "Debilitar",
+      "masteryDesc": "Si aciertas a una criatura, esa criatura tiene Desventaja en su siguiente tirada de ataque antes del inicio de tu siguiente turno.",
+      "properties": [],
+      "category": "Simple cuerpo a cuerpo",
+      "simple": true
+    },
+    {
+      "name": "Arco corto",
+      "damage": "1d6",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Munición (24/96 m; Flecha)",
+        "Dos manos"
+      ],
+      "category": "Simple a distancia",
+      "simple": true
+    },
+    {
+      "name": "Ballesta ligera",
+      "damage": "1d8",
+      "damageType": "Perforante",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Munición (24/96 m; Virote)",
+        "Recarga",
+        "Dos manos"
+      ],
+      "category": "Simple a distancia",
+      "simple": true
+    },
+    {
+      "name": "Dardo",
+      "damage": "1d4",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Sutil",
+        "Arrojadiza (6/18 m)"
+      ],
+      "category": "Simple a distancia",
+      "simple": true
+    },
+    {
+      "name": "Honda",
+      "damage": "1d4",
+      "damageType": "Contundente",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Munición (9/36 m; Piedra)"
+      ],
+      "category": "Simple a distancia",
+      "simple": true
+    },
+    {
+      "name": "Alabarda",
+      "damage": "1d10",
+      "damageType": "Cortante",
+      "mastery": "Hender",
+      "masteryDesc": "Si aciertas a una criatura con un ataque cuerpo a cuerpo, puedes hacer otro ataque contra una segunda criatura a 5 pies de la primera que también esté a tu alcance. Si aciertas, la segunda criatura recibe el daño del arma sin sumar tu modificador de característica (salvo que sea negativo). Solo una vez por turno.",
+      "properties": [
+        "Pesada",
+        "Alcance",
+        "Dos manos"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Cimitarra",
+      "damage": "1d6",
+      "damageType": "Cortante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Sutil",
+        "Ligera"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Espada corta",
+      "damage": "1d6",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Sutil",
+        "Ligera"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Espada larga",
+      "damage": "1d8",
+      "damageType": "Cortante",
+      "mastery": "Debilitar",
+      "masteryDesc": "Si aciertas a una criatura, esa criatura tiene Desventaja en su siguiente tirada de ataque antes del inicio de tu siguiente turno.",
+      "properties": [
+        "Versatil (1d10)"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Espadón",
+      "damage": "2d6",
+      "damageType": "Cortante",
+      "mastery": "Rozar",
+      "masteryDesc": "Si fallas un ataque con esta arma, haces daño igual a tu modificador de característica del ataque. Este daño es del mismo tipo que el arma y solo puede aumentarse incrementando el modificador.",
+      "properties": [
+        "Pesada",
+        "Dos manos"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Estoque",
+      "damage": "1d8",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Sutil"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Gran hacha",
+      "damage": "1d12",
+      "damageType": "Cortante",
+      "mastery": "Hender",
+      "masteryDesc": "Si aciertas a una criatura con un ataque cuerpo a cuerpo, puedes hacer otro ataque contra una segunda criatura a 5 pies de la primera que también esté a tu alcance. Si aciertas, la segunda criatura recibe el daño del arma sin sumar tu modificador de característica (salvo que sea negativo). Solo una vez por turno.",
+      "properties": [
+        "Pesada",
+        "Dos manos"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Guja",
+      "damage": "1d10",
+      "damageType": "Cortante",
+      "mastery": "Rozar",
+      "masteryDesc": "Si fallas un ataque con esta arma, haces daño igual a tu modificador de característica del ataque. Este daño es del mismo tipo que el arma y solo puede aumentarse incrementando el modificador.",
+      "properties": [
+        "Pesada",
+        "Alcance",
+        "Dos manos"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Hacha de guerra",
+      "damage": "1d8",
+      "damageType": "Cortante",
+      "mastery": "Derribar",
+      "masteryDesc": "Si aciertas a una criatura, puedes forzarla a hacer una tirada de salvación de Constitución (CD 8 + mod. de característica del ataque + bonif. competencia). Si falla, queda Derribada.",
+      "properties": [
+        "Versatil (1d10)"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Lanza de caballería",
+      "damage": "1d10",
+      "damageType": "Perforante",
+      "mastery": "Derribar",
+      "masteryDesc": "Si aciertas a una criatura, puedes forzarla a hacer una tirada de salvación de Constitución (CD 8 + mod. de característica del ataque + bonif. competencia). Si falla, queda Derribada.",
+      "properties": [
+        "Pesada",
+        "Alcance",
+        "Dos manos (salvo montado)"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Látigo",
+      "damage": "1d4",
+      "damageType": "Cortante",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Sutil",
+        "Alcance"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Lucero del alba",
+      "damage": "1d8",
+      "damageType": "Perforante",
+      "mastery": "Debilitar",
+      "masteryDesc": "Si aciertas a una criatura, esa criatura tiene Desventaja en su siguiente tirada de ataque antes del inicio de tu siguiente turno.",
+      "properties": [],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Mangual",
+      "damage": "1d8",
+      "damageType": "Contundente",
+      "mastery": "Debilitar",
+      "masteryDesc": "Si aciertas a una criatura, esa criatura tiene Desventaja en su siguiente tirada de ataque antes del inicio de tu siguiente turno.",
+      "properties": [],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Martillo de guerra",
+      "damage": "1d8",
+      "damageType": "Contundente",
+      "mastery": "Empujar",
+      "masteryDesc": "Si aciertas a una criatura, puedes empujarla hasta 10 pies en línea recta lejos de ti si es Grande o menor.",
+      "properties": [
+        "Versatil (1d10)"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Mazo de guerra",
+      "damage": "2d6",
+      "damageType": "Contundente",
+      "mastery": "Derribar",
+      "masteryDesc": "Si aciertas a una criatura, puedes forzarla a hacer una tirada de salvación de Constitución (CD 8 + mod. de característica del ataque + bonif. competencia). Si falla, queda Derribada.",
+      "properties": [
+        "Pesada",
+        "Dos manos"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Pica",
+      "damage": "1d10",
+      "damageType": "Perforante",
+      "mastery": "Empujar",
+      "masteryDesc": "Si aciertas a una criatura, puedes empujarla hasta 10 pies en línea recta lejos de ti si es Grande o menor.",
+      "properties": [
+        "Pesada",
+        "Alcance",
+        "Dos manos"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Pico de guerra",
+      "damage": "1d8",
+      "damageType": "Perforante",
+      "mastery": "Debilitar",
+      "masteryDesc": "Si aciertas a una criatura, esa criatura tiene Desventaja en su siguiente tirada de ataque antes del inicio de tu siguiente turno.",
+      "properties": [
+        "Versatil (1d10)"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Tridente",
+      "damage": "1d8",
+      "damageType": "Perforante",
+      "mastery": "Derribar",
+      "masteryDesc": "Si aciertas a una criatura, puedes forzarla a hacer una tirada de salvación de Constitución (CD 8 + mod. de característica del ataque + bonif. competencia). Si falla, queda Derribada.",
+      "properties": [
+        "Arrojadiza (6/18 m)",
+        "Versatil (1d10)"
+      ],
+      "category": "Marcial cuerpo a cuerpo",
+      "simple": false
+    },
+    {
+      "name": "Arco largo",
+      "damage": "1d8",
+      "damageType": "Perforante",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Munición (45/180 m; Flecha)",
+        "Pesada",
+        "Dos manos"
+      ],
+      "category": "Marcial a distancia",
+      "simple": false
+    },
+    {
+      "name": "Ballesta de mano",
+      "damage": "1d6",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Munición (9/36 m; Virote)",
+        "Ligera",
+        "Recarga"
+      ],
+      "category": "Marcial a distancia",
+      "simple": false
+    },
+    {
+      "name": "Ballesta pesada",
+      "damage": "1d10",
+      "damageType": "Perforante",
+      "mastery": "Empujar",
+      "masteryDesc": "Si aciertas a una criatura, puedes empujarla hasta 10 pies en línea recta lejos de ti si es Grande o menor.",
+      "properties": [
+        "Munición (30/120 m; Virote)",
+        "Pesada",
+        "Recarga",
+        "Dos manos"
+      ],
+      "category": "Marcial a distancia",
+      "simple": false
+    },
+    {
+      "name": "Cerbatana",
+      "damage": "1",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Munición (7,5/30 m; Aguja)",
+        "Recarga"
+      ],
+      "category": "Marcial a distancia",
+      "simple": false
+    },
+    {
+      "name": "Mosquete",
+      "damage": "1d12",
+      "damageType": "Perforante",
+      "mastery": "Ralentizar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, reduces su Velocidad en 10 pies hasta el inicio de tu siguiente turno.",
+      "properties": [
+        "Munición (12/36 m; Bala)",
+        "Recarga",
+        "Dos manos"
+      ],
+      "category": "Marcial a distancia (Fuego)",
+      "simple": false
+    },
+    {
+      "name": "Pistola",
+      "damage": "1d10",
+      "damageType": "Perforante",
+      "mastery": "Hostigar",
+      "masteryDesc": "Si aciertas a una criatura y le haces daño, tienes Ventaja en tu siguiente tirada de ataque contra esa criatura antes del final de tu siguiente turno.",
+      "properties": [
+        "Munición (9/27 m; Bala)",
+        "Recarga"
+      ],
+      "category": "Marcial a distancia (Fuego)",
+      "simple": false
+    }
+  ],
+  "armor": [
+    {
+      "name": "Armadura acolchada",
+      "ac": "11 + mod. DES",
+      "acBase": 11,
+      "category": "Ligera",
+      "stealthDisadv": true,
+      "strReq": null
+    },
+    {
+      "name": "Armadura de cuero",
+      "ac": "11 + mod. DES",
+      "acBase": 11,
+      "category": "Ligera",
+      "stealthDisadv": false,
+      "strReq": null
+    },
+    {
+      "name": "Cuero tachonado",
+      "ac": "12 + mod. DES",
+      "acBase": 12,
+      "category": "Ligera",
+      "stealthDisadv": false,
+      "strReq": null
+    },
+    {
+      "name": "Armadura de pieles",
+      "ac": "12 + mod. DES (máx. 2)",
+      "acBase": 12,
+      "category": "Media",
+      "stealthDisadv": false,
+      "strReq": null
+    },
+    {
+      "name": "Cota de mallas",
+      "ac": "13 + mod. DES (máx. 2)",
+      "acBase": 13,
+      "category": "Media",
+      "stealthDisadv": false,
+      "strReq": null
+    },
+    {
+      "name": "Cota de escamas",
+      "ac": "14 + mod. DES (máx. 2)",
+      "acBase": 14,
+      "category": "Media",
+      "stealthDisadv": true,
+      "strReq": null
+    },
+    {
+      "name": "Coraza",
+      "ac": "14 + mod. DES (máx. 2)",
+      "acBase": 14,
+      "category": "Media",
+      "stealthDisadv": false,
+      "strReq": null
+    },
+    {
+      "name": "Semiplacas",
+      "ac": "15 + mod. DES (máx. 2)",
+      "acBase": 15,
+      "category": "Media",
+      "stealthDisadv": true,
+      "strReq": null
+    },
+    {
+      "name": "Cota de anillas",
+      "ac": "14",
+      "acBase": 14,
+      "category": "Pesada",
+      "stealthDisadv": true,
+      "strReq": null
+    },
+    {
+      "name": "Cota de mallas pesada",
+      "ac": "16",
+      "acBase": 16,
+      "category": "Pesada",
+      "stealthDisadv": true,
+      "strReq": 13
+    },
+    {
+      "name": "Cota de bandas",
+      "ac": "17",
+      "acBase": 17,
+      "category": "Pesada",
+      "stealthDisadv": true,
+      "strReq": 15
+    },
+    {
+      "name": "Armadura de placas",
+      "ac": "18",
+      "acBase": 18,
+      "category": "Pesada",
+      "stealthDisadv": true,
+      "strReq": 15
+    },
+    {
+      "name": "Escudo",
+      "ac": "+2",
+      "acBase": 2,
+      "category": "Escudo",
+      "stealthDisadv": false,
+      "strReq": null
+    }
+  ],
+  "source": "SRD 5.2 (2024)",
+  "lang": "es"
+}

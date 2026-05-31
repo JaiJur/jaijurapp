@@ -96,6 +96,15 @@ export default function WeekSummary({ entries, config }) {
   const steps = buildPoints(stepsData, stepsScale)
   const weight = buildPoints(weightData, weightScale)
 
+  // Medias (solo visibles en pestañas individuales)
+  function calcAvg(data) {
+    const vals = data.filter(v => v != null)
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+  }
+  const calAvg = tab === 'cal' ? calcAvg(calData) : null
+  const stepsAvg = tab === 'steps' ? calcAvg(stepsData) : null
+  const weightAvg = tab === 'weight' ? calcAvg(weightData) : null
+
   // Labels de día
   const dayLabels = days.map(d => {
     const dt = new Date(d + 'T12:00:00')
@@ -152,6 +161,20 @@ export default function WeekSummary({ entries, config }) {
               stroke="#4b90ff" strokeWidth="1" strokeDasharray="4 3" opacity=".5" />
           )}
 
+          {/* ── Avg lines (solo en pestañas individuales) ── */}
+          {calAvg != null && calScale && (
+            <line x1={0} y1={calScale.yFn(calAvg)} x2={totalW} y2={calScale.yFn(calAvg)}
+              stroke="#ff5050" strokeWidth="1" strokeDasharray="2 4" opacity=".6" />
+          )}
+          {stepsAvg != null && stepsScale && (
+            <line x1={0} y1={stepsScale.yFn(stepsAvg)} x2={totalW} y2={stepsScale.yFn(stepsAvg)}
+              stroke="#50bbff" strokeWidth="1" strokeDasharray="2 4" opacity=".6" />
+          )}
+          {weightAvg != null && weightScale && (
+            <line x1={0} y1={weightScale.yFn(weightAvg)} x2={totalW} y2={weightScale.yFn(weightAvg)}
+              stroke="#ffaa30" strokeWidth="1" strokeDasharray="2 4" opacity=".6" />
+          )}
+
           {/* ── Steps line ── */}
           {showSteps && steps.points.length > 1 && (
             <path d={steps.line} fill="none" stroke="#50bbff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -197,6 +220,9 @@ export default function WeekSummary({ entries, config }) {
         {showCal && bmr && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#4dff88' }} />TDEE {bmr}</span>}
         {showWeight && goalWeight && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#4b90ff' }} />Obj {goalWeight}kg</span>}
         {showSteps && goalSteps && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#4dff88' }} />Obj {goalSteps.toLocaleString()}</span>}
+        {calAvg != null && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#ff5050' }} />Media {Math.round(calAvg)}</span>}
+        {stepsAvg != null && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#50bbff' }} />Media {Math.round(stepsAvg).toLocaleString()}</span>}
+        {weightAvg != null && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#ffaa30' }} />Media {weightAvg.toFixed(1)}kg</span>}
       </div>
     </div>
   )

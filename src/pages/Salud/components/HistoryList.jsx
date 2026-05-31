@@ -1,5 +1,10 @@
 const SLEEP_EMOJI = ['', '😫', '😕', '😐', '😊', '😴']
 
+const CONTORNO_LABELS = {
+  brazo: '💪', pecho: '🫁', cadera: '🍑',
+  tripa: '🫃', cintura: '📏', pierna: '🦵',
+}
+
 export default function HistoryList({ entries, bmr, onEdit }) {
   if (!entries.length) {
     return <p className="salud-empty">No hay registros todavía.</p>
@@ -30,6 +35,13 @@ export default function HistoryList({ entries, bmr, onEdit }) {
               {entry.strength && <span className="salud-metric">🏋️ Fuerza</span>}
               {entry.weight != null && <span className="salud-metric">⚖️ {entry.weight} kg</span>}
             </div>
+            {entry.contorno && (
+              <div className="salud-entry-contorno">
+                {Object.entries(entry.contorno).map(([k, v]) =>
+                  v != null ? <span key={k} className="salud-metric salud-metric-contorno">{CONTORNO_LABELS[k] || k} {v}</span> : null
+                )}
+              </div>
+            )}
             {entry.notes && <p className="salud-entry-notes">{entry.notes}</p>}
           </div>
         )

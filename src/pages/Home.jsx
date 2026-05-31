@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AppHeader from '../components/AppHeader'
-import UserManager from './UserManager'
 import './Home.css'
 
 const APPS = [
@@ -17,32 +16,6 @@ const APPS = [
       </svg>
     ),
     href: '/meal-planner',
-  },
-  {
-    id: 'ginbro',
-    label: 'GinBro',
-    icon: (
-      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 24h6l3-9 4 18 4-12 3 6h4l3-8 4 16 3-11h8"
-          stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="24" cy="10" r="3.5" stroke="#ff6a00" strokeWidth="2"/>
-        <path d="M18 38c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#ff6a00" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-    href: '/ginbro',
-  },
-  {
-    id: 'hogar',
-    label: 'HogarQuest',
-    icon: (
-      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 22L24 8l16 14v18a2 2 0 01-2 2H10a2 2 0 01-2-2V22z"
-          stroke="currentColor" strokeWidth="2.2" fill="none"/>
-        <path d="M18 40V28h12v12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
-        <path d="M20 18l4-4 4 4" stroke="#c8f135" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-    href: '/hogar',
   },
   {
     id: 'dnd',
@@ -68,17 +41,30 @@ const APPS = [
     ),
     href: '/salud',
   },
+  {
+    id: 'users',
+    label: 'Usuarios',
+    masterOnly: true,
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="16" r="7" stroke="currentColor" strokeWidth="2.2" fill="none"/>
+        <path d="M10 40c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+        <circle cx="36" cy="14" r="4.5" stroke="#ff6a00" strokeWidth="1.8" fill="none"/>
+        <path d="M30 36c0-4 2.7-7.5 6-9" stroke="#ff6a00" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+    href: '/users',
+  },
 ]
 
 export default function Home() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  // Filtrar apps según rol/apps del usuario
-  const APP_ID_MAP = { mealplanner: 'planner', ginbro: 'ginbro', hogar: 'hogar', dnd: 'dnd', salud: 'salud' }
+  const APP_ID_MAP = { mealplanner: 'planner', dnd: 'dnd', salud: 'salud' }
   const visibleApps = (user?.role === 'master' || user?.role === 'premium')
-    ? APPS
-    : APPS.filter(app => (user?.apps || []).includes(APP_ID_MAP[app.id] || app.id))
+    ? APPS.filter(app => !app.masterOnly || user?.role === 'master')
+    : APPS.filter(app => !app.masterOnly && (user?.apps || []).includes(APP_ID_MAP[app.id] || app.id))
 
   return (
     <div className="home-root">
@@ -98,8 +84,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-
-        {user?.role === 'master' && <UserManager />}
       </main>
     </div>
   )

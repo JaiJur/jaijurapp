@@ -1,6 +1,239 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 
+// ── Componente de Datos de Referencia (SRD) ──
+function RefDataSection() {
+  const { user } = useAuth()
+  const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
+  const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState('weapons')
+  const [data, setData] = useState(null)
+  const [expandedItem, setExpandedItem] = useState(null)
+  const [editItem, setEditItem] = useState(null) // null | 'new' | item object
+  const [editDraft, setEditDraft] = useState({})
+
+  async function loadData() {
+    try { const r = await fetch('/api/dnd/refdata', { headers }); if (r.ok) setData(await r.json()) } catch {}
+  }
+  useEffect(() => { if (open && !data) loadData() }, [open])
+
+  async function saveItem() {
+    const type = tab
+    const isNew = !editDraft.id
+    const url = isNew ? `/api/dnd/refdata/${type}` : `/api/dnd/refdata/${type}/${editDraft.id}`
+    const method = isNew ? 'POST' : 'PUT'
+    // Limpiar campos según tipo
+    const body = { ...editDraft }
+    if (type === 'weapons' && typeof body.properties === 'string') body.properties = body.properties.split(',').map(s => s.trim()).filter(Boolean)
+    if (type === 'backgrounds' && typeof body.skillProficiencies === 'string') body.skillProficiencies = body.skillProficiencies.split(',').map(s => s.trim()).filter(Boolean)
+    if (type === 'backgrounds' && typeof body.toolProficiencies === 'string') body.toolProficiencies = body.toolProficiencies.split(',').map(s => s.trim()).filter(Boolean)
+    try {
+      const r = await fetch(url, { method, headers, body: JSON.stringify(body) })
+      if (r.ok) { setEditItem(null); loadData() }
+    } catch {}
+  }
+
+  async function deleteItem(type, id) {
+    if (!confirm('¿Eliminar este elemento?')) return
+    try { await fetch(`/api/dnd/refdata/${type}/${id}`, { method: 'DELETE', headers }); loadData() } catch {}
+  }
+
+  function openNew() {
+    const defaults = tab === 'weapons'
+      ? { name:'',damage:'',damageType:'Cortante',mastery:'',masteryDesc:'',properties:[],category:'Simple cuerpo a cuerpo',simple:true }
+      : tab === 'armor'
+      ? { name:'',ac:'',acBase:10,category:'Ligera',stealthDisadv:false,strReq:null }
+      : { name:'',desc:'',skillProficiencies:[],toolProficiencies:[],languages:0,equipment:'',feat:'',featDesc:'',abilityScores:'+2/+1',source:'Homebrew' }
+    setEditDraft(defaults)
+    setEditItem('new')
+  }
+
+  function openEdit(item) {
+    const draft = { ...item }
+    if (tab === 'weapons' && Array.isArray(draft.properties)) draft.properties = draft.properties.join(', ')
+    if (tab === 'backgrounds' && Array.isArray(draft.skillProficiencies)) draft.skillProficiencies = draft.skillProficiencies.join(', ')
+    if (tab === 'backgrounds' && Array.isArray(draft.toolProficiencies)) draft.toolProficiencies = draft.toolProficiencies.join(', ')
+    setEditDraft(draft)
+    setEditItem(item)
+  }
+
+  function field(key, label, opts = {}) {
+    const val = editDraft[key] ?? ''
+    const inputProps = { className:'dnd-input', style:{fontSize:'.82rem',padding:'6px 8px',...(opts.style||{})}, value: val,
+      onChange: e => setEditDraft(d => ({...d, [key]: opts.type === 'number' ? (parseInt(e.target.value)||0) : opts.type === 'bool' ? e.target.checked : e.target.value}))
+    }
+    if (opts.type === 'bool') return <label style={{display:'flex',gap:6,alignItems:'center',fontSize:'.8rem',color:'#a09880'}}><input type="checkbox" checked={!!val} onChange={inputProps.onChange} />{label}</label>
+    if (opts.type === 'textarea') return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><textarea {...inputProps} rows={3} style={{...inputProps.style,width:'100%',resize:'vertical'}} /></div>
+    if (opts.type === 'select') return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><select {...inputProps} style={{...inputProps.style,width:'100%'}}>{opts.options.map(o => <option key={o} value={o}>{o}</option>)}</select></div>
+    return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><input {...inputProps} type={opts.type === 'number' ? 'number' : 'text'} style={{...inputProps.style,width:'100%'}} /></div>
+  }
+
+  const tabs = [
+    { id: 'weapons', icon: '⚔️', label: 'Armas' },
+    { id: 'armor', icon: '🛡️', label: 'Armaduras' },
+    { id: 'backgrounds', icon: '📜', label: 'Trasfondos' },
+  ]
+
+  return (
+    <div className="mm-sounds-section">
+      <div className="mm-sounds-header" onClick={() => setOpen(o => !o)} style={{cursor:'pointer'}}>
+        <span className="mm-sounds-title">{open ? '▼' : '▶'} 📚 Datos de Referencia (SRD 2024)</span>
+      </div>
+      {open && (
+        <div className="ref-data-browser">
+          <div className="ref-data-tabs">
+            {tabs.map(t => (
+              <button key={t.id} className={`ref-data-tab ${tab === t.id ? 'active' : ''}`}
+                onClick={() => { setTab(t.id); setExpandedItem(null); setEditItem(null) }}>{t.icon} {t.label}</button>
+            ))}
+            <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={openNew}>+ {tabs.find(t=>t.id===tab)?.icon}</button>
+          </div>
+
+          {/* ── Modal edición ── */}
+          {editItem && (
+            <div className="ref-data-edit-form">
+              <div style={{fontWeight:600,fontSize:'.85rem',color:'#c8a96e',marginBottom:8}}>{editDraft.id ? '✏️ Editar' : '➕ Nuevo'} — {tabs.find(t=>t.id===tab)?.label}</div>
+              {tab === 'weapons' && <>
+                {field('name','Nombre')}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+                  {field('damage','Daño')}
+                  {field('damageType','Tipo de daño',{type:'select',options:['Cortante','Perforante','Contundente']})}
+                </div>
+                {field('mastery','Maestría')}
+                {field('masteryDesc','Descripción maestría',{type:'textarea'})}
+                {field('properties','Propiedades (separadas por coma)')}
+                {field('category','Categoría',{type:'select',options:['Simple cuerpo a cuerpo','Simple a distancia','Marcial cuerpo a cuerpo','Marcial a distancia','Marcial a distancia (Fuego)']})}
+                {field('simple','Arma simple',{type:'bool'})}
+              </>}
+              {tab === 'armor' && <>
+                {field('name','Nombre')}
+                {field('ac','CA (texto)')}
+                {field('acBase','CA base',{type:'number'})}
+                {field('category','Categoría',{type:'select',options:['Ligera','Media','Pesada','Escudo']})}
+                {field('stealthDisadv','Desventaja en Sigilo',{type:'bool'})}
+                {field('strReq','Requisito FUE',{type:'number'})}
+              </>}
+              {tab === 'backgrounds' && <>
+                {field('name','Nombre')}
+                {field('desc','Descripción',{type:'textarea'})}
+                {field('skillProficiencies','Competencias (separadas por coma)')}
+                {field('toolProficiencies','Herramientas (separadas por coma)')}
+                {field('languages','Idiomas',{type:'number'})}
+                {field('equipment','Equipo')}
+                {field('feat','Dote')}
+                {field('featDesc','Descripción de la dote',{type:'textarea'})}
+                {field('abilityScores','Características')}
+              </>}
+              <div style={{display:'flex',gap:6,marginTop:8}}>
+                <button className="dnd-btn-sm" style={{color:'#4ade80',borderColor:'rgba(74,222,128,0.3)'}} onClick={saveItem}>✓ Guardar</button>
+                <button className="dnd-btn-sm" onClick={() => setEditItem(null)}>✕ Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {tab === 'weapons' && data && !editItem && (
+            <div className="ref-data-list">
+              {['Simple cuerpo a cuerpo','Simple a distancia','Marcial cuerpo a cuerpo','Marcial a distancia','Marcial a distancia (Fuego)'].map(cat => {
+                const items = data.weapons.filter(w => w.category === cat)
+                if (!items.length) return null
+                return (
+                  <div key={cat} className="ref-data-group">
+                    <div className="ref-data-group-title">{cat}</div>
+                    {items.map(w => (
+                      <div key={w.id} className={`ref-data-item ${expandedItem === w.id ? 'expanded' : ''}`}
+                        onClick={() => setExpandedItem(expandedItem === w.id ? null : w.id)}>
+                        <div className="ref-data-item-row">
+                          <span className="ref-data-item-name">{w.name}</span>
+                          <span className="ref-data-item-meta">{w.damage} {w.damageType}</span>
+                          {w.mastery && <span className="ref-data-item-mastery">{w.mastery}</span>}
+                        </div>
+                        {expandedItem === w.id && (
+                          <div className="ref-data-item-detail">
+                            {w.properties?.length > 0 && <div className="ref-data-props">{(Array.isArray(w.properties) ? w.properties : []).join(' · ')}</div>}
+                            {w.masteryDesc && <div className="ref-data-mastery-desc"><strong>🎯 {w.mastery}:</strong> {w.masteryDesc}</div>}
+                            <div className="ref-data-item-actions">
+                              <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openEdit(w) }}>✏️</button>
+                              <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={e => { e.stopPropagation(); deleteItem('weapons', w.id) }}>🗑</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {tab === 'armor' && data && !editItem && (
+            <div className="ref-data-list">
+              {['Ligera','Media','Pesada','Escudo'].map(cat => {
+                const items = data.armor.filter(a => a.category === cat)
+                if (!items.length) return null
+                return (
+                  <div key={cat} className="ref-data-group">
+                    <div className="ref-data-group-title">{cat}</div>
+                    {items.map(a => (
+                      <div key={a.id} className={`ref-data-item ${expandedItem === a.id ? 'expanded' : ''}`}
+                        onClick={() => setExpandedItem(expandedItem === a.id ? null : a.id)}>
+                        <div className="ref-data-item-row">
+                          <span className="ref-data-item-name">{a.name}</span>
+                          <span className="ref-data-item-meta">CA {a.ac}</span>
+                          {a.stealthDisadv && <span className="ref-data-item-tag ref-data-tag-warn">Sigilo ⚠</span>}
+                          {a.strReq && <span className="ref-data-item-tag">FUE {a.strReq}</span>}
+                        </div>
+                        {expandedItem === a.id && (
+                          <div className="ref-data-item-detail">
+                            <div className="ref-data-item-actions">
+                              <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openEdit(a) }}>✏️</button>
+                              <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={e => { e.stopPropagation(); deleteItem('armor', a.id) }}>🗑</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {tab === 'backgrounds' && data && !editItem && (
+            <div className="ref-data-list">
+              {(data.backgrounds || []).map(bg => (
+                <div key={bg.id} className={`ref-data-item ${expandedItem === bg.id ? 'expanded' : ''}`}
+                  onClick={() => setExpandedItem(expandedItem === bg.id ? null : bg.id)}>
+                  <div className="ref-data-item-row">
+                    <span className="ref-data-item-name">{bg.name}</span>
+                    <span className="ref-data-item-meta">{(bg.skillProficiencies||[]).join(', ')}</span>
+                  </div>
+                  {expandedItem === bg.id && (
+                    <div className="ref-data-item-detail">
+                      <p style={{margin:'0 0 6px',color:'#a09880',fontSize:'.78rem',lineHeight:1.5}}>{bg.desc}</p>
+                      <div className="ref-data-props">🎓 Competencias: {(bg.skillProficiencies||[]).join(', ')}</div>
+                      <div className="ref-data-props">🔧 Herramientas: {(bg.toolProficiencies||[]).join(', ')}</div>
+                      {bg.languages > 0 && <div className="ref-data-props">🗣️ Idiomas: {bg.languages}</div>}
+                      <div className="ref-data-props">🎒 Equipo: {bg.equipment}</div>
+                      {bg.feat && <div className="ref-data-mastery-desc"><strong>⭐ {bg.feat}:</strong> {bg.featDesc}</div>}
+                      <div className="ref-data-props">📊 Características: {bg.abilityScores}</div>
+                      <div className="ref-data-item-actions">
+                        <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openEdit(bg) }}>✏️</button>
+                        <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={e => { e.stopPropagation(); deleteItem('backgrounds', bg.id) }}>🗑</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!data && <div className="dnd-empty-sm">Cargando datos...</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAdded }) {
   const { user } = useAuth()
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
@@ -8,14 +241,16 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
   const soundInputRef = useRef(null)
   const propInputRef = useRef(null)
   const [uploads, setUploads] = useState([])
+  const [newFolderName, setNewFolderName] = useState('')
+  const [showNewFolder, setShowNewFolder] = useState(false)
 
   // ── Props state ──
   const [propsData, setPropsData] = useState(null)
   const [propsPath, setPropsPath] = useState('')
   const [propsCollapsed, setPropsCollapsed] = useState(true)
   const [propUploads, setPropUploads] = useState([])
-  const [newFolderName, setNewFolderName] = useState('')
-  const [showNewFolder, setShowNewFolder] = useState(false)
+  const [propNewFolderName, setPropNewFolderName] = useState('')
+  const [showPropNewFolder, setShowPropNewFolder] = useState(false)
 
   useEffect(() => {
     if (!propsCollapsed) loadProps(propsPath)
@@ -64,15 +299,28 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
   }
 
   async function createPropFolder() {
-    if (!newFolderName.trim()) return
+    if (!propNewFolderName.trim()) return
     try {
       await fetch('/api/dnd/props/folder', {
         method: 'POST', headers,
-        body: JSON.stringify({ name: newFolderName.trim(), path: propsPath })
+        body: JSON.stringify({ name: propNewFolderName.trim(), path: propsPath })
+      })
+      setPropNewFolderName('')
+      setShowPropNewFolder(false)
+      loadProps(propsPath)
+    } catch {}
+  }
+
+  async function createImageFolder() {
+    if (!newFolderName.trim()) return
+    try {
+      await fetch('/api/dnd/images/folder', {
+        method: 'POST', headers,
+        body: JSON.stringify({ name: newFolderName.trim(), path: data.path || '' })
       })
       setNewFolderName('')
       setShowNewFolder(false)
-      loadProps(propsPath)
+      onNavigate(data.path || '')
     } catch {}
   }
 
@@ -155,9 +403,19 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
             <button className="dnd-crumb" onClick={() => onNavigate(crumbs.slice(0, i + 1).join('/'))}>{c}</button>
           </span>
         ))}
-        <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={() => fileInputRef.current?.click()}>📤 Subir imágenes</button>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{display:'none'}} />
+        <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+          <button className="dnd-btn-sm" onClick={() => setShowNewFolder(v => !v)} title="Nueva carpeta">+ 📁</button>
+          <button className="dnd-btn-sm" onClick={() => fileInputRef.current?.click()}>+ 🖼</button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{display:'none'}} />
+        </div>
       </div>
+      {showNewFolder && (
+        <div style={{display:'flex',gap:4,marginBottom:6}}>
+          <input className="dnd-input" style={{flex:1,fontSize:'.82rem',padding:'6px 8px'}} placeholder="Nombre de carpeta…" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createImageFolder()} autoFocus />
+          <button className="dnd-btn-sm" onClick={createImageFolder}>✓</button>
+          <button className="dnd-btn-sm" onClick={() => { setShowNewFolder(false); setNewFolderName('') }}>✕</button>
+        </div>
+      )}
       {data.path && <button className="dnd-folder-up" onClick={() => onNavigate(parentPath)}>⬆ Subir</button>}
       {uploads.length > 0 && (
         <div className="img-upload-table">
@@ -196,7 +454,9 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
       <div className="mm-sounds-section">
         <div className="mm-sounds-header">
           <span className="mm-sounds-title">🔊 Sonidos ({data.sounds?.length || 0})</span>
-          <button className="dnd-btn-sm" onClick={() => soundInputRef.current?.click()}>📤 Subir sonidos</button>
+          <div style={{marginLeft:'auto'}}>
+            <button className="dnd-btn-sm" onClick={() => soundInputRef.current?.click()}>+ 🔊</button>
+          </div>
           <input ref={soundInputRef} type="file" accept=".mp3,.wav,.ogg,.m4a,.webm,.aac" multiple onChange={handleSoundFiles} style={{display:'none'}} />
         </div>
         {(data.sounds || []).length > 0 && (
@@ -230,15 +490,17 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
                     <button className="dnd-crumb" onClick={() => navigateProps(pCrumbs.slice(0, i + 1).join('/'))}>{c}</button>
                   </span>
                 ))}
-                <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={() => propInputRef.current?.click()}>📤 Subir props</button>
-                <input ref={propInputRef} type="file" accept="image/*" multiple onChange={handlePropFiles} style={{display:'none'}} />
-                <button className="dnd-btn-sm" style={{marginLeft:4}} onClick={() => setShowNewFolder(v => !v)} title="Nueva carpeta">📁+</button>
+                <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+                  <button className="dnd-btn-sm" onClick={() => setShowPropNewFolder(v => !v)} title="Nueva carpeta">+ 📁</button>
+                  <button className="dnd-btn-sm" onClick={() => propInputRef.current?.click()}>+ 🖼</button>
+                  <input ref={propInputRef} type="file" accept="image/*" multiple onChange={handlePropFiles} style={{display:'none'}} />
+                </div>
               </div>
-              {showNewFolder && (
+              {showPropNewFolder && (
                 <div style={{display:'flex',gap:4,marginBottom:6}}>
-                  <input className="dnd-input" style={{flex:1,fontSize:'.82rem'}} placeholder="Nombre de carpeta…" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createPropFolder()} />
+                  <input className="dnd-input" style={{flex:1,fontSize:'.82rem',padding:'6px 8px'}} placeholder="Nombre de carpeta…" value={propNewFolderName} onChange={e => setPropNewFolderName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createPropFolder()} autoFocus />
                   <button className="dnd-btn-sm" onClick={createPropFolder}>✓</button>
-                  <button className="dnd-btn-sm" onClick={() => { setShowNewFolder(false); setNewFolderName('') }}>✕</button>
+                  <button className="dnd-btn-sm" onClick={() => { setShowPropNewFolder(false); setPropNewFolderName('') }}>✕</button>
                 </div>
               )}
               {propsData.path && <button className="dnd-folder-up" onClick={() => navigateProps(pParent)}>⬆ Subir</button>}
@@ -279,6 +541,8 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
           )
         })()}
       </div>
+      {/* ── Datos de Referencia SRD ── */}
+      <RefDataSection />
     </div>
   )
 }

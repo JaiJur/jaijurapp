@@ -1,6 +1,6 @@
 .viewer-root {
   width: 100vw; height: 100vh;
-  background: #060608;
+  background: #000000;
   overflow: hidden; position: relative;
 }
 .viewer-canvas {

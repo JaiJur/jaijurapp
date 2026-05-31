@@ -161,6 +161,7 @@ export default function MapViewer() {
   // ── Sound command listener ──
   const lastSoundTsRef = useRef(0)
   const audioRef = useRef(null)
+  const firstSoundPollRef = useRef(true)
 
   useEffect(() => {
     async function pollSound() {
@@ -169,6 +170,12 @@ export default function MapViewer() {
         if (!r.ok) return
         const cmd = await r.json()
         if (!cmd || cmd.ts <= lastSoundTsRef.current) return
+        // Primer poll: solo guardar el ts sin reproducir
+        if (firstSoundPollRef.current) {
+          firstSoundPollRef.current = false
+          lastSoundTsRef.current = cmd.ts
+          return
+        }
         lastSoundTsRef.current = cmd.ts
         // Play the sound
         if (audioRef.current) {
@@ -298,8 +305,8 @@ export default function MapViewer() {
     const cols = Math.ceil(canvas.width / (hexSize * 1.5)) + 2
     const rows = Math.ceil(canvas.height / (Math.sqrt(3) * hexSize)) + 2
 
-    // Suelo base — color neutro
-    ctx.fillStyle = '#1a1a22'
+    // Suelo base — negro para fundirse con la niebla
+    ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     // Capas de textura — separar debajo/encima de props
