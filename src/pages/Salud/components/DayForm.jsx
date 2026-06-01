@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import MealAnalyzer from './MealAnalyzer'
 
 const SLEEP_OPTIONS = [
   { value: 1, label: '😫', desc: 'Muy mal' },
@@ -44,6 +45,7 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
   const [contornoOpen, setContornoOpen] = useState(() =>
     CONTORNO_FIELDS.some(f => existing?.contorno?.[f.key] != null)
   )
+  const [fotoMealKey, setFotoMealKey] = useState(null) // meal key for photo modal
 
   const setMeal = (key, val) => setMeals(prev => ({ ...prev, [key]: val }))
 
@@ -94,14 +96,22 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
           {MEALS.map(m => (
             <label key={m.key} className="salud-meal-item">
               <span className="salud-meal-label">{m.label}</span>
-              <input
-                type="number"
-                className="salud-input salud-meal-input"
-                placeholder="kcal"
-                value={meals[m.key]}
-                onChange={e => setMeal(m.key, e.target.value)}
-                inputMode="numeric"
-              />
+              <div className="salud-meal-input-row">
+                <input
+                  type="number"
+                  className="salud-input salud-meal-input"
+                  placeholder="kcal"
+                  value={meals[m.key]}
+                  onChange={e => setMeal(m.key, e.target.value)}
+                  inputMode="numeric"
+                />
+                <button
+                  type="button"
+                  className="salud-meal-camera"
+                  onClick={(e) => { e.preventDefault(); setFotoMealKey(m.key) }}
+                  title="Analizar comida"
+                >＋</button>
+              </div>
             </label>
           ))}
         </div>
@@ -237,6 +247,17 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
             </div>
           )}
         </div>
+      )}
+
+      {fotoMealKey && (
+        <MealAnalyzer
+          mealLabel={MEALS.find(m => m.key === fotoMealKey)?.label || ''}
+          onAccept={(kcal) => {
+            setMeal(fotoMealKey, String(kcal))
+            setFotoMealKey(null)
+          }}
+          onClose={() => setFotoMealKey(null)}
+        />
       )}
     </div>
   )

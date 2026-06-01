@@ -592,6 +592,304 @@
   border: 1px solid #2a2a44;
 }
 
+/* ── Meal camera button ── */
+.salud-meal-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.salud-meal-input-row .salud-meal-input {
+  flex: 1;
+  min-width: 0;
+}
+.salud-meal-camera {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1c1c28;
+  border: 1px solid #333;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  padding: 0;
+}
+.salud-meal-camera:active {
+  border-color: #4b90ff;
+  background: #1a2540;
+}
+
+/* ── FotoMeal modal ── */
+.foto-meal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.foto-meal-modal {
+  background: #14141c;
+  border: 1px solid #2a2a3a;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.2rem;
+}
+.foto-meal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.foto-meal-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #fff;
+}
+.foto-meal-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.foto-meal-upload {
+  border: 2px dashed #333;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s;
+  margin-bottom: .8rem;
+}
+.foto-meal-upload:active {
+  border-color: #4b90ff;
+}
+.foto-meal-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: .9rem;
+}
+.foto-meal-camera-icon {
+  font-size: 2rem;
+}
+.foto-meal-preview {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.foto-meal-analyze-btn {
+  width: 100%;
+  margin-bottom: .5rem;
+}
+.foto-meal-error {
+  color: #ff6060;
+  font-size: .85rem;
+  text-align: center;
+  margin: .5rem 0;
+}
+
+/* Results table */
+.foto-meal-results {
+  margin-top: .5rem;
+}
+.foto-meal-table-wrap {
+  overflow-x: auto;
+  margin-bottom: .8rem;
+  border-radius: 8px;
+  border: 1px solid #2a2a3a;
+}
+.foto-meal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+  min-width: 360px;
+}
+.foto-meal-table th {
+  background: #1a1a28;
+  color: #888;
+  font-weight: 600;
+  padding: 6px 4px;
+  text-align: center;
+  border-bottom: 1px solid #2a2a3a;
+  white-space: nowrap;
+}
+.foto-meal-table th:first-child {
+  text-align: left;
+  padding-left: 8px;
+}
+.foto-meal-table td {
+  padding: 3px 2px;
+  border-bottom: 1px solid #1e1e2e;
+  text-align: center;
+  vertical-align: middle;
+}
+.foto-meal-table td:first-child {
+  text-align: left;
+  padding-left: 4px;
+}
+.foto-meal-cell-input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #e0e0e0;
+  font-size: .78rem;
+  width: 100%;
+  min-width: 38px;
+  padding: 4px 3px;
+  border-radius: 4px;
+  outline: none;
+  text-align: center;
+}
+.foto-meal-cell-name {
+  text-align: left;
+  min-width: 80px;
+}
+.foto-meal-cell-input:focus {
+  border-color: #4b90ff;
+  background: #1c1c28;
+}
+/* Remove number spinners */
+.foto-meal-cell-input[type="number"]::-webkit-inner-spin-button,
+.foto-meal-cell-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.foto-meal-cell-input[type="number"] {
+  -moz-appearance: textfield;
+}
+.foto-meal-remove {
+  background: none;
+  border: none;
+  color: #664040;
+  font-size: .8rem;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.foto-meal-remove:active {
+  color: #ff4040;
+}
+.foto-meal-totals td {
+  font-weight: 700;
+  color: #ff9040;
+  border-top: 2px solid #2a2a3a;
+  border-bottom: none;
+  padding: 6px 4px;
+}
+.foto-meal-totals td:first-child {
+  padding-left: 8px;
+}
+
+/* ── MealAnalyzer tabs ── */
+.meal-analyzer-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2a2a3a;
+}
+.meal-analyzer-tab {
+  flex: 1;
+  padding: .6rem;
+  background: #181824;
+  border: none;
+  color: #888;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.meal-analyzer-tab.active {
+  background: #252540;
+  color: #fff;
+  font-weight: 600;
+}
+.meal-analyzer-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: .8rem;
+  background: #181824;
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  color: #e0e0e0;
+  font-size: .88rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  margin-bottom: .8rem;
+  line-height: 1.5;
+}
+.meal-analyzer-textarea:focus {
+  border-color: #4b90ff;
+}
+.meal-analyzer-textarea::placeholder {
+  color: #555;
+}
+.meal-analyzer-actions {
+  display: flex;
+  gap: 8px;
+}
+.meal-analyzer-back {
+  flex: 0 0 auto;
+  background: #1c1c28 !important;
+  border-color: #333 !important;
+  color: #aaa !important;
+}
+.meal-analyzer-actions .salud-btn-save {
+  flex: 1;
+}
+
+/* ── Text mode rows ── */
+.meal-text-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: .8rem;
+}
+.meal-text-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.meal-text-food {
+  flex: 1;
+  min-width: 0;
+  padding: .55rem .7rem;
+  font-size: .88rem;
+}
+.meal-text-qty {
+  flex: 0 0 90px;
+  padding: .55rem .5rem;
+  font-size: .85rem;
+  text-align: center;
+}
+.meal-text-add {
+  background: none;
+  border: 1px dashed #333;
+  border-radius: 8px;
+  color: #666;
+  padding: .5rem;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.meal-text-add:active {
+  border-color: #4b90ff;
+  color: #4b90ff;
+}
+
 /* ── Mobile adjustments ── */
 @media (max-width: 480px) {
   .salud-main {

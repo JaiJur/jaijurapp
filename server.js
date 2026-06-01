@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000
 const DIST = new URL('./dist', import.meta.url).pathname
 const DB_PATH = resolve('/home/jai/apps/db.json')
 
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '30mb' }))
 
 // ── DB helpers ───────────────────────────────────────────
 function getDB() {
@@ -1359,6 +1359,145 @@ app.get('/api/dnd/refdata', requireUser, (req, res) => {
     saveDB(db)
     res.json({ ok: true })
   })
+})
+
+// ── Foto Meal Analysis (Claude Vision) ───────────────────
+app.post('/api/salud/analyze-meal', requireUser, async (req, res) => {
+  const { image } = req.body // base64 string (sin prefijo data:...)
+  if (!image) return res.status(400).json({ error: 'No image provided' })
+  console.log('[analyze-meal] Received image, length:', image.length)
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    console.error('[analyze-meal] No ANTHROPIC_API_KEY configured')
+    return res.status(500).json({ error: 'API key not configured' })
+  }
+
+  try {
+    // Detectar media type del base64
+    let mediaType = 'image/jpeg'
+    let rawBase64 = image
+    if (image.startsWith('data:')) {
+      const match = image.match(/^data:(image\/\w+);base64,/)
+      if (match) {
+        mediaType = match[1]
+        rawBase64 = image.slice(match[0].length)
+      }
+    }
+
+    console.log('[analyze-meal] Calling Anthropic API, mediaType:', mediaType, 'base64 len:', rawBase64.length)
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: rawBase64 },
+            },
+            {
+              type: 'text',
+              text: `Analiza esta foto de comida. Devuelve SOLO un JSON válido (sin markdown, sin backticks) con esta estructura exacta:
+{
+  "items": [
+    { "name": "nombre del ingrediente/alimento", "weight": gramos_estimados, "kcal": calorias, "protein": gramos, "carbs": gramos, "fat": gramos }
+  ]
+}
+Estima el peso razonable para una ración visible en la foto. Sé conciso en los nombres. Responde SOLO el JSON.`
+            }
+          ]
+        }]
+      })
+    })
+
+    if (!resp.ok) {
+      const err = await resp.text()
+      console.error('[analyze-meal] Anthropic API error:', resp.status, err)
+      return res.status(502).json({ error: 'API error: ' + resp.status })
+    }
+
+    const data = await resp.json()
+    const text = data.content?.[0]?.text || ''
+    console.log('[analyze-meal] Response received, length:', text.length, 'text:', text.slice(0, 300))
+    // Limpiar posibles backticks
+    const clean = text.replace(/```json\s?|```/g, '').trim()
+    
+    // Intentar extraer JSON del texto
+    const jsonMatch = clean.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      return res.json({ items: [], message: clean })
+    }
+    const parsed = JSON.parse(jsonMatch[0])
+    res.json(parsed)
+  } catch (err) {
+    console.error('Meal analysis error:', err)
+    res.status(500).json({ error: 'Analysis failed' })
+  }
+})
+
+// ── Text Meal Analysis (Claude) ──────────────────────────
+app.post('/api/salud/analyze-text', requireUser, async (req, res) => {
+  const { text } = req.body
+  if (!text || !text.trim()) return res.status(400).json({ error: 'No text provided' })
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return res.status(500).json({ error: 'API key not configured' })
+
+  try {
+    console.log('[analyze-text] Input:', text.slice(0, 200))
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `Analiza estos ingredientes/alimentos y calcula sus valores nutricionales:
+
+${text.trim()}
+
+Devuelve SOLO un JSON válido (sin markdown, sin backticks) con esta estructura exacta:
+{
+  "items": [
+    { "name": "nombre del ingrediente", "weight": gramos_estimados, "kcal": calorias, "protein": gramos, "carbs": gramos, "fat": gramos }
+  ]
+}
+Interpreta cantidades coloquiales (un puñado, una cucharada, medio tomate, etc.) y estima los gramos razonablemente. Sé conciso en los nombres. Responde SOLO el JSON.`
+        }]
+      })
+    })
+
+    if (!resp.ok) {
+      const err = await resp.text()
+      console.error('[analyze-text] API error:', resp.status, err)
+      return res.status(502).json({ error: 'API error: ' + resp.status })
+    }
+
+    const data = await resp.json()
+    const raw = data.content?.[0]?.text || ''
+    console.log('[analyze-text] Response:', raw.slice(0, 300))
+    const clean = raw.replace(/```json\s?|```/g, '').trim()
+    const jsonMatch = clean.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return res.json({ items: [], message: clean })
+    res.json(JSON.parse(jsonMatch[0]))
+  } catch (err) {
+    console.error('Text analysis error:', err)
+    res.status(500).json({ error: 'Analysis failed' })
+  }
 })
 
 // ── Serve React build ────────────────────────────────────
