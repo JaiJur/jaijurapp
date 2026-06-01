@@ -675,3 +675,30 @@
   font-size: 1.6rem;
   line-height: 1;
 }
+
+/* ── Edge resize handles for props ──────────────── */
+.prop-edge {
+  position: absolute;
+  pointer-events: all;
+  z-index: 19;
+  background: transparent;
+}
+.prop-edge:hover {
+  background: rgba(124, 58, 237, 0.25);
+}
+.prop-edge-top {
+  top: -4px; left: 10px; right: 10px; height: 8px;
+  cursor: n-resize;
+}
+.prop-edge-bottom {
+  bottom: -4px; left: 10px; right: 10px; height: 8px;
+  cursor: s-resize;
+}
+.prop-edge-left {
+  left: -4px; top: 10px; bottom: 10px; width: 8px;
+  cursor: w-resize;
+}
+.prop-edge-right {
+  right: -4px; top: 10px; bottom: 10px; width: 8px;
+  cursor: e-resize;
+}

@@ -217,6 +217,10 @@
   border-color: #2a6a35;
   color: #6dff6d;
 }
+.salud-strength-type {
+  margin-top: .5rem;
+  font-size: .85rem;
+}
 
 /* Form actions */
 .salud-form-actions {
@@ -593,33 +597,102 @@
 }
 
 /* ── Meal camera button ── */
-.salud-meal-input-row {
+.salud-meal-btn {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
   align-items: center;
-}
-.salud-meal-input-row .salud-meal-input {
-  flex: 1;
-  min-width: 0;
-}
-.salud-meal-camera {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1c1c28;
-  border: 1px solid #333;
-  border-radius: 8px;
-  font-size: 1rem;
+  gap: 2px;
+  padding: .6rem .4rem;
+  background: #181824;
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
   cursor: pointer;
   transition: border-color .15s, background .15s;
-  padding: 0;
+  color: #e0e0e0;
+  min-width: 0;
 }
-.salud-meal-camera:active {
+.salud-meal-btn.has-data {
+  border-color: #3a3a5a;
+  background: #1a1a2e;
+}
+.salud-meal-btn:active {
   border-color: #4b90ff;
   background: #1a2540;
+}
+.salud-meal-kcal {
+  font-size: .85rem;
+  font-weight: 600;
+  color: #ff9040;
+}
+.salud-meal-btn:not(.has-data) .salud-meal-kcal {
+  color: #555;
+  font-weight: 400;
+}
+.salud-meal-count {
+  font-size: .65rem;
+  color: #666;
+}
+
+/* ── MealEntries modal ── */
+.meal-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: .8rem;
+}
+.meal-entry-card {
+  background: #1a1a2a;
+  border: 1px solid #2a2a44;
+  border-radius: 10px;
+  padding: .6rem .8rem;
+}
+.meal-entry-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.meal-entry-kcal {
+  font-size: .95rem;
+  font-weight: 600;
+  color: #ff9040;
+  cursor: pointer;
+}
+.meal-entry-kcal-input {
+  width: 90px;
+  padding: .3rem .5rem;
+  font-size: .9rem;
+  font-weight: 600;
+}
+.meal-entry-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.meal-entry-item-chip {
+  font-size: .7rem;
+  padding: 2px 8px;
+  background: #252540;
+  border-radius: 20px;
+  color: #aaa;
+}
+.meal-entries-total {
+  text-align: center;
+  font-size: .85rem;
+  color: #999;
+  margin-bottom: .8rem;
+}
+.meal-entries-total strong {
+  color: #ff9040;
+}
+.meal-entries-empty {
+  text-align: center;
+  color: #555;
+  font-size: .85rem;
+  margin: 1rem 0;
+}
+.meal-entries-add {
+  width: 100%;
 }
 
 /* ── FotoMeal modal ── */

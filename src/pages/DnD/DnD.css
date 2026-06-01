@@ -2955,3 +2955,81 @@ textarea.dnd-input {
   border-radius: 8px; padding: 12px;
   margin-bottom: 8px;
 }
+
+
+/* ── Notas del Master ────────────────────────────────── */
+.dnd-notes-section {
+  margin-top: 4px;
+}
+.dnd-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+.dnd-note-card {
+  background: rgba(30, 25, 18, 0.85);
+  border: 1px solid rgba(200, 169, 110, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.dnd-note-card:hover {
+  border-color: rgba(200, 169, 110, 0.5);
+  box-shadow: 0 2px 12px rgba(200, 169, 110, 0.15);
+  transform: translateY(-2px);
+}
+.dnd-note-card-title {
+  font-weight: 700;
+  color: #c8a96e;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+.dnd-note-card-subtitle {
+  font-size: 0.82rem;
+  color: rgba(200, 169, 110, 0.65);
+  margin-bottom: 6px;
+  font-style: italic;
+}
+.dnd-note-card-body {
+  font-size: 0.82rem;
+  color: rgba(230, 220, 200, 0.7);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* ── Note Modal ── */
+.dnd-note-modal {
+  background: #1a1510;
+  border: 1px solid rgba(200, 169, 110, 0.3);
+  border-radius: 14px;
+  padding: 24px;
+  width: min(480px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+.dnd-note-modal h3 {
+  color: #c8a96e;
+  margin: 0 0 16px;
+  font-size: 1.15rem;
+}
+.dnd-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(200, 169, 110, 0.2);
+  border-radius: 8px;
+  color: #e6dcc8;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+.dnd-textarea:focus {
+  outline: none;
+  border-color: rgba(200, 169, 110, 0.5);
+}

@@ -32,7 +32,7 @@ export default function HistoryList({ entries, bmr, onEdit }) {
               })()}
               {entry.sleep != null && <span className="salud-metric">{SLEEP_EMOJI[entry.sleep]} Sueño</span>}
               {entry.steps != null && <span className="salud-metric">🚶 {entry.steps.toLocaleString()}</span>}
-              {entry.strength && <span className="salud-metric">🏋️ Fuerza</span>}
+              {entry.strength && <span className="salud-metric">🏋️ {typeof entry.strength === 'string' ? entry.strength : 'Fuerza'}</span>}
               {entry.weight != null && <span className="salud-metric">⚖️ {entry.weight} kg</span>}
             </div>
             {entry.contorno && (

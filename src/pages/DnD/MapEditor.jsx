@@ -152,6 +152,8 @@ export default function MapEditor() {
   const brushEraserRef = useRef(false)
   const brushStrokeRef = useRef(null) // trazo en curso: { points, texture, brushSize, feather, eraser }
   const brushCacheRef = useRef({}) // offscreen canvas cache por layer id
+  const clipboardRef = useRef(null) // ref para atajos de teclado
+  const mousePosRef = useRef({ x: 0, y: 0 }) // posición del cursor en coords canvas
 
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user.id }
 
@@ -186,6 +188,33 @@ export default function MapEditor() {
         if (e.key === 'Enter')     { e.preventDefault(); closePolygonTex() }
         else if (e.key === 'Escape')   { e.preventDefault(); cancelPolygonTex() }
         else if (e.key === 'Backspace'){ e.preventDefault(); popLastTexVertex() }
+      }
+      // Ctrl+C / Ctrl+V / Delete para prop seleccionado
+      const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && e.key === 'c' && selectedPropRef.current) {
+        e.preventDefault()
+        const p = mapRef.current?.props?.find(p => p.id === selectedPropRef.current)
+        if (p) clipboardRef.current = { ...p }
+      }
+      if (ctrl && e.key === 'v' && clipboardRef.current) {
+        e.preventDefault()
+        const cb = clipboardRef.current
+        const pos = mousePosRef.current
+        const np = { ...cb, id: Date.now(), x: pos.x, y: pos.y }
+        mapRef.current = { ...mapRef.current, props: [...(mapRef.current.props || []), np] }
+        dirtyRef.current = true
+        setMap({ ...mapRef.current })
+        setSelectedProp(np.id)
+        setTimeout(autoSave, 50)
+      }
+      if ((e.key === 'Delete' || (e.key === 'Backspace' && !drawingFogRef.current && !drawingTexRef.current)) && selectedPropRef.current) {
+        e.preventDefault()
+        const id = selectedPropRef.current
+        mapRef.current = { ...mapRef.current, props: mapRef.current.props.filter(p => p.id !== id) }
+        dirtyRef.current = true
+        setMap({ ...mapRef.current })
+        setSelectedProp(null)
+        setTimeout(autoSave, 50)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -808,6 +837,7 @@ export default function MapEditor() {
   // ── A: handleMouseMove — actualiza mapRef directamente, sin setMap ──
   function handleMouseMove(e) {
     const { x, y } = getCanvasPos(e)
+    mousePosRef.current = { x, y }
     const id = draggingIdRef.current
     const mode = dragModeRef.current
 
@@ -864,6 +894,22 @@ export default function MapEditor() {
     } else if (mode === 'scale') {
       const delta = ((x-ds.x)+(y-ds.y))/2
       mapRef.current = { ...m, props: m.props.map(p => p.id===id ? {...p, width:Math.max(10,Math.round(ds.width+delta)), height:Math.max(10,Math.round(ds.height+delta))} : p) }
+      dirtyRef.current = true
+    } else if (mode === 'scale-right') {
+      const delta = x - ds.x
+      mapRef.current = { ...m, props: m.props.map(p => p.id===id ? {...p, width:Math.max(10,Math.round(ds.width+delta))} : p) }
+      dirtyRef.current = true
+    } else if (mode === 'scale-left') {
+      const delta = ds.x - x
+      mapRef.current = { ...m, props: m.props.map(p => p.id===id ? {...p, width:Math.max(10,Math.round(ds.width+delta))} : p) }
+      dirtyRef.current = true
+    } else if (mode === 'scale-bottom') {
+      const delta = y - ds.y
+      mapRef.current = { ...m, props: m.props.map(p => p.id===id ? {...p, height:Math.max(10,Math.round(ds.height+delta))} : p) }
+      dirtyRef.current = true
+    } else if (mode === 'scale-top') {
+      const delta = ds.y - y
+      mapRef.current = { ...m, props: m.props.map(p => p.id===id ? {...p, height:Math.max(10,Math.round(ds.height+delta))} : p) }
       dirtyRef.current = true
     } else if (mode === 'tex-move') {
       const dx = x-ds.x, dy = y-ds.y
@@ -1153,10 +1199,10 @@ export default function MapEditor() {
     setTimeout(autoSave, 100)
   }
   function renameProp(id,name) { updateMap(m => ({ ...m, props:m.props.map(p => p.id===id?{...p,label:name}:p) })) }
-  function copyProp() { const p=mapRef.current?.props?.find(p=>p.id===selectedPropRef.current); if(p) setClipboard({...p}) }
+  function copyProp() { const p=mapRef.current?.props?.find(p=>p.id===selectedPropRef.current); if(p) { setClipboard({...p}); clipboardRef.current={...p} } }
   function pasteProp() {
-    if (!clipboard) return
-    const np = {...clipboard, id:Date.now(), x:clipboard.x+30, y:clipboard.y+30}
+    const cb = clipboardRef.current || clipboard; if (!cb) return
+    const np = {...cb, id:Date.now(), x:cb.x+30, y:cb.y+30}
     updateMap(m => ({ ...m, props:[...(m.props||[]),np] })); setSelectedProp(np.id)
   }
 
@@ -1568,6 +1614,10 @@ export default function MapEditor() {
             return <div className="prop-overlay" style={{left:selProp.x*sx,top:selProp.y*sy,width:(selProp.width||80)*sx,height:(selProp.height||80)*sy,transform:`translate(-50%,-50%) rotate(${selProp.rotation||0}deg)`}}>
               <div className="prop-handle prop-handle-rotate" onMouseDown={e=>startHandleDrag(e,'rotate')}>↺</div>
               <div className="prop-handle prop-handle-scale" onMouseDown={e=>startHandleDrag(e,'scale')}>⤢</div>
+              <div className="prop-edge prop-edge-top" onMouseDown={e=>startHandleDrag(e,'scale-top')} />
+              <div className="prop-edge prop-edge-bottom" onMouseDown={e=>startHandleDrag(e,'scale-bottom')} />
+              <div className="prop-edge prop-edge-left" onMouseDown={e=>startHandleDrag(e,'scale-left')} />
+              <div className="prop-edge prop-edge-right" onMouseDown={e=>startHandleDrag(e,'scale-right')} />
             </div>
           })()}
           </div>{/* cierre editor-canvas-zoom */}
@@ -1828,10 +1878,10 @@ export default function MapEditor() {
                 })}
                 <div className="editor-filter-row">
                   <span className="editor-filter-label">⬜ Escala tile</span>
-                  <input type="range" min="0.1" max="5" step="0.05" value={selTexLayer.scale||1} className="editor-range"
+                  <input type="range" min="0.1" max="1" step="0.05" value={selTexLayer.scale||1} className="editor-range"
                     onChange={e=>{const v=parseFloat(e.target.value);const k=`${selTexLayer.imgUrl}|${selTexLayer.scale||1}`;delete patternCache.current[k];updateTexLayer(selTexLayer.id,'scale',v)}} />
-                  <input type="number" min="0.1" max="5" step="0.05" value={selTexLayer.scale||1} className="editor-filter-num"
-                    onChange={e=>{const v=Math.min(5,Math.max(0.1,parseFloat(e.target.value)||1));const k=`${selTexLayer.imgUrl}|${selTexLayer.scale||1}`;delete patternCache.current[k];updateTexLayer(selTexLayer.id,'scale',v)}} />
+                  <input type="number" min="0.1" max="1" step="0.05" value={selTexLayer.scale||1} className="editor-filter-num"
+                    onChange={e=>{const v=Math.min(1,Math.max(0.1,parseFloat(e.target.value)||1));const k=`${selTexLayer.imgUrl}|${selTexLayer.scale||1}`;delete patternCache.current[k];updateTexLayer(selTexLayer.id,'scale',v)}} />
                 </div>
                 <button className="editor-prop-action-btn" style={{color:'#f87171',width:'100%',marginTop:4}} onClick={()=>deleteTexLayer(selTexLayer.id)}>✕ Borrar capa</button>
                 <button className="editor-prop-action-btn" style={{width:'100%',marginTop:4,...(selTexLayer.locked?{color:'#f59e0b',borderColor:'rgba(245,158,11,0.4)'}:{})}} onClick={()=>toggleTexLock(selTexLayer.id)}>

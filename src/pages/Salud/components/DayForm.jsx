@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import MealAnalyzer from './MealAnalyzer'
+import MealEntries from './MealEntries'
 
 const SLEEP_OPTIONS = [
   { value: 1, label: '😫', desc: 'Muy mal' },
@@ -25,16 +25,25 @@ const CONTORNO_FIELDS = [
   { key: 'pierna', label: '🦵 Pierna' },
 ]
 
+// Migrar formato antiguo (número) a nuevo (array de entries)
+function migrateEntries(existing, key) {
+  const raw = existing?.meals?.[key]
+  if (raw == null) return []
+  if (Array.isArray(raw)) return raw
+  // Formato antiguo: un número
+  return [{ kcal: Number(raw) || 0, items: [] }]
+}
+
 export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelete }) {
-  const [meals, setMeals] = useState({
-    breakfast: existing?.meals?.breakfast ?? '',
-    lunch: existing?.meals?.lunch ?? '',
-    snack: existing?.meals?.snack ?? '',
-    dinner: existing?.meals?.dinner ?? '',
-  })
+  const [meals, setMeals] = useState(() =>
+    Object.fromEntries(MEALS.map(m => [m.key, migrateEntries(existing, m.key)]))
+  )
   const [sleep, setSleep] = useState(existing?.sleep ?? 3)
   const [steps, setSteps] = useState(existing?.steps ?? '')
-  const [strength, setStrength] = useState(existing?.strength ?? false)
+  const [strength, setStrength] = useState(!!existing?.strength)
+  const [strengthType, setStrengthType] = useState(
+    typeof existing?.strength === 'string' ? existing.strength : ''
+  )
   const [weight, setWeight] = useState(existing?.weight ?? '')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -45,27 +54,23 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
   const [contornoOpen, setContornoOpen] = useState(() =>
     CONTORNO_FIELDS.some(f => existing?.contorno?.[f.key] != null)
   )
-  const [fotoMealKey, setFotoMealKey] = useState(null) // meal key for photo modal
+  const [openMealKey, setOpenMealKey] = useState(null)
 
-  const setMeal = (key, val) => setMeals(prev => ({ ...prev, [key]: val }))
-
-  const totalCal = MEALS.reduce((sum, m) => {
-    const v = meals[m.key]
-    return sum + (v !== '' ? Number(v) || 0 : 0)
-  }, 0)
-  const hasCals = MEALS.some(m => meals[m.key] !== '')
+  const mealTotal = (key) => meals[key].reduce((s, e) => s + (e.kcal || 0), 0)
+  const totalCal = MEALS.reduce((s, m) => s + mealTotal(m.key), 0)
+  const hasCals = MEALS.some(m => meals[m.key].length > 0)
 
   const handleSubmit = () => {
     const mealsData = {}
     MEALS.forEach(m => {
-      mealsData[m.key] = meals[m.key] !== '' ? Number(meals[m.key]) : null
+      mealsData[m.key] = meals[m.key].length > 0 ? meals[m.key] : null
     })
     const data = {
       meals: mealsData,
       calories: hasCals ? totalCal : null,
       sleep,
       steps: steps !== '' ? Number(steps) : null,
-      strength,
+      strength: strength ? (strengthType.trim() || true) : false,
       weight: weight !== '' ? Number(weight) : null,
       notes: notes.trim() || null,
       contorno: (() => {
@@ -93,27 +98,24 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
       <div className="salud-meals">
         <span className="salud-label">🔥 Calorías por ingesta</span>
         <div className="salud-meals-grid">
-          {MEALS.map(m => (
-            <label key={m.key} className="salud-meal-item">
-              <span className="salud-meal-label">{m.label}</span>
-              <div className="salud-meal-input-row">
-                <input
-                  type="number"
-                  className="salud-input salud-meal-input"
-                  placeholder="kcal"
-                  value={meals[m.key]}
-                  onChange={e => setMeal(m.key, e.target.value)}
-                  inputMode="numeric"
-                />
-                <button
-                  type="button"
-                  className="salud-meal-camera"
-                  onClick={(e) => { e.preventDefault(); setFotoMealKey(m.key) }}
-                  title="Analizar comida"
-                >＋</button>
-              </div>
-            </label>
-          ))}
+          {MEALS.map(m => {
+            const kcal = mealTotal(m.key)
+            const count = meals[m.key].length
+            return (
+              <button
+                key={m.key}
+                className={`salud-meal-btn ${count > 0 ? 'has-data' : ''}`}
+                onClick={() => setOpenMealKey(m.key)}
+                type="button"
+              >
+                <span className="salud-meal-label">{m.label}</span>
+                <span className="salud-meal-kcal">
+                  {count > 0 ? `${kcal} kcal` : '—'}
+                </span>
+                {count > 1 && <span className="salud-meal-count">{count} reg.</span>}
+              </button>
+            )
+          })}
         </div>
         {hasCals && (
           <div className="salud-meals-total">
@@ -150,46 +152,34 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
 
       <label className="salud-field">
         <span className="salud-label">🚶 Pasos</span>
-        <input
-          type="number"
-          className="salud-input"
-          placeholder="ej: 8000"
-          value={steps}
-          onChange={e => setSteps(e.target.value)}
-          inputMode="numeric"
-        />
+        <input type="number" className="salud-input" placeholder="ej: 8000"
+          value={steps} onChange={e => setSteps(e.target.value)} inputMode="numeric" />
       </label>
 
-      <label className="salud-field salud-field-row">
-        <span className="salud-label">🏋️ Ejercicio de fuerza</span>
-        <button
-          className={`salud-toggle ${strength ? 'on' : ''}`}
-          onClick={() => setStrength(!strength)}
-        >
-          {strength ? 'Sí' : 'No'}
-        </button>
-      </label>
+      <div className="salud-field">
+        <div className="salud-field-row">
+          <span className="salud-label">🏋️ Ejercicio de fuerza</span>
+          <button className={`salud-toggle ${strength ? 'on' : ''}`}
+            onClick={() => setStrength(!strength)}>{strength ? 'Sí' : 'No'}</button>
+        </div>
+        {strength && (
+          <input type="text" className="salud-input salud-strength-type"
+            placeholder="ej: Bíceps, Piernas, Pecho…"
+            value={strengthType}
+            onChange={e => setStrengthType(e.target.value)} />
+        )}
+      </div>
 
       <label className="salud-field">
         <span className="salud-label">⚖️ Peso (kg)</span>
-        <input
-          type="number"
-          className="salud-input"
-          placeholder="ej: 75.2"
-          step="0.1"
-          value={weight}
-          onChange={e => setWeight(e.target.value)}
-          inputMode="decimal"
-        />
+        <input type="number" className="salud-input" placeholder="ej: 75.2" step="0.1"
+          value={weight} onChange={e => setWeight(e.target.value)} inputMode="decimal" />
       </label>
 
       {/* ── Medidas de contorno ── */}
       <div className="salud-contorno">
-        <button
-          className={`salud-contorno-toggle ${contornoOpen ? 'open' : ''}`}
-          onClick={() => setContornoOpen(!contornoOpen)}
-          type="button"
-        >
+        <button className={`salud-contorno-toggle ${contornoOpen ? 'open' : ''}`}
+          onClick={() => setContornoOpen(!contornoOpen)} type="button">
           <span className="salud-label">📐 Medidas de contorno (cm)</span>
           <span className="salud-contorno-chevron">{contornoOpen ? '▲' : '▼'}</span>
         </button>
@@ -198,15 +188,10 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
             {CONTORNO_FIELDS.map(f => (
               <label key={f.key} className="salud-contorno-item">
                 <span className="salud-contorno-label">{f.label}</span>
-                <input
-                  type="number"
-                  className="salud-input salud-contorno-input"
-                  placeholder="cm"
-                  step="0.1"
-                  value={contorno[f.key]}
+                <input type="number" className="salud-input salud-contorno-input" placeholder="cm"
+                  step="0.1" value={contorno[f.key]}
                   onChange={e => setContorno(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  inputMode="decimal"
-                />
+                  inputMode="decimal" />
               </label>
             ))}
           </div>
@@ -215,22 +200,13 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
 
       <label className="salud-field">
         <span className="salud-label">📝 Notas</span>
-        <textarea
-          className="salud-input salud-textarea"
-          placeholder="Opcional…"
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          rows={2}
-        />
+        <textarea className="salud-input salud-textarea" placeholder="Opcional…"
+          value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
       </label>
 
       <div className="salud-form-actions">
-        <button className="salud-btn salud-btn-save" onClick={handleSubmit}>
-          Guardar
-        </button>
-        <button className="salud-btn salud-btn-cancel" onClick={onCancel}>
-          Cancelar
-        </button>
+        <button className="salud-btn salud-btn-save" onClick={handleSubmit}>Guardar</button>
+        <button className="salud-btn salud-btn-cancel" onClick={onCancel}>Cancelar</button>
       </div>
 
       {existing && onDelete && (
@@ -249,14 +225,13 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
         </div>
       )}
 
-      {fotoMealKey && (
-        <MealAnalyzer
-          mealLabel={MEALS.find(m => m.key === fotoMealKey)?.label || ''}
-          onAccept={(kcal) => {
-            setMeal(fotoMealKey, String(kcal))
-            setFotoMealKey(null)
-          }}
-          onClose={() => setFotoMealKey(null)}
+      {openMealKey && (
+        <MealEntries
+          mealKey={openMealKey}
+          mealLabel={MEALS.find(m => m.key === openMealKey)?.label || ''}
+          entries={meals[openMealKey]}
+          onChange={(updated) => setMeals(prev => ({ ...prev, [openMealKey]: updated }))}
+          onClose={() => setOpenMealKey(null)}
         />
       )}
     </div>

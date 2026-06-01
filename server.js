@@ -277,6 +277,68 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireU
   res.json(chapter.images)
 })
 
+// ── Notas del Master (por capítulo) ──────────────────────────
+// Obtener notas de un capítulo
+app.get('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  res.json(chapter.notes || [])
+})
+
+// Crear nota
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser, requireDnDMaster, (req, res) => {
+  const { title, subtitle, body } = req.body
+  if (!title || !title.trim()) return res.status(400).json({ error: 'Título requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  if (!chapter.notes) chapter.notes = []
+  const note = { id: Date.now(), title: title.trim(), subtitle: (subtitle || '').trim(), body: (body || '').trim(), createdAt: Date.now(), updatedAt: Date.now() }
+  chapter.notes.push(note)
+  saveDB(db)
+  res.json(note)
+})
+
+// Actualizar nota
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requireUser, requireDnDMaster, (req, res) => {
+  const { title, subtitle, body } = req.body
+  if (!title || !title.trim()) return res.status(400).json({ error: 'Título requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  const note = (chapter.notes || []).find(n => n.id === parseInt(req.params.noteId))
+  if (!note) return res.status(404).json({ error: 'Nota no encontrada' })
+  note.title = title.trim()
+  note.subtitle = (subtitle || '').trim()
+  note.body = (body || '').trim()
+  note.updatedAt = Date.now()
+  saveDB(db)
+  res.json(note)
+})
+
+// Borrar nota
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  chapter.notes = (chapter.notes || []).filter(n => n.id !== parseInt(req.params.noteId))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
 // Borrar capítulo
 app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requireDnDMaster, (req, res) => {
   const db = getDB()

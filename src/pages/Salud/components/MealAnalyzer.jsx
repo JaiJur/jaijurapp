@@ -1,87 +1,18 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 
 export default function MealAnalyzer({ mealLabel, onAccept, onClose }) {
   const { user } = useAuth()
-  const [tab, setTab] = useState('photo') // 'photo' | 'text'
   const [items, setItems] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // ── Photo state ──
-  const [preview, setPreview] = useState(null)
-  const [base64, setBase64] = useState(null)
-  const fileRef = useRef()
-
   // ── Text state ──
   const [textLines, setTextLines] = useState([{ food: '', qty: '' }])
-
-  const compressImage = (dataUrl) => {
-    return new Promise((resolve) => {
-      const img = new Image()
-      img.onload = () => {
-        const MAX = 1024
-        let w = img.width, h = img.height
-        if (w > MAX || h > MAX) {
-          const ratio = Math.min(MAX / w, MAX / h)
-          w = Math.round(w * ratio)
-          h = Math.round(h * ratio)
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-        const compressed = canvas.toDataURL('image/jpeg', 0.7)
-        resolve(compressed.split(',')[1])
-      }
-      img.src = dataUrl
-    })
-  }
-
-  const handleFile = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setError(null)
-    setItems(null)
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      setPreview(ev.target.result)
-      const compressed = await compressImage(ev.target.result)
-      setBase64(compressed)
-    }
-    reader.readAsDataURL(file)
-  }
 
   const reset = () => {
     setItems(null)
     setError(null)
-  }
-
-  const analyzePhoto = async () => {
-    if (!base64) return
-    setLoading(true)
-    setError(null)
-    try {
-      const resp = await fetch('/api/salud/analyze-meal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-        body: JSON.stringify({ image: base64 }),
-      })
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}))
-        throw new Error(errData.error || `Error ${resp.status}`)
-      }
-      const data = await resp.json()
-      if (!data.items?.length) {
-        setError(data.message || 'No se detectó comida en la foto')
-        return
-      }
-      setItems(data.items)
-    } catch (err) {
-      setError(err.message || 'Error al analizar')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const analyzeText = async () => {
@@ -130,15 +61,6 @@ export default function MealAnalyzer({ mealLabel, onAccept, onClose }) {
     fat: acc.fat + (it.fat || 0),
   }), { kcal: 0, protein: 0, carbs: 0, fat: 0 }) : null
 
-  const switchTab = (t) => {
-    if (t !== tab) {
-      setTab(t)
-      reset()
-      setPreview(null)
-      setBase64(null)
-    }
-  }
-
   return (
     <div className="foto-meal-overlay" onClick={onClose}>
       <div className="foto-meal-modal" onClick={e => e.stopPropagation()}>
@@ -147,53 +69,8 @@ export default function MealAnalyzer({ mealLabel, onAccept, onClose }) {
           <button className="foto-meal-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* Tabs */}
-        <div className="meal-analyzer-tabs">
-          <button
-            className={`meal-analyzer-tab ${tab === 'photo' ? 'active' : ''}`}
-            onClick={() => switchTab('photo')}
-          >📷 Foto</button>
-          <button
-            className={`meal-analyzer-tab ${tab === 'text' ? 'active' : ''}`}
-            onClick={() => switchTab('text')}
-          >✏️ Texto</button>
-        </div>
-
-        {/* ── Photo mode ── */}
-        {tab === 'photo' && !items && (
-          <>
-            <div className="foto-meal-upload" onClick={() => fileRef.current?.click()}>
-              {preview ? (
-                <img src={preview} alt="preview" className="foto-meal-preview" />
-              ) : (
-                <div className="foto-meal-placeholder">
-                  <span className="foto-meal-camera-icon">📷</span>
-                  <span>Toca para añadir foto</span>
-                </div>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFile}
-                style={{ display: 'none' }}
-              />
-            </div>
-            {preview && (
-              <button
-                className="salud-btn salud-btn-save foto-meal-analyze-btn"
-                onClick={analyzePhoto}
-                disabled={loading}
-              >
-                {loading ? '⏳ Analizando…' : '🔍 Analizar'}
-              </button>
-            )}
-          </>
-        )}
-
         {/* ── Text mode ── */}
-        {tab === 'text' && !items && (
+        {!items && (
           <>
             <div className="meal-text-lines">
               {textLines.map((line, i) => (
@@ -299,7 +176,7 @@ export default function MealAnalyzer({ mealLabel, onAccept, onClose }) {
               <button className="salud-btn meal-analyzer-back" onClick={reset}>
                 ← Volver
               </button>
-              <button className="salud-btn salud-btn-save" onClick={() => onAccept(Math.round(totals.kcal))}>
+              <button className="salud-btn salud-btn-save" onClick={() => onAccept(Math.round(totals.kcal), items)}>
                 ✅ Usar {Math.round(totals.kcal)} kcal
               </button>
             </div>
