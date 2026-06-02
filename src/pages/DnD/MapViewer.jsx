@@ -158,6 +158,12 @@ export default function MapViewer() {
   const lastMapIdRef = useRef(null)
   const lastUpdatedRef = useRef(0)
 
+  // ── Particle system refs ──
+  const particleCanvasRef = useRef(null)
+  const particlesRef = useRef({})  // { layerId: [{ x, y, vx, vy, size, alpha, phase }] }
+  const particleRafRef = useRef(null)
+  const particleLayersRef = useRef([]) // desacoplado de map para evitar remount del RAF
+
   // ── Sound command listener ──
   const lastSoundTsRef = useRef(0)
   const audioRef = useRef(null)
@@ -262,13 +268,19 @@ export default function MapViewer() {
 
   // Poll del mapa también: si estamos en modo 'map', refrescar cada 2s
   // (para ver cambios que haga el DM en tiempo real)
+  const lastMapJsonRef = useRef('')
   useEffect(() => {
     if (!viewerState || viewerState.mode !== 'map' || !viewerState.mapId) return
     const id = viewerState.mapId
     const interval = setInterval(async () => {
       try {
         const r = await fetch(`/api/dnd/maps/${id}`)
-        if (r.ok) setMap(await r.json())
+        if (!r.ok) return
+        const text = await r.text()
+        // Solo actualizar si el JSON cambió — evita re-render + redibujado innecesario
+        if (text === lastMapJsonRef.current) return
+        lastMapJsonRef.current = text
+        setMap(JSON.parse(text))
       } catch {}
     }, 2000)
     return () => clearInterval(interval)
@@ -500,6 +512,206 @@ export default function MapViewer() {
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [])
 
+  // ── Particle engine (desacoplado del state map — RAF nunca se destruye por poll) ──
+
+  // Sync particleLayersRef cuando cambia map (sin destruir el RAF)
+  useEffect(() => {
+    if (!map || viewerState?.mode !== 'map') {
+      particleLayersRef.current = []
+      return
+    }
+    particleLayersRef.current = (map.particleLayers || []).filter(l => l.visible)
+  }, [map, viewerState?.mode])
+
+  // RAF loop — se monta cuando hay canvas de partículas (modo map), lee layers de ref
+  useEffect(() => {
+    if (viewerState?.mode !== 'map') return
+    // Pequeño delay para que React monte el canvas antes de leerlo
+    const startDelay = setTimeout(() => {
+      const pc = particleCanvasRef.current
+      if (!pc) return
+      const ctx = pc.getContext('2d')
+      const pMap = particlesRef.current
+      let running = true
+      const FRAME_MS = 33.33 // ~30fps
+      let lastT = 0
+
+      // Cache de fog sprites por color+size
+      const fogSpriteCache = {}
+
+      function getFogSprite(layer) {
+        const key = `${layer.color}|${layer.sizeMax}`
+        if (fogSpriteCache[key]) return fogSpriteCache[key]
+        const hex = layer.color || '#ffffff'
+        const r = parseInt(hex.slice(1,3), 16)
+        const g = parseInt(hex.slice(3,5), 16)
+        const b = parseInt(hex.slice(5,7), 16)
+        const spriteSize = Math.ceil((layer.sizeMax || 80) * 2)
+        const s = document.createElement('canvas')
+        s.width = spriteSize; s.height = spriteSize
+        const sctx = s.getContext('2d')
+        const cx = spriteSize / 2
+        const grad = sctx.createRadialGradient(cx, cx, 0, cx, cx, cx)
+        grad.addColorStop(0, `rgba(${r},${g},${b},0.8)`)
+        grad.addColorStop(0.5, `rgba(${r},${g},${b},0.3)`)
+        grad.addColorStop(1, `rgba(${r},${g},${b},0)`)
+        sctx.fillStyle = grad
+        sctx.fillRect(0, 0, spriteSize, spriteSize)
+        fogSpriteCache[key] = s
+        return s
+      }
+
+      const rgbCache = {}
+      function getRgb(hex) {
+        if (rgbCache[hex]) return rgbCache[hex]
+        const r = parseInt(hex.slice(1,3), 16)
+        const g = parseInt(hex.slice(3,5), 16)
+        const b = parseInt(hex.slice(5,7), 16)
+        const s = `rgb(${r},${g},${b})`
+        rgbCache[hex] = s
+        return s
+      }
+
+      function tick(now) {
+        if (!running) return
+        if (now - lastT < FRAME_MS) { particleRafRef.current = requestAnimationFrame(tick); return }
+        const dt = Math.min((now - lastT) / 16.667, 3)
+        lastT = now
+
+        const layers = particleLayersRef.current
+        const cw = pc.width
+        const ch = pc.height
+
+        if (!layers.length || !cw) {
+          ctx.clearRect(0, 0, cw || 1, ch || 1)
+          particleRafRef.current = requestAnimationFrame(tick)
+          return
+        }
+
+        ctx.clearRect(0, 0, cw, ch)
+
+        for (let li = 0; li < layers.length; li++) {
+          const layer = layers[li]
+          const parts = pMap[layer.id]
+          if (!parts || !parts.length) continue
+
+          const randomDir = layer.direction === -1
+          const dirRad = randomDir ? 0 : (layer.direction || 0) * Math.PI / 180
+          const baseVx = randomDir ? 0 : Math.cos(dirRad)
+          const baseVy = randomDir ? 0 : Math.sin(dirRad)
+          const drift = layer.drift || 0
+          const opacity = layer.opacity || 0.5
+          const margin = (layer.sizeMax || 4) * 2
+          const isFog = layer.type === 'fog'
+          const isFirefly = layer.type === 'fireflies'
+          const hasGlow = layer.glow && !isFog
+          const rgbStr = getRgb(layer.color || '#ffffff')
+          const fogSprite = isFog ? getFogSprite(layer) : null
+
+          if (hasGlow) { ctx.shadowColor = rgbStr; ctx.shadowBlur = (layer.sizeMax || 4) * 3 }
+          if (!isFog) ctx.fillStyle = rgbStr
+
+          for (let i = 0; i < parts.length; i++) {
+            const p = parts[i]
+            const speed = p.speed * dt
+            const vx = randomDir ? p.dirX : baseVx
+            const vy = randomDir ? p.dirY : baseVy
+            p.x += vx * speed + Math.sin(p.phase + now * 0.001) * drift * dt
+            p.y += vy * speed + Math.cos(p.phase + now * 0.0013) * drift * dt * 0.7
+            p.phase += 0.01 * dt
+
+            // Respawn en posición aleatoria al salir del canvas
+            if (p.x < -margin || p.x > cw + margin || p.y < -margin || p.y > ch + margin) {
+              p.x = Math.random() * cw
+              p.y = Math.random() * ch
+              if (randomDir) {
+                const rd = Math.random() * 6.2832
+                p.dirX = Math.cos(rd)
+                p.dirY = Math.sin(rd)
+              }
+            }
+
+            let alpha = opacity * p.baseAlpha
+            if (isFirefly) {
+              const pulse = Math.sin(now * 0.002 * p.pulseSpeed + p.phase)
+              alpha *= 0.3 + 0.7 * (pulse * pulse * 0.25 + 0.175)
+            }
+
+            ctx.globalAlpha = alpha
+            if (isFog && fogSprite) {
+              const sz = p.size * 2
+              ctx.drawImage(fogSprite, p.x - p.size, p.y - p.size, sz, sz)
+            } else {
+              ctx.beginPath()
+              ctx.arc(p.x, p.y, p.size, 0, 6.2832)
+              ctx.fill()
+            }
+          }
+
+          if (hasGlow) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0 }
+        }
+        ctx.globalAlpha = 1
+
+        particleRafRef.current = requestAnimationFrame(tick)
+      }
+      particleRafRef.current = requestAnimationFrame(tick)
+
+      // Cleanup guardado en ref para el return
+      particleRafRef._cleanup = () => { running = false; cancelAnimationFrame(particleRafRef.current) }
+    }, 100) // delay para que el canvas se monte
+
+    return () => {
+      clearTimeout(startDelay)
+      if (particleRafRef._cleanup) { particleRafRef._cleanup(); particleRafRef._cleanup = null }
+    }
+  }, [viewerState?.mode]) // solo cambia al cambiar de modo, NO con cada poll de mapa
+
+  // Reconcile particles cuando cambian las layers (sin tocar el RAF)
+  useEffect(() => {
+    const layers = particleLayersRef.current
+    const pc = particleCanvasRef.current
+    if (!pc) return
+    const pMap = particlesRef.current
+
+    // Resize canvas para coincidir con el mapa — ANTES de spawnear
+    if (map) {
+      const nw = map.canvasW || 1600
+      const nh = map.canvasH || 1000
+      if (pc.width !== nw || pc.height !== nh) { pc.width = nw; pc.height = nh }
+    }
+
+    const cw = pc.width || 1600
+    const ch = pc.height || 1000
+
+    layers.forEach(layer => {
+      const existing = pMap[layer.id] || []
+      const target = layer.count || 50
+      while (existing.length < target) existing.push(spawnParticle(layer, cw, ch, true))
+      if (existing.length > target) existing.length = target
+      pMap[layer.id] = existing
+    })
+    // Cleanup removed layers
+    const activeIds = new Set(layers.map(l => l.id))
+    Object.keys(pMap).forEach(id => { if (!activeIds.has(parseInt(id))) delete pMap[id] })
+  }, [map, viewerState?.mode])
+
+  function spawnParticle(layer, cw, ch, randomPos) {
+    const sMin = layer.sizeMin || 1
+    const sMax = layer.sizeMax || 4
+    const randDir = Math.random() * Math.PI * 2
+    return {
+      x: randomPos ? Math.random() * cw : -20,
+      y: randomPos ? Math.random() * ch : Math.random() * ch,
+      size: sMin + Math.random() * (sMax - sMin),
+      speed: (layer.speedMin || 0.1) + Math.random() * ((layer.speedMax || 0.5) - (layer.speedMin || 0.1)),
+      phase: Math.random() * Math.PI * 2,
+      baseAlpha: 0.5 + Math.random() * 0.5,
+      pulseSpeed: 0.5 + Math.random() * 1.5,
+      dirX: Math.cos(randDir),  // dirección individual (para mode aleatorio)
+      dirY: Math.sin(randDir),
+    }
+  }
+
   const mode = viewerState?.mode || 'blank'
 
   return (
@@ -551,6 +763,7 @@ export default function MapViewer() {
           height: (viewerState?.rotation === 90 || viewerState?.rotation === 270) ? '100vw' : '100vh',
         }}>
           <canvas ref={canvasRef} className="viewer-canvas" />
+          <canvas ref={particleCanvasRef} className="viewer-particle-canvas" />
         </div>
       )}
 

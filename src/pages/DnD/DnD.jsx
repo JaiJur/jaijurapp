@@ -865,7 +865,7 @@ export default function DnD() {
                               <div className="dnd-notes-grid">
                                 {(chapter.notes||[]).length === 0 && <div className="dnd-empty-sm">Sin notas — ¡añade la primera!</div>}
                                 {(chapter.notes||[]).map(note => (
-                                  <div key={note.id} className="dnd-note-card" onClick={() => setNoteModal({ campaignId: campaign.id, chapterId: chapter.id, mode: 'edit', note: { ...note } })}>
+                                  <div key={note.id} className="dnd-note-card" onClick={() => setNoteModal({ campaignId: campaign.id, chapterId: chapter.id, mode: 'view', note: { ...note } })}>
                                     <div className="dnd-note-card-title">{note.title}</div>
                                     {note.subtitle && <div className="dnd-note-card-subtitle">{note.subtitle}</div>}
                                     {note.body && <div className="dnd-note-card-body">{note.body.length > 120 ? note.body.slice(0, 120) + '…' : note.body}</div>}
@@ -951,40 +951,65 @@ export default function DnD() {
           />
         )}
 
-        {/* ── Note Modal (crear/editar) ── */}
+        {/* ── Note Modal (ver/crear/editar) ── */}
         {noteModal && (
           <div className="dnd-modal-overlay" onClick={() => setNoteModal(null)}>
             <div className="dnd-note-modal" onClick={e => e.stopPropagation()}>
-              <h3>{noteModal.mode === 'create' ? '📝 Nueva Nota' : '📝 Editar Nota'}</h3>
-              <input
-                className="dnd-input"
-                placeholder="Título *"
-                value={noteModal.note.title}
-                onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, title: e.target.value } }))}
-                autoFocus
-              />
-              <input
-                className="dnd-input"
-                placeholder="Subtítulo (opcional)"
-                value={noteModal.note.subtitle}
-                onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, subtitle: e.target.value } }))}
-              />
-              <textarea
-                className="dnd-textarea"
-                placeholder="Contenido de la nota..."
-                rows={8}
-                value={noteModal.note.body}
-                onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, body: e.target.value } }))}
-              />
-              <div className="dnd-modal-btns">
-                <button className="dnd-btn-primary" onClick={() => saveNote(noteModal.campaignId, noteModal.chapterId, noteModal.note)} disabled={!noteModal.note.title.trim()}>
-                  {noteModal.mode === 'create' ? 'Crear' : 'Guardar'}
-                </button>
-                {noteModal.mode === 'edit' && (
-                  <button className="dnd-btn-danger" onClick={() => deleteNote(noteModal.campaignId, noteModal.chapterId, noteModal.note.id)}>Eliminar</button>
-                )}
-                <button className="dnd-btn-cancel" onClick={() => setNoteModal(null)}>Cancelar</button>
-              </div>
+              {noteModal.mode === 'view' ? (
+                <>
+                  <div className="dnd-note-view-header">
+                    <h3>{noteModal.note.title}</h3>
+                    <button className="dnd-note-edit-icon" onClick={() => setNoteModal(prev => ({ ...prev, mode: 'edit' }))} title="Editar nota">✏️</button>
+                  </div>
+                  {noteModal.note.subtitle && <div className="dnd-note-view-subtitle">{noteModal.note.subtitle}</div>}
+                  {noteModal.note.body && <div className="dnd-note-view-body">{noteModal.note.body}</div>}
+                  <div className="dnd-modal-btns">
+                    <button className="dnd-btn-cancel" onClick={() => setNoteModal(null)}>Cerrar</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>{noteModal.mode === 'create' ? '📝 Nueva Nota' : '📝 Editar Nota'}</h3>
+                  <div className="dnd-note-field-row">
+                    <input
+                      className="dnd-input"
+                      placeholder="Título *"
+                      value={noteModal.note.title}
+                      onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, title: e.target.value } }))}
+                      autoFocus={noteModal.mode === 'create'}
+                    />
+                  </div>
+                  <div className="dnd-note-field-row">
+                    <input
+                      className="dnd-input"
+                      placeholder="Subtítulo (opcional)"
+                      value={noteModal.note.subtitle}
+                      onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, subtitle: e.target.value } }))}
+                    />
+                  </div>
+                  <div className="dnd-note-field-row">
+                    <textarea
+                      className="dnd-textarea"
+                      placeholder="Contenido de la nota..."
+                      rows={8}
+                      value={noteModal.note.body}
+                      onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, body: e.target.value } }))}
+                    />
+                  </div>
+                  <div className="dnd-modal-btns">
+                    <button className="dnd-btn-primary" onClick={() => saveNote(noteModal.campaignId, noteModal.chapterId, noteModal.note)} disabled={!noteModal.note.title.trim()}>
+                      {noteModal.mode === 'create' ? 'Crear' : 'Guardar'}
+                    </button>
+                    {noteModal.mode === 'edit' && (
+                      <button className="dnd-btn-danger" onClick={() => deleteNote(noteModal.campaignId, noteModal.chapterId, noteModal.note.id)}>Eliminar</button>
+                    )}
+                    <button className="dnd-btn-cancel" onClick={() => {
+                      if (noteModal.mode === 'edit') setNoteModal(prev => ({ ...prev, mode: 'view' }))
+                      else setNoteModal(null)
+                    }}>{noteModal.mode === 'edit' ? 'Volver' : 'Cancelar'}</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -158,3 +158,12 @@
   transition: transform 0.3s ease-out, width 0.3s ease-out, height 0.3s ease-out;
   overflow: hidden;
 }
+
+
+/* ── Particle overlay canvas ── */
+.viewer-particle-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 2;
+}

@@ -702,3 +702,31 @@
   right: -4px; top: 10px; bottom: 10px; width: 8px;
   cursor: e-resize;
 }
+
+
+/* ── Partículas ─────────────────────────────────── */
+.particle-add-bar {
+  display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0;
+}
+.particle-add-btn {
+  font-size: 0.7rem !important; padding: 3px 8px !important;
+  background: rgba(168,85,247,0.12) !important; border-color: rgba(168,85,247,0.25) !important;
+  color: #c4b5fd !important;
+}
+.particle-add-btn:hover {
+  background: rgba(168,85,247,0.25) !important;
+}
+.particle-inspector {
+  padding: 8px 0; display: flex; flex-direction: column; gap: 6px;
+}
+.particle-color-input {
+  width: 36px; height: 24px; border: 1px solid rgba(200,169,110,0.25);
+  border-radius: 4px; background: transparent; cursor: pointer; padding: 0;
+}
+.editor-select {
+  width: 100%; padding: 4px 6px; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(200,169,110,0.2); border-radius: 4px;
+  color: #c8a96e; font-size: 0.75rem; outline: none;
+}
+.editor-select:focus { border-color: rgba(200,169,110,0.45); }
+.editor-select option { background: #1a1a22; color: #c8a96e; }

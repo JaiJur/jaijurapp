@@ -118,8 +118,9 @@ export default function MapEditor() {
   const [drawingTex, setDrawingTex] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
-  const [collapsed, setCollapsed] = useState({ fog: true, scene: true, inspector: true, textures: true, groups: true, tools: true, grid: true, props: true, leftTex: true })
+  const [collapsed, setCollapsed] = useState({ fog: true, scene: true, inspector: true, textures: true, groups: true, tools: true, grid: true, props: true, leftTex: true, particles: true })
   const [expandedGroups, setExpandedGroups] = useState({})
+  const [selectedParticle, setSelectedParticle] = useState(null)
   const [zoom, setZoom] = useState(1)
 
   // ── Refs (no causan re-render) ──────────────────────
@@ -1143,6 +1144,41 @@ export default function MapEditor() {
     updateMap(m => ({ ...m, textureLayers:(m.textureLayers||[]).map(t => t.id===id?{...t, visible: t.visible === false ? true : false}:t) }))
     setTimeout(autoSave, 100)
   }
+  // ── Partículas CRUD ────────────────────────────────
+  const PARTICLE_PRESETS = {
+    dust:      { label: '💨 Polvo',       color: '#c8b88a', count: 50,  sizeMin: 1, sizeMax: 3,  speedMin: 0.1, speedMax: 0.4, direction: -1,  drift: 0.5, glow: false, opacity: 0.5 },
+    fog:       { label: '🌫 Niebla',      color: '#aabbcc', count: 25,  sizeMin: 40, sizeMax: 80, speedMin: 0.2, speedMax: 0.5, direction: 180, drift: 0.2, glow: false, opacity: 0.15 },
+    snow:      { label: '❄ Nevisca',      color: '#ffffff', count: 80,  sizeMin: 2, sizeMax: 5,  speedMin: 0.3, speedMax: 1.0, direction: 260, drift: 0.6, glow: false, opacity: 0.7 },
+    fireflies: { label: '✨ Luciérnagas', color: '#e8ff6b', count: 30,  sizeMin: 2, sizeMax: 4,  speedMin: 0.05, speedMax: 0.2, direction: -1, drift: 1.0, glow: true,  opacity: 0.8 },
+  }
+  function addParticleLayer(type) {
+    const preset = PARTICLE_PRESETS[type] || PARTICLE_PRESETS.dust
+    const layer = {
+      id: Date.now(), name: preset.label, type,
+      points: null, // null = todo el canvas
+      count: preset.count, color: preset.color, opacity: preset.opacity,
+      sizeMin: preset.sizeMin, sizeMax: preset.sizeMax,
+      speedMin: preset.speedMin, speedMax: preset.speedMax,
+      direction: preset.direction, drift: preset.drift,
+      glow: preset.glow, visible: true, locked: false,
+    }
+    updateMap(m => ({ ...m, particleLayers: [...(m.particleLayers || []), layer] }))
+    setSelectedParticle(layer.id)
+    setTimeout(autoSave, 100)
+  }
+  function updateParticleField(id, field, val) {
+    updateMap(m => ({ ...m, particleLayers: (m.particleLayers||[]).map(p => p.id===id ? {...p, [field]: val} : p) }))
+  }
+  function deleteParticle(id) {
+    updateMap(m => ({ ...m, particleLayers: (m.particleLayers||[]).filter(p => p.id!==id) }))
+    if (selectedParticle === id) setSelectedParticle(null)
+    setTimeout(autoSave, 100)
+  }
+  function toggleParticleVisible(id) {
+    updateMap(m => ({ ...m, particleLayers: (m.particleLayers||[]).map(p => p.id===id ? {...p, visible: !p.visible} : p) }))
+    setTimeout(autoSave, 100)
+  }
+
   // DnD reorder nieblas
   const fogDragItemRef = useRef(null); const fogDragOverRef = useRef(null)
   function handleFogDragStart(id) { fogDragItemRef.current = id }
@@ -1903,6 +1939,131 @@ export default function MapEditor() {
                   </div>
                 )}
               </div>
+              })()}
+            </>}
+          </section>
+
+          <div className="editor-section-divider" />
+
+          {/* Partículas */}
+          <section className="editor-section">
+            <div className="section-header" onClick={() => toggleCollapse('particles')}>
+              <label className="editor-label" style={{cursor:'pointer',margin:0}}>✨ Partículas ({(map.particleLayers||[]).length})</label>
+              <span className="section-chevron">{collapsed.particles?'▸':'▾'}</span>
+            </div>
+            {!collapsed.particles && <>
+              <div className="particle-add-bar">
+                {Object.entries(PARTICLE_PRESETS).map(([type, preset]) => (
+                  <button key={type} className="dnd-btn-sm particle-add-btn" onClick={() => addParticleLayer(type)}>
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              {!(map.particleLayers||[]).length && <div className="editor-empty-scene">Sin efectos de partículas</div>}
+              <div className="editor-scene-list">
+                {(map.particleLayers||[]).map(pl => {
+                  const isSel = selectedParticle === pl.id
+                  return (
+                    <div key={pl.id} className={`editor-scene-item ${isSel?'selected':''} ${!pl.visible?'prop-hidden':''}`}
+                      onClick={() => setSelectedParticle(isSel ? null : pl.id)}>
+                      <span className="editor-scene-icon">{PARTICLE_PRESETS[pl.type]?.label?.charAt(0) || '✨'}</span>
+                      <span className="editor-scene-name">{pl.name}</span>
+                      <div className="editor-scene-actions">
+                        <button onClick={e => { e.stopPropagation(); toggleParticleVisible(pl.id) }}>
+                          {pl.visible ? '👁' : '🙈'}
+                        </button>
+                        <button className="editor-scene-del" onClick={e => { e.stopPropagation(); deleteParticle(pl.id) }}>✕</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {selectedParticle && (() => {
+                const pl = (map.particleLayers||[]).find(p => p.id === selectedParticle)
+                if (!pl) return null
+                return (
+                  <div className="particle-inspector">
+                    <input className="editor-input-name" value={pl.name||''} placeholder="Nombre..."
+                      onChange={e => updateParticleField(pl.id, 'name', e.target.value)} onBlur={() => setTimeout(autoSave, 50)} />
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Tipo</span>
+                      <select className="editor-select" value={pl.type} onChange={e => {
+                        const preset = PARTICLE_PRESETS[e.target.value]
+                        if (!preset) return
+                        updateMap(m => ({ ...m, particleLayers: m.particleLayers.map(p => p.id===pl.id ? {
+                          ...p, type: e.target.value, name: preset.label,
+                          color: preset.color, count: preset.count, opacity: preset.opacity,
+                          sizeMin: preset.sizeMin, sizeMax: preset.sizeMax,
+                          speedMin: preset.speedMin, speedMax: preset.speedMax,
+                          direction: preset.direction, drift: preset.drift, glow: preset.glow,
+                        } : p) }))
+                        setTimeout(autoSave, 100)
+                      }}>
+                        {Object.entries(PARTICLE_PRESETS).map(([t, p]) => <option key={t} value={t}>{p.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Cantidad: {pl.count}</span>
+                      <input type="range" min="5" max="200" value={pl.count} className="editor-range"
+                        onChange={e => updateParticleField(pl.id, 'count', parseInt(e.target.value))}
+                        onMouseUp={() => setTimeout(autoSave, 50)} />
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Opacidad: {pl.opacity}</span>
+                      <input type="range" min="0.05" max="1" step="0.05" value={pl.opacity} className="editor-range"
+                        onChange={e => updateParticleField(pl.id, 'opacity', parseFloat(e.target.value))}
+                        onMouseUp={() => setTimeout(autoSave, 50)} />
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Color</span>
+                      <input type="color" value={pl.color} className="particle-color-input"
+                        onChange={e => updateParticleField(pl.id, 'color', e.target.value)}
+                        onBlur={() => setTimeout(autoSave, 50)} />
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Tamaño: {pl.sizeMin}–{pl.sizeMax}px</span>
+                      <div className="editor-field-row">
+                        <input type="number" className="editor-filter-num" min="1" max="200" value={pl.sizeMin}
+                          onChange={e => updateParticleField(pl.id, 'sizeMin', Math.max(1, parseInt(e.target.value)||1))} onBlur={() => setTimeout(autoSave, 50)} />
+                        <span className="editor-field-unit">–</span>
+                        <input type="number" className="editor-filter-num" min="1" max="200" value={pl.sizeMax}
+                          onChange={e => updateParticleField(pl.id, 'sizeMax', Math.max(1, parseInt(e.target.value)||1))} onBlur={() => setTimeout(autoSave, 50)} />
+                      </div>
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Velocidad: {pl.speedMin}–{pl.speedMax}</span>
+                      <div className="editor-field-row">
+                        <input type="number" className="editor-filter-num" min="0" max="5" step="0.05" value={pl.speedMin}
+                          onChange={e => updateParticleField(pl.id, 'speedMin', Math.max(0, parseFloat(e.target.value)||0))} onBlur={() => setTimeout(autoSave, 50)} />
+                        <span className="editor-field-unit">–</span>
+                        <input type="number" className="editor-filter-num" min="0" max="5" step="0.05" value={pl.speedMax}
+                          onChange={e => updateParticleField(pl.id, 'speedMax', Math.max(0, parseFloat(e.target.value)||0))} onBlur={() => setTimeout(autoSave, 50)} />
+                      </div>
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Dirección: {pl.direction === -1 ? 'Aleatorio' : pl.direction + '°'}</span>
+                      <input type="range" min="-1" max="359" value={pl.direction} className="editor-range"
+                        onChange={e => updateParticleField(pl.id, 'direction', parseInt(e.target.value))}
+                        onMouseUp={() => setTimeout(autoSave, 50)} />
+                      <div className="editor-presets">
+                        <button className={`editor-preset-btn ${pl.direction===-1?'active':''}`} onClick={() => { updateParticleField(pl.id, 'direction', -1); setTimeout(autoSave, 50) }}>🔀</button>
+                        {[0,90,180,270].map(d => <button key={d} className={`editor-preset-btn ${pl.direction===d?'active':''}`} onClick={() => { updateParticleField(pl.id, 'direction', d); setTimeout(autoSave, 50) }}>{d}°</button>)}
+                      </div>
+                    </div>
+                    <div className="editor-inspector-field">
+                      <span className="editor-field-label">Deriva: {pl.drift}</span>
+                      <input type="range" min="0" max="2" step="0.1" value={pl.drift} className="editor-range"
+                        onChange={e => updateParticleField(pl.id, 'drift', parseFloat(e.target.value))}
+                        onMouseUp={() => setTimeout(autoSave, 50)} />
+                    </div>
+                    <label className="editor-checkbox-label">
+                      <input type="checkbox" checked={pl.glow} onChange={e => { updateParticleField(pl.id, 'glow', e.target.checked); setTimeout(autoSave, 50) }} /> Efecto glow
+                    </label>
+                    <div className="editor-prop-actions-row" style={{marginTop: 8}}>
+                      <button className="editor-prop-action-btn" style={{color:'#f87171'}} onClick={() => deleteParticle(pl.id)}>✕ Borrar</button>
+                    </div>
+                  </div>
+                )
               })()}
             </>}
           </section>
