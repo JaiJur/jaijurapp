@@ -107,6 +107,11 @@ export function TraitCard({ trait }) {
           {trait.name}
           {trait.uses && <span className="trait-card-uses">({trait.uses})</span>}
         </div>
+        {trait.maxUses > 0 && (
+          <div className="trait-card-dots">
+            {Array.from({length: trait.maxUses}, (_,i) => <span key={i} className="party-slot-dot" />)}
+          </div>
+        )}
         <div className="trait-card-preview">{desc}</div>
       </div>
       {open && (
@@ -117,6 +122,11 @@ export function TraitCard({ trait }) {
               <h3 className="lore-detail-title">{trait.name}</h3>
               {trait.uses && <span className="glossary-linked-rarity">{trait.uses}</span>}
             </div>
+            {trait.maxUses > 0 && (
+              <div className="trait-card-dots" style={{justifyContent:'center',padding:'4px 0 8px'}}>
+                {Array.from({length: trait.maxUses}, (_,i) => <span key={i} className="party-slot-dot" />)}
+              </div>
+            )}
             <div className="lore-detail-body">
               <p className="lore-detail-text">{desc}</p>
             </div>

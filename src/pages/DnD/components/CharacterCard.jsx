@@ -119,7 +119,7 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
               </SectionAccordion>
             )}
 
-            {(hasActions || hasSpellSlots) && (
+            {(hasActions || hasSpellSlots || (character.classResources||[]).length > 0) && (
               <SectionAccordion id="actions" label="Acciones" count={hasActions ? character.actions.length : undefined} openSections={openSections} toggleSec={toggleSec}>
                 {hasSpellSlots && (
                   <div className="glossary-spell-slots">
@@ -130,6 +130,18 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
                         if (!val) return null
                         return <span key={lv} className="glossary-spell-slot-badge">Nv.{lv}: {val}</span>
                       })}
+                    </div>
+                  </div>
+                )}
+                {(character.classResources||[]).length > 0 && (
+                  <div className="glossary-spell-slots">
+                    <span className="glossary-spell-slots-label">⚡ Recursos de clase:</span>
+                    <div className="glossary-spell-slots-grid">
+                      {character.classResources.map((cr,i) => (
+                        <span key={i} className="glossary-spell-slot-badge class-resource-badge">
+                          {cr.name}: <span className="trait-card-dots" style={{display:'inline-flex',gap:2,marginLeft:4}}>{Array.from({length:cr.max},(_,j)=><span key={j} className="party-slot-dot" />)}</span>
+                        </span>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -149,7 +161,7 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
               <SectionAccordion id="abilities" label="Habilidades especiales" count={character.abilities.length} openSections={openSections} toggleSec={toggleSec}>
                 <div className="trait-cards-grid">
                   {character.abilities.map((ab,i) => (
-                    <TraitCard key={i} trait={{ name: ab.name, description: ab.description, uses: ab.uses }} />
+                    <TraitCard key={i} trait={{ name: ab.name, description: ab.description, uses: ab.uses, maxUses: ab.maxUses }} />
                   ))}
                 </div>
               </SectionAccordion>

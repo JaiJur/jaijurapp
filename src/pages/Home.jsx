@@ -42,6 +42,18 @@ const APPS = [
     href: '/salud',
   },
   {
+    id: 'notes',
+    label: 'Notas',
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="6" width="28" height="36" rx="3" stroke="currentColor" strokeWidth="2.2" fill="none"/>
+        <path d="M16 16h16M16 22h16M16 28h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M30 32l4 4 6-8" stroke="#ff6a00" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    href: '/notes',
+  },
+  {
     id: 'users',
     label: 'Usuarios',
     masterOnly: true,
@@ -61,7 +73,7 @@ export default function Home() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const APP_ID_MAP = { mealplanner: 'planner', dnd: 'dnd', salud: 'salud' }
+  const APP_ID_MAP = { mealplanner: 'planner', dnd: 'dnd', salud: 'salud', notes: 'notes' }
   const visibleApps = (user?.role === 'master' || user?.role === 'premium')
     ? APPS.filter(app => !app.masterOnly || user?.role === 'master')
     : APPS.filter(app => !app.masterOnly && (user?.apps || []).includes(APP_ID_MAP[app.id] || app.id))

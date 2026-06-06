@@ -13,6 +13,7 @@ const MapEditor = lazy(() => import('./pages/DnD/MapEditor'))
 const MapViewer = lazy(() => import('./pages/DnD/MapViewer'))
 const PartyViewer = lazy(() => import('./pages/DnD/PartyViewer'))
 const Salud = lazy(() => import('./pages/Salud/Salud'))
+const Notes = lazy(() => import('./pages/Notes/Notes'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
 
 const Loading = () => <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'#888',fontFamily:'sans-serif'}}>Cargando…</div>
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/meal-planner" element={<ProtectedRoute><MealPlanner /></ProtectedRoute>} />
 
           <Route path="/salud" element={<ProtectedRoute><Salud /></ProtectedRoute>} />
+          <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute roles={['master']}><UsersPage /></ProtectedRoute>} />
           <Route path="/dnd" element={<DnD />} />
           <Route path="/dnd/editor/:mapId" element={<ProtectedRoute roles={['master','dndMaster']}><MapEditor /></ProtectedRoute>} />

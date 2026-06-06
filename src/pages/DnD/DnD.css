@@ -1671,6 +1671,16 @@ textarea.dnd-input {
   background: rgba(200,169,110,0.08);
   padding: 1px 5px; border-radius: 4px;
 }
+.party-init-edit {
+  cursor: pointer; display: inline-flex; align-items: center; gap: 2px;
+}
+.party-init-edit:hover { background: rgba(200,169,110,0.2); }
+.party-init-input {
+  width: 36px; background: rgba(0,0,0,0.4); border: 1px solid #c8a96e;
+  color: #fff; font-size: 0.7rem; text-align: center; border-radius: 3px;
+  padding: 1px 2px; outline: none;
+}
+.party-init-input:focus { border-color: #e4c87c; box-shadow: 0 0 4px rgba(200,169,110,0.4); }
 .party-mini-conditions {
   display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; width: 100%;
 }
@@ -3010,6 +3020,25 @@ textarea.dnd-input {
   overflow-y: auto;
   box-shadow: 0 8px 40px rgba(0,0,0,0.7);
 }
+@media (min-width: 601px) {
+  .dnd-note-modal {
+    width: 80vw;
+    max-width: 80vw;
+    height: 90vh;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .dnd-note-view-body {
+    flex: 1;
+    max-height: none;
+    overflow-y: auto;
+  }
+  .dnd-textarea {
+    flex: 1;
+    min-height: 300px;
+  }
+}
 .dnd-note-modal h3 {
   color: #c8a96e;
   margin: 0 0 16px;
@@ -3080,4 +3109,309 @@ textarea.dnd-input {
 }
 .dnd-note-field-row {
   margin-bottom: 8px;
+}
+
+/* ── Note Image Shortcuts ── */
+.dnd-note-shortcuts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.dnd-note-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(200, 169, 110, 0.1);
+  border: 1px solid rgba(200, 169, 110, 0.25);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.dnd-note-shortcut img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.dnd-note-shortcut-name {
+  font-size: 0.8rem;
+  color: #c8a96e;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dnd-note-shortcut-btns {
+  display: flex;
+  gap: 2px;
+}
+.dnd-note-shortcut-btns button {
+  background: none;
+  border: 1px solid rgba(200, 169, 110, 0.2);
+  border-radius: 4px;
+  padding: 2px 5px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.dnd-note-shortcut-btns button:hover {
+  background: rgba(200, 169, 110, 0.2);
+}
+.dnd-note-shortcut-remove {
+  background: none;
+  border: 1px solid rgba(220, 50, 50, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  color: #f87171;
+  font-size: 0.75rem;
+}
+.dnd-note-shortcut-remove:hover {
+  background: rgba(220, 50, 50, 0.2);
+}
+.dnd-note-shortcuts-edit {
+  border-top: 1px solid rgba(200, 169, 110, 0.15);
+  padding-top: 8px;
+}
+.dnd-note-shortcuts-label {
+  font-size: 0.85rem;
+  color: #c8a96e;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.dnd-note-img-picker {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(200, 169, 110, 0.2);
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.dnd-note-img-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+.dnd-note-img-picker-folder {
+  padding: 8px;
+  background: rgba(200, 169, 110, 0.08);
+  border: 1px solid rgba(200, 169, 110, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #c8a96e;
+  text-align: center;
+}
+.dnd-note-img-picker-folder:hover {
+  background: rgba(200, 169, 110, 0.18);
+}
+.dnd-note-img-picker-item {
+  cursor: pointer;
+  text-align: center;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(200, 169, 110, 0.15);
+  transition: border-color 0.15s;
+}
+.dnd-note-img-picker-item:hover {
+  border-color: rgba(200, 169, 110, 0.5);
+}
+.dnd-note-img-picker-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+.dnd-note-img-picker-item span {
+  display: block;
+  font-size: 0.65rem;
+  color: #aaa;
+  padding: 2px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Note Folders & Drag-and-Drop ── */
+.dnd-notes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.dnd-note-folder {
+  border: 1px solid rgba(200, 169, 110, 0.15);
+  border-radius: 8px;
+  background: rgba(30, 28, 24, 0.5);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.dnd-note-folder.dnd-folder-dragover {
+  border-color: rgba(200, 169, 110, 0.6);
+  box-shadow: 0 0 12px rgba(200, 169, 110, 0.15);
+  background: rgba(200, 169, 110, 0.05);
+}
+.dnd-note-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.dnd-note-folder-icon {
+  font-size: 1.1rem;
+}
+.dnd-note-folder-name {
+  color: #c8a96e;
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dnd-note-folder-count {
+  background: rgba(200, 169, 110, 0.15);
+  color: #c8a96e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+.dnd-note-folder-actions {
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dnd-note-folder-header:hover .dnd-note-folder-actions {
+  opacity: 1;
+}
+.dnd-note-folder-content {
+  padding: 4px 10px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dnd-notes-root-zone {
+  min-height: 20px;
+  border-radius: 8px;
+  transition: border-color 0.2s, background 0.2s;
+  border: 1px dashed transparent;
+  padding: 2px;
+}
+.dnd-notes-root-zone.dnd-folder-dragover {
+  border-color: rgba(200, 169, 110, 0.4);
+  background: rgba(200, 169, 110, 0.04);
+}
+.dnd-drop-hint {
+  color: rgba(200, 169, 110, 0.4) !important;
+  font-style: italic;
+  text-align: center;
+  padding: 12px;
+}
+
+/* Note card with drag handle */
+.dnd-note-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.dnd-note-drag-handle {
+  color: rgba(200, 169, 110, 0.3);
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1.3;
+  padding: 2px 0;
+  flex-shrink: 0;
+  user-select: none;
+  transition: color 0.15s;
+}
+.dnd-note-card:hover .dnd-note-drag-handle {
+  color: rgba(200, 169, 110, 0.7);
+}
+.dnd-note-drag-handle:active {
+  cursor: grabbing;
+}
+.dnd-note-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Mobile: always show folder actions */
+@media (max-width: 600px) {
+  .dnd-note-folder-actions { opacity: 1; }
+  .dnd-note-folder-header { padding: 10px 8px; }
+  .dnd-note-folder-content { padding: 4px 6px 8px 6px; }
+}
+
+/* ── Floor texture thumbnails ── */
+.floor-thumb { position: relative; }
+.floor-thumb .dnd-image-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.floor-delete-btn {
+  background: rgba(220, 50, 50, 0.7);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: .7rem;
+  padding: 2px 5px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.floor-thumb:hover .floor-delete-btn { opacity: 1; }
+.floor-delete-btn:hover { background: rgba(248, 113, 113, 0.9); }
+
+/* ── Ability slot dots (trait cards & party tracker) ── */
+.trait-card-dots {
+  display: flex; gap: 3px; padding: 2px 0; flex-wrap: wrap;
+}
+.party-ability-slot-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Party resource rows (spell slots & class resources, inline) ── */
+.party-resources-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0;
+}
+.party-res-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 3px 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.party-res-row:active {
+  opacity: 0.7;
+}
+.party-res-icon {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+.party-res-name {
+  font-size: 0.7rem;
+  color: #c8a96e;
+  font-weight: 600;
+  min-width: 36px;
+  flex-shrink: 0;
 }

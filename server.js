@@ -1,6 +1,6 @@
 import express from 'express'
 import bcrypt from 'bcrypt'
-import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, unlinkSync } from 'fs'
 import { resolve, join, normalize } from 'path'
 import { randomBytes } from 'crypto'
 
@@ -161,6 +161,40 @@ app.get('/api/assets/floors', (req, res) => {
   } catch { res.json([]) }
 })
 
+// Subir textura de suelo
+const FLOORS_ROOT = resolve('./public/textures/floors')
+app.post('/api/dnd/floors/upload', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { data, filename } = req.body
+    if (!data || !filename) return res.status(400).json({ error: 'Datos requeridos' })
+    mkdirSync(FLOORS_ROOT, { recursive: true })
+    const ext = filename.split('.').pop().toLowerCase()
+    if (!/^(png|jpg|jpeg|webp)$/.test(ext)) return res.status(400).json({ error: 'Formato no soportado (png/jpg/webp)' })
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const finalName = safeName.length > 3 ? safeName : `${Date.now()}.${ext}`
+    const buf = Buffer.from(data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+    writeFileSync(join(FLOORS_ROOT, finalName), buf)
+    res.json({ url: `/textures/floors/${encodeURIComponent(finalName)}`, name: finalName.replace(/\.[^.]+$/, ''), file: finalName })
+  } catch (e) {
+    console.error('Floor upload error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Borrar textura de suelo
+app.delete('/api/dnd/floors/:filename', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { filename } = req.params
+    const filePath = normalize(join(FLOORS_ROOT, filename))
+    if (!filePath.startsWith(FLOORS_ROOT)) return res.status(400).json({ error: 'Ruta inválida' })
+    unlinkSync(filePath)
+    res.json({ ok: true })
+  } catch (e) {
+    if (e.code === 'ENOENT') return res.status(404).json({ error: 'Archivo no encontrado' })
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── API: D&D ─────────────────────────────────────────────
 function getDnDData(db) {
   if (!db.dnd) db.dnd = { campaigns: [], characters: [] }
@@ -300,7 +334,8 @@ app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser
   const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
   if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
   if (!chapter.notes) chapter.notes = []
-  const note = { id: Date.now(), title: title.trim(), subtitle: (subtitle || '').trim(), body: (body || '').trim(), createdAt: Date.now(), updatedAt: Date.now() }
+  const folderId = req.body.folderId || null
+  const note = { id: Date.now(), title: title.trim(), subtitle: (subtitle || '').trim(), body: (body || '').trim(), folderId, imageShortcuts: req.body.imageShortcuts || [], createdAt: Date.now(), updatedAt: Date.now() }
   chapter.notes.push(note)
   saveDB(db)
   res.json(note)
@@ -321,6 +356,8 @@ app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requ
   note.title = title.trim()
   note.subtitle = (subtitle || '').trim()
   note.body = (body || '').trim()
+  if (req.body.folderId !== undefined) note.folderId = req.body.folderId || null
+  if (req.body.imageShortcuts !== undefined) note.imageShortcuts = req.body.imageShortcuts || []
   note.updatedAt = Date.now()
   saveDB(db)
   res.json(note)
@@ -335,6 +372,104 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', r
   const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
   if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
   chapter.notes = (chapter.notes || []).filter(n => n.id !== parseInt(req.params.noteId))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Mover nota a carpeta (o a raíz con folderId=null)
+app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId/move', requireUser, requireDnDMaster, (req, res) => {
+  const { folderId } = req.body
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  const note = (chapter.notes || []).find(n => n.id === parseInt(req.params.noteId))
+  if (!note) return res.status(404).json({ error: 'Nota no encontrada' })
+  note.folderId = folderId || null
+  note.updatedAt = Date.now()
+  saveDB(db)
+  res.json(note)
+})
+
+// ── Note Folders ──
+// Crear carpeta de notas
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders', requireUser, requireDnDMaster, (req, res) => {
+  const { name } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  if (!chapter.noteFolders) chapter.noteFolders = []
+  const folder = { id: Date.now(), name: name.trim(), parentId: req.body.parentId || null, createdAt: Date.now() }
+  chapter.noteFolders.push(folder)
+  saveDB(db)
+  res.json(folder)
+})
+
+// Renombrar carpeta
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId', requireUser, requireDnDMaster, (req, res) => {
+  const { name } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  const folder = (chapter.noteFolders || []).find(f => f.id === parseInt(req.params.folderId))
+  if (!folder) return res.status(404).json({ error: 'Carpeta no encontrada' })
+  folder.name = name.trim()
+  saveDB(db)
+  res.json(folder)
+})
+
+// Mover carpeta (cambiar parentId)
+app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId/move', requireUser, requireDnDMaster, (req, res) => {
+  const { parentId } = req.body
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  const folderId = parseInt(req.params.folderId)
+  const folder = (chapter.noteFolders || []).find(f => f.id === folderId)
+  if (!folder) return res.status(404).json({ error: 'Carpeta no encontrada' })
+  // Evitar ciclos: no puede moverse dentro de sí misma o de sus hijos
+  const descendants = new Set()
+  function collectDesc(id) { descendants.add(id); (chapter.noteFolders || []).filter(f => f.parentId === id).forEach(f => collectDesc(f.id)) }
+  collectDesc(folderId)
+  if (parentId && descendants.has(parseInt(parentId))) return res.status(400).json({ error: 'No se puede mover dentro de sí misma' })
+  folder.parentId = parentId ? parseInt(parentId) : null
+  saveDB(db)
+  res.json(folder)
+})
+
+// Borrar carpeta (notas vuelven a raíz)
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(ch => ch.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  const folderId = parseInt(req.params.folderId)
+  // Recoger todos los ids a borrar (la carpeta + todas sus subcarpetas recursivas)
+  const allFolders = chapter.noteFolders || []
+  const idsToDelete = new Set()
+  function collectChildren(id) {
+    idsToDelete.add(id)
+    allFolders.filter(f => f.parentId === id).forEach(f => collectChildren(f.id))
+  }
+  collectChildren(folderId)
+  chapter.noteFolders = allFolders.filter(f => !idsToDelete.has(f.id))
+  // Mover notas huérfanas a raíz
+  ;(chapter.notes || []).forEach(n => { if (idsToDelete.has(n.folderId)) n.folderId = null })
   saveDB(db)
   res.json({ ok: true })
 })
@@ -860,7 +995,7 @@ app.post('/api/dnd/parties', requireUser, requireDnDMaster, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const parties = getParties(dnd)
-  const party = { id: Date.now(), name: name.trim(), members: [], initiative: [], usedSlots: {}, currentHp: {}, enemies: [], conditions: {} }
+  const party = { id: Date.now(), name: name.trim(), members: [], initiative: [], usedSlots: {}, usedAbilities: {}, usedClassResources: {}, currentHp: {}, enemies: [], conditions: {} }
   parties.push(party)
   saveDB(db)
   res.json(enrichParty(dnd, party))
@@ -925,6 +1060,36 @@ app.put('/api/dnd/parties/:partyId/initiative', requireUser, requireDnDMaster, (
   res.json({ ok: true })
 })
 
+// Cambiar valor de iniciativa de un miembro y reordenar
+app.patch('/api/dnd/parties/:partyId/initiative-value', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const { key, value } = req.body
+  if (!key || value == null) return res.status(400).json({ error: 'key y value requeridos' })
+  if (!party.initiativeValues) party.initiativeValues = {}
+  party.initiativeValues[key] = Number(value)
+  // Reordenar initiative array por valor descendente
+  const allKeys = [...new Set([...(party.members || []).map(String), ...(party.enemies || []).map(e => `e${e.id}`)])]
+  allKeys.sort((a, b) => (party.initiativeValues[b] ?? -999) - (party.initiativeValues[a] ?? -999))
+  party.initiative = allKeys
+  saveDB(db)
+  res.json({ ok: true, initiative: party.initiative, initiativeValues: party.initiativeValues })
+})
+
+// Resetear iniciativa de toda la party
+app.post('/api/dnd/parties/:partyId/reset-initiative', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  party.initiative = []
+  party.initiativeValues = {}
+  saveDB(db)
+  res.json({ ok: true })
+})
+
 // HP de un PC en party
 app.patch('/api/dnd/parties/:partyId/hp/:charId', requireUser, (req, res) => {
   const db = getDB()
@@ -948,6 +1113,30 @@ app.patch('/api/dnd/parties/:partyId/slots/:charId', requireUser, (req, res) => 
   if (!party) return res.status(404).json({ error: 'Party no encontrada' })
   if (!party.usedSlots) party.usedSlots = {}
   party.usedSlots[parseInt(req.params.charId)] = req.body.usedSlots
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Ability slots (huecos de habilidad)
+app.patch('/api/dnd/parties/:partyId/ability-slots/:charId', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  if (!party.usedAbilities) party.usedAbilities = {}
+  party.usedAbilities[parseInt(req.params.charId)] = req.body.usedAbilities
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Class resource slots (recursos de clase: Canalizar Divinidad, Ki, etc.)
+app.patch('/api/dnd/parties/:partyId/class-resources/:charId', requireUser, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  if (!party.usedClassResources) party.usedClassResources = {}
+  party.usedClassResources[parseInt(req.params.charId)] = req.body.usedClassResources
   saveDB(db)
   res.json({ ok: true })
 })
@@ -993,7 +1182,12 @@ app.post('/api/dnd/parties/:partyId/enemy', requireUser, requireDnDMaster, (req,
   }
   party.enemies.push(enemy)
   if (!party.initiative) party.initiative = []
-  party.initiative.push(`e${enemy.id}`)
+  if (!party.initiativeValues) party.initiativeValues = {}
+  party.initiativeValues[`e${enemy.id}`] = enemy.initiative
+  // Reordenar por iniciativa
+  const allKeys = [...new Set([...(party.members || []).map(String), ...party.enemies.map(e => `e${e.id}`)])]
+  allKeys.sort((a, b) => (party.initiativeValues[b] ?? -999) - (party.initiativeValues[a] ?? -999))
+  party.initiative = allKeys
   saveDB(db)
   const glossEntry = (dnd.glossary?.entries || []).find(g => g.id === glossaryId)
   res.json({ ...enemy, glossaryData: glossEntry || null })
@@ -1033,7 +1227,7 @@ app.post('/api/dnd/parties/:partyId/rest', requireUser, requireDnDMaster, (req, 
   if (!party) return res.status(404).json({ error: 'Party no encontrada' })
   const restType = req.body.type
   if (restType === 'long') {
-    party.usedSlots = {}; party.currentHp = {}
+    party.usedSlots = {}; party.usedAbilities = {}; party.usedClassResources = {}; party.currentHp = {}
     ;(party.members || []).forEach(id => { const ch = dnd.characters.find(c => c.id === id); if (ch?.stats?.hp) ch.stats.hp.current = ch.stats.hp.max })
   } else if (restType === 'short') {
     party.currentHp = {}
@@ -1560,6 +1754,56 @@ Interpreta cantidades coloquiales (un puñado, una cucharada, medio tomate, etc.
     console.error('Text analysis error:', err)
     res.status(500).json({ error: 'Analysis failed' })
   }
+})
+
+// ── API: Notes ──────────────────────────────────────────
+app.get('/api/notes', requireUser, (req, res) => {
+  const db = getDB()
+  if (!db.notes) db.notes = {}
+  const userNotes = db.notes[req.userId] || []
+  res.json(userNotes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)))
+})
+
+app.post('/api/notes', requireUser, (req, res) => {
+  const { title, body } = req.body
+  if (!title?.trim()) return res.status(400).json({ error: 'Título requerido' })
+  const db = getDB()
+  if (!db.notes) db.notes = {}
+  if (!db.notes[req.userId]) db.notes[req.userId] = []
+  const note = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    title: title.trim(),
+    body: (body || '').trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  db.notes[req.userId].push(note)
+  saveDB(db)
+  res.json(note)
+})
+
+app.put('/api/notes/:id', requireUser, (req, res) => {
+  const { title, body } = req.body
+  if (!title?.trim()) return res.status(400).json({ error: 'Título requerido' })
+  const db = getDB()
+  const userNotes = db.notes?.[req.userId] || []
+  const note = userNotes.find(n => n.id === req.params.id)
+  if (!note) return res.status(404).json({ error: 'Nota no encontrada' })
+  note.title = title.trim()
+  note.body = (body || '').trim()
+  note.updatedAt = new Date().toISOString()
+  saveDB(db)
+  res.json(note)
+})
+
+app.delete('/api/notes/:id', requireUser, (req, res) => {
+  const db = getDB()
+  const userNotes = db.notes?.[req.userId] || []
+  const idx = userNotes.findIndex(n => n.id === req.params.id)
+  if (idx === -1) return res.status(404).json({ error: 'Nota no encontrada' })
+  userNotes.splice(idx, 1)
+  saveDB(db)
+  res.json({ ok: true })
 })
 
 // ── Serve React build ────────────────────────────────────

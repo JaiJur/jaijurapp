@@ -269,6 +269,17 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
                 <button className="dnd-btn-sm" onClick={() => setCh(prev => ({...prev, traits: [...(prev.traits||[]), {name:'', description:''}]}))}>+ Añadir rasgo</button>
               </div>
             </div>
+            <div className="glossary-form-row">
+              <label>Recursos de clase <button className="dnd-btn-sm" onClick={() => setCh(prev => ({...prev, classResources: [...(prev.classResources||[]), {name:'', max: 1}]}))}>+</button></label>
+              <div className="dnd-empty-hint" style={{fontSize:'0.75rem',color:'#8a7a6a',marginBottom:6}}>Ej: Canalizar Divinidad, Inspiración Bárdica, Puntos de Ki, Furia...</div>
+              {(ch.classResources||[]).map((cr, i) => (
+                <div key={i} className="glossary-list-item">
+                  <input className="dnd-input" placeholder="Nombre (ej: Canalizar Divinidad)" value={cr.name} onChange={e => setCh(prev => ({...prev, classResources: prev.classResources.map((x,j) => j===i ? {...x, name: e.target.value} : x)}))} style={{flex:1}} />
+                  <input className="dnd-input" type="number" min="1" max="30" value={cr.max} onChange={e => setCh(prev => ({...prev, classResources: prev.classResources.map((x,j) => j===i ? {...x, max: parseInt(e.target.value)||1} : x)}))} style={{flex:'0 0 60px',textAlign:'center'}} title="Nº de usos" />
+                  <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(prev => ({...prev, classResources: prev.classResources.filter((_,j)=>j!==i)}))}>✕</button>
+                </div>
+              ))}
+            </div>
           </>}
 
           {/* ── PASO 3: Características ── */}
@@ -484,7 +495,7 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
               </div>
             </div>
             <div className="glossary-form-row">
-              <label>Habilidades especiales <button className="dnd-btn-sm" onClick={() => setCh(e => ({...e, abilities: [...(e.abilities||[]), {name:'',description:'',uses:''}]}))}>+</button></label>
+              <label>Habilidades especiales <button className="dnd-btn-sm" onClick={() => setCh(e => ({...e, abilities: [...(e.abilities||[]), {name:'',description:'',uses:'',maxUses:0}]}))}>+</button></label>
               {(ch.abilities||[]).map((ab, i) => (
                 <div key={i} className="glossary-list-item" style={{flexWrap:'wrap'}}>
                   <input className="dnd-input" placeholder="Nombre" value={ab.name} onChange={e => setCh(prev => ({...prev, abilities: prev.abilities.map((x,j) => j===i ? {...x, name: e.target.value} : x)}))} style={{flex:1}} />
@@ -494,6 +505,7 @@ export default function CharacterWizard({ mode, character: initialChar, onSave, 
                     <option value="1/descanso corto">1/descanso corto</option><option value="1/descanso largo">1/descanso largo</option>
                     <option value="A voluntad">A voluntad</option>
                   </select>
+                  <input className="dnd-input" type="number" min="0" max="20" placeholder="Usos" title="Nº de huecos (dejar 0 = sin huecos)" value={ab.maxUses||0} onChange={e => setCh(prev => ({...prev, abilities: prev.abilities.map((x,j) => j===i ? {...x, maxUses: parseInt(e.target.value)||0} : x)}))} style={{flex:'0 0 65px',textAlign:'center'}} />
                   <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(e => ({...e, abilities: e.abilities.filter((_,j)=>j!==i)}))}>✕</button>
                   <input className="dnd-input" placeholder="Descripción" value={ab.description} onChange={e => setCh(prev => ({...prev, abilities: prev.abilities.map((x,j) => j===i ? {...x, description: e.target.value} : x)}))} style={{width:'100%', marginTop:3}} />
                 </div>

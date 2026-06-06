@@ -42,14 +42,17 @@ function ConditionsEditor({ conditions, onChange }) {
 }
 
 // ── Sub: Modal detalle PC ──────────────────────────────
-function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onRemove, mod, conditions, onConditionsChange, isMaster }) {
+function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onAbilitySlotsChange, onClassResourceChange, onRemove, mod, conditions, onConditionsChange, isMaster }) {
   const s = ch.stats || {}
   const hp = s.hp?.current ?? 0
   const hpMax = s.hp?.max ?? 1
   const hpPct = Math.round((hp / hpMax) * 100)
   const hpColor = hpPct > 50 ? 'var(--party-hp-good)' : hpPct > 25 ? 'var(--party-hp-mid)' : 'var(--party-hp-low)'
   const usedSlots = party.usedSlots?.[ch.id] || {}
+  const usedAbilities = party.usedAbilities?.[ch.id] || {}
+  const usedClassRes = party.usedClassResources?.[ch.id] || {}
   const hasSpells = ch.isSpellcaster && ch.spellSlots && Object.values(ch.spellSlots).some(v => v > 0)
+  const hasClassResources = (ch.classResources||[]).length > 0
   const [openSec, setOpenSec] = useState({})
   const toggleSec = k => setOpenSec(p => ({ ...p, [k]: !p[k] }))
   const Acc = ({ id, label, children, count }) => (
@@ -67,6 +70,22 @@ function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onRemove, mod, co
     const maxSlots = ch.spellSlots?.[level] || 0
     used[level] = (used[level] || 0) >= maxSlots ? 0 : (used[level] || 0) + 1
     onSlotsChange(ch.id, used)
+  }
+  function toggleAbilitySlot(abilityIdx) {
+    const used = { ...(party.usedAbilities?.[ch.id] || {}) }
+    const ab = ch.abilities[abilityIdx]
+    const max = ab?.maxUses || 0
+    if (!max) return
+    used[abilityIdx] = (used[abilityIdx] || 0) >= max ? 0 : (used[abilityIdx] || 0) + 1
+    onAbilitySlotsChange(ch.id, used)
+  }
+  function toggleClassResource(idx) {
+    const used = { ...(party.usedClassResources?.[ch.id] || {}) }
+    const cr = ch.classResources[idx]
+    const max = cr?.max || 0
+    if (!max) return
+    used[idx] = (used[idx] || 0) >= max ? 0 : (used[idx] || 0) + 1
+    onClassResourceChange(ch.id, used)
   }
   return (
     <>
@@ -94,18 +113,24 @@ function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onRemove, mod, co
           <div key={l} className="party-attr"><span className="party-attr-label">{l}</span><span className="party-attr-mod">{mod(v)}</span></div>
         ))}
       </div>
-      {hasSpells && (
-        <Acc id="slots" label="Huecos de conjuro">
-          <div className="party-slots-grid">
-            {[1,2,3,4,5,6,7,8,9].map(lv => {
-              const total = ch.spellSlots[lv] || 0; if (!total) return null
-              return (<button key={lv} className="party-slot-btn" onClick={e => { e.stopPropagation(); toggleSlot(lv) }} title={`Nv.${lv}: ${usedSlots[lv]||0}/${total}`}>
-                <span className="party-slot-level">{lv}</span>
-                <span className="party-slot-dots">{Array.from({length: total}, (_, i) => <span key={i} className={`party-slot-dot ${i < (usedSlots[lv]||0) ? 'used' : ''}`} />)}</span>
-              </button>)
-            })}
-          </div>
-        </Acc>
+      {(hasSpells || hasClassResources) && (
+        <div className="party-resources-inline">
+          {hasSpells && [1,2,3,4,5,6,7,8,9].map(lv => {
+            const total = ch.spellSlots[lv] || 0; if (!total) return null
+            return (<button key={`s${lv}`} className="party-res-row" onClick={e => { e.stopPropagation(); toggleSlot(lv) }} title={`Nv.${lv}: ${usedSlots[lv]||0}/${total}`}>
+              <span className="party-res-icon">🔮</span>
+              <span className="party-res-name">Nv.{lv}</span>
+              <span className="party-slot-dots">{Array.from({length: total}, (_, i) => <span key={i} className={`party-slot-dot ${i < (usedSlots[lv]||0) ? 'used' : ''}`} />)}</span>
+            </button>)
+          })}
+          {hasClassResources && ch.classResources.map((cr, idx) => (
+            <button key={`cr${idx}`} className="party-res-row" onClick={e => { e.stopPropagation(); toggleClassResource(idx) }} title={`${cr.name}: ${usedClassRes[idx]||0}/${cr.max}`}>
+              <span className="party-res-icon">⚡</span>
+              <span className="party-res-name">{cr.name}</span>
+              <span className="party-slot-dots">{Array.from({length: cr.max}, (_, i) => <span key={i} className={`party-slot-dot ${i < (usedClassRes[idx]||0) ? 'used' : ''}`} />)}</span>
+            </button>
+          ))}
+        </div>
       )}
       {(ch.skills||[]).length > 0 && <Acc id="skills" label="Habilidades" count={ch.skills.length}><div className="party-skills-list">{ch.skills.map((sk,i) => <span key={i} className="party-skill-badge">{sk.name} {sk.bonus >= 0 ? '+' : ''}{sk.bonus}</span>)}</div></Acc>}
       {ch.savingThrows && Object.values(ch.savingThrows).some(v => v) && (
@@ -116,7 +141,20 @@ function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onRemove, mod, co
           })}
         </div></Acc>
       )}
-      {(ch.abilities||[]).length > 0 && <Acc id="abilities" label="Habilidades especiales" count={ch.abilities.length}>{ch.abilities.map((ab,i) => <div key={i} className="party-ability"><strong>{ab.name}</strong>{ab.uses && <span className="party-ability-uses"> ({ab.uses})</span>}{ab.description && <span> — {ab.description}</span>}</div>)}</Acc>}
+      {(ch.abilities||[]).length > 0 && <Acc id="abilities" label="Habilidades especiales" count={ch.abilities.length}>
+        {ch.abilities.map((ab,i) => (
+          <div key={i} className="party-ability">
+            <strong>{ab.name}</strong>
+            {ab.uses && <span className="party-ability-uses"> ({ab.uses})</span>}
+            {ab.maxUses > 0 && (
+              <button className="party-slot-btn party-ability-slot-btn" onClick={e => { e.stopPropagation(); toggleAbilitySlot(i) }} title={`${ab.name}: ${usedAbilities[i]||0}/${ab.maxUses}`}>
+                <span className="party-slot-dots">{Array.from({length: ab.maxUses}, (_,j) => <span key={j} className={`party-slot-dot ${j < (usedAbilities[i]||0) ? 'used' : ''}`} />)}</span>
+              </button>
+            )}
+            {ab.description && <span> — {ab.description}</span>}
+          </div>
+        ))}
+      </Acc>}
       {(ch.actions||[]).length > 0 && <Acc id="actions" label="Acciones" count={ch.actions.length}>{ch.actions.map((a,i) => <div key={i} className="party-action"><span className="party-action-name">{a.name}</span>{a.isSpell && <span className="party-action-spell">🔮{a.spellLevel === 'truco' ? 'T' : a.spellLevel}</span>}{a.damage && <span className="party-action-dmg">⚔ {a.damage}</span>}{a.modifier != null && a.modifier !== 0 && <span className="party-action-mod">{a.modifier >= 0 ? '+' : ''}{a.modifier}</span>}</div>)}</Acc>}
       {isMaster && <Acc id="conditions" label="Estados" count={conditions.length || undefined}>
         <ConditionsEditor conditions={conditions} onChange={onConditionsChange} />
@@ -192,10 +230,11 @@ function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick,
 }
 
 // ── Componente principal: Party Tracker ─────────────────
-export default function PartyTracker({ party, isMaster, userId, onReorder, onHpChange, onSlotsChange, onRemove, onEnemyHpChange, onRemoveEnemy, onEnemyClick, onConditionsChange }) {
+export default function PartyTracker({ party, isMaster, userId, onReorder, onInitiativeChange, onHpChange, onSlotsChange, onAbilitySlotsChange, onClassResourceChange, onRemove, onEnemyHpChange, onRemoveEnemy, onEnemyClick, onConditionsChange }) {
   const [dragId, setDragId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [expandedCard, setExpandedCard] = useState(null)
+  const [editingInit, setEditingInit] = useState(null) // key del personaje editando iniciativa
 
   const chars = party.memberChars || []
   const enemies = party.enemies || []
@@ -203,12 +242,12 @@ export default function PartyTracker({ party, isMaster, userId, onReorder, onHpC
   chars.forEach(c => allItems.push({ type: 'pc', key: c.id, data: c }))
   enemies.forEach(e => allItems.push({ type: 'enemy', key: `e${e.id}`, data: e }))
 
-  const initOrder = party.initiative || []
-  const allKeys = allItems.map(i => i.key)
-  const orderedKeys = initOrder.filter(k => allKeys.includes(k) || allKeys.includes(Number(k)))
+  const initOrder = (party.initiative || []).map(String)
+  const allKeys = allItems.map(i => String(i.key))
+  const orderedKeys = initOrder.filter(k => allKeys.includes(k))
   const extraKeys = allKeys.filter(k => !orderedKeys.includes(k))
   const sortedKeys = [...orderedKeys, ...extraKeys]
-  const sortedItems = sortedKeys.map(k => allItems.find(i => i.key === k || String(i.key) === String(k))).filter(Boolean)
+  const sortedItems = sortedKeys.map(k => allItems.find(i => String(i.key) === k)).filter(Boolean)
 
   function handleDragStart(e, key) { setDragId(key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(key)) }
   function handleDragOver(e, key) { e.preventDefault(); if (key !== dragOverId) setDragOverId(key) }
@@ -249,6 +288,7 @@ export default function PartyTracker({ party, isMaster, userId, onReorder, onHpC
           const hpPct = Math.round((hp / hpMax) * 100)
           const hpColor = hpPct > 50 ? 'var(--party-hp-good)' : hpPct > 25 ? 'var(--party-hp-mid)' : 'var(--party-hp-low)'
           const init = isEnemy ? (d.initiative ?? '?') : '—'
+          const initValue = (party.initiativeValues || {})[String(item.key)]
           const pp = isEnemy ? (d.glossaryData?.stats?.passivePerception ?? '—') : (d.stats?.passivePerception ?? '—')
           const conditions = getConditions(item.key)
 
@@ -269,7 +309,19 @@ export default function PartyTracker({ party, isMaster, userId, onReorder, onHpC
                 <span className="party-mini-sub">{subtitle}</span>
               </div>
               <div className="party-mini-stats-row">
-                {init !== '—' && <span className="party-mini-stat" title="Iniciativa">⚡{init}</span>}
+                {isMaster ? (
+                  <span className="party-mini-stat party-init-edit" title="Iniciativa" onClick={e => { e.stopPropagation(); setEditingInit(editingInit === item.key ? null : item.key) }}>
+                    ⚡{editingInit === item.key ? (
+                      <input className="party-init-input" type="number" autoFocus defaultValue={initValue ?? ''} placeholder="—"
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={e => { if (e.key === 'Enter') { onInitiativeChange(String(item.key), parseInt(e.target.value) || 0); setEditingInit(null) } if (e.key === 'Escape') setEditingInit(null) }}
+                        onBlur={e => { if (e.target.value !== '') { onInitiativeChange(String(item.key), parseInt(e.target.value) || 0) } setEditingInit(null) }}
+                      />
+                    ) : <span>{initValue != null ? initValue : '—'}</span>}
+                  </span>
+                ) : (
+                  <span className="party-mini-stat" title="Iniciativa">⚡{initValue != null ? initValue : (init !== '—' ? init : '—')}</span>
+                )}
                 {pp !== '—' && <span className="party-mini-stat" title="Percepción pasiva">👁{pp}</span>}
               </div>
               <div className="party-mini-hp-bar">
@@ -298,7 +350,7 @@ export default function PartyTracker({ party, isMaster, userId, onReorder, onHpC
         if (item.type === 'pc') return (
           <div className="action-card-overlay" onClick={() => setExpandedCard(null)}>
             <div className="party-detail-modal" onClick={e => e.stopPropagation()}>
-              <PCDetailModal ch={item.data} party={party} onHpChange={onHpChange} onSlotsChange={onSlotsChange} onRemove={onRemove} mod={mod}
+              <PCDetailModal ch={item.data} party={party} onHpChange={onHpChange} onSlotsChange={onSlotsChange} onAbilitySlotsChange={onAbilitySlotsChange} onClassResourceChange={onClassResourceChange} onRemove={onRemove} mod={mod}
                 conditions={conditions} onConditionsChange={conds => onConditionsChange(item.key, conds)} isMaster={isMaster} />
             </div>
           </div>

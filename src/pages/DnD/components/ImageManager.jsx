@@ -252,9 +252,66 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
   const [propNewFolderName, setPropNewFolderName] = useState('')
   const [showPropNewFolder, setShowPropNewFolder] = useState(false)
 
+  // ── Floors (texturas de suelo) state ──
+  const [floorsData, setFloorsData] = useState(null)
+  const [floorsCollapsed, setFloorsCollapsed] = useState(true)
+  const [floorUploads, setFloorUploads] = useState([])
+  const floorInputRef = useRef(null)
+
   useEffect(() => {
     if (!propsCollapsed) loadProps(propsPath)
   }, [propsCollapsed])
+
+  useEffect(() => {
+    if (!floorsCollapsed) loadFloors()
+  }, [floorsCollapsed])
+
+  async function loadFloors() {
+    try {
+      const r = await fetch('/api/assets/floors')
+      if (r.ok) setFloorsData(await r.json())
+    } catch {}
+  }
+
+  async function handleFloorFiles(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const entries = files.map(f => ({ name: f.name, status: 'wait', progress: 0, error: '' }))
+    setFloorUploads(prev => [...prev, ...entries])
+    const startIdx = floorUploads.length
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const idx = startIdx + i
+      setFloorUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'sending', progress: 10 } : u))
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('Error leyendo archivo'))
+          reader.readAsDataURL(file)
+        })
+        setFloorUploads(prev => prev.map((u, j) => j === idx ? { ...u, progress: 50 } : u))
+        const res = await fetch('/api/dnd/floors/upload', {
+          method: 'POST', headers,
+          body: JSON.stringify({ data: base64, filename: file.name })
+        })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || res.statusText) }
+        setFloorUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'success', progress: 100 } : u))
+      } catch (err) {
+        setFloorUploads(prev => prev.map((u, j) => j === idx ? { ...u, status: 'error', progress: 0, error: err.message } : u))
+      }
+    }
+    loadFloors()
+    if (floorInputRef.current) floorInputRef.current.value = ''
+  }
+
+  async function deleteFloor(file) {
+    if (!confirm(`¿Eliminar la textura "${file}"?`)) return
+    try {
+      await fetch(`/api/dnd/floors/${encodeURIComponent(file)}`, { method: 'DELETE', headers })
+      loadFloors()
+    } catch {}
+  }
 
   async function loadProps(path) {
     try {
@@ -468,6 +525,56 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
                 <audio src={s.url} controls preload="none" className="mm-sound-player" />
               </div>
             ))}
+          </div>
+        )}
+      </div>
+      {/* ── Sección Texturas de Suelo (Floors) ── */}
+      <div className="mm-sounds-section">
+        <div className="mm-sounds-header" onClick={() => setFloorsCollapsed(c => !c)} style={{cursor:'pointer'}}>
+          <span className="mm-sounds-title">{floorsCollapsed ? '▶' : '▼'} 🎨 Texturas de Suelo ({floorsData?.length ?? '…'})</span>
+          {!floorsCollapsed && (
+            <div style={{marginLeft:'auto'}} onClick={e => e.stopPropagation()}>
+              <button className="dnd-btn-sm" onClick={() => floorInputRef.current?.click()}>+ 🖼</button>
+              <input ref={floorInputRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple onChange={handleFloorFiles} style={{display:'none'}} />
+            </div>
+          )}
+        </div>
+        {!floorsCollapsed && (
+          <div className="mm-props-browser">
+            {floorUploads.length > 0 && (
+              <div className="img-upload-table" style={{marginBottom:6}}>
+                <div className="img-upload-table-header">
+                  <span>Subidas texturas</span>
+                  <button className="dnd-btn-sm" onClick={() => setFloorUploads(prev => prev.filter(u => u.status === 'sending'))}>✕</button>
+                </div>
+                {floorUploads.map((u, i) => (
+                  <div key={i} className={`img-upload-row img-upload-${u.status}`}>
+                    <span className="img-upload-status">{statusIcons[u.status]}</span>
+                    <span className="img-upload-name">{u.name}</span>
+                    {u.status === 'sending' && <div className="img-upload-progress-bar"><div className="img-upload-progress-fill" style={{width:`${u.progress}%`}} /></div>}
+                    {u.status === 'success' && <span className="img-upload-pct">100%</span>}
+                    {u.status === 'error' && <span className="img-upload-error" title={u.error}>Error</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {floorsData && floorsData.length > 0 ? (
+              <div className="dnd-image-grid">
+                {floorsData.map(f => (
+                  <div key={f.file} className="dnd-image-thumb floor-thumb" title={f.name}>
+                    <img src={f.url} alt={f.name} loading="lazy" />
+                    <div className="dnd-image-overlay">
+                      <span className="dnd-image-name">{f.name}</span>
+                      <button className="floor-delete-btn" onClick={e => { e.stopPropagation(); deleteFloor(f.file) }} title="Eliminar">🗑</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : floorsData ? (
+              <div className="dnd-empty-sm">Sin texturas de suelo</div>
+            ) : (
+              <div className="dnd-empty-sm">Cargando...</div>
+            )}
           </div>
         )}
       </div>

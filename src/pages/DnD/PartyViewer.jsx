@@ -135,9 +135,7 @@ function PartyBlock({ party, expandedCard, setExpandedCard }) {
           const d = item.data
           const portrait = isEnemy ? (d.portrait || null) : d.portrait
           const name = isEnemy ? (d.label || d.glossaryData?.name || 'Enemigo') : d.name
-          const subtitle = isEnemy
-            ? (d.glossaryData?.stats?.challenge ? `CR ${d.glossaryData.stats.challenge}` : '💀')
-            : `${d.class || ''} Nv.${d.level || 1}`
+          const subtitle = isEnemy ? '' : `${d.class || ''} Nv.${d.level || 1}`
           const hp = isEnemy ? (d.hpCurrent ?? 0) : (d.stats?.hp?.current ?? 0)
           const hpMax = isEnemy ? (d.hpMax ?? 1) : (d.stats?.hp?.max ?? 1)
           const hpPct = Math.round((hp / hpMax) * 100)
@@ -154,14 +152,14 @@ function PartyBlock({ party, expandedCard, setExpandedCard }) {
                 : <div className="pv-card-placeholder">{isEnemy ? '💀' : '🛡️'}</div>}
               <div className="pv-card-info">
                 <span className="pv-card-name">{name}</span>
-                <span className="pv-card-sub">{subtitle}</span>
+                {subtitle && <span className="pv-card-sub">{subtitle}</span>}
               </div>
               <div className="pv-card-stats-row">
                 {init !== '—' && <span className="pv-card-stat" title="Iniciativa">⚡{init}</span>}
               </div>
               <div className="pv-card-hp-bar">
                 <div className="pv-card-hp-fill" style={{ width: `${hpPct}%`, background: hpColor }} />
-                <span className="pv-card-hp-text">{hp}/{hpMax}</span>
+                {!isEnemy && <span className="pv-card-hp-text">{hp}/{hpMax}</span>}
               </div>
               {conditions.length > 0 && (
                 <div className="pv-card-conditions">
@@ -234,6 +232,22 @@ function PartyBlock({ party, expandedCard, setExpandedCard }) {
                 </div>
               </PvAccordion>
 
+              <PvAccordion label="Recursos de clase" count={(ch.classResources||[]).length} show={(ch.classResources||[]).length > 0}>
+                <div className="pv-class-resources">
+                  {(ch.classResources||[]).map((cr,i) => {
+                    const usedCr = party.usedClassResources?.[ch.id]?.[i] || 0
+                    return (
+                      <div key={i} className="pv-detail-ability" style={{display:'flex',alignItems:'center',gap:6}}>
+                        <strong>{cr.name}</strong>
+                        <span className="pv-ability-dots">
+                          {Array.from({length: cr.max}, (_,j) => <span key={j} className={`pv-ability-dot ${j < usedCr ? 'used' : ''}`} />)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </PvAccordion>
+
               <PvAccordion label="Rasgos" count={allTraits.length} show={allTraits.length > 0}>
                 {allTraits.map((t,i) => (
                   <div key={i} className="pv-detail-ability"><strong>{t.name}.</strong> {t.description}</div>
@@ -247,13 +261,21 @@ function PartyBlock({ party, expandedCard, setExpandedCard }) {
               </PvAccordion>
 
               <PvAccordion label="Habilidades especiales" count={(ch.abilities||[]).length} show={(ch.abilities||[]).length > 0}>
-                {(ch.abilities||[]).map((ab,i) => (
-                  <div key={i} className="pv-detail-ability">
-                    <strong>{ab.name}</strong>
-                    {ab.uses && <span className="pv-detail-ability-uses"> ({ab.uses})</span>}
-                    {ab.description && <span> — {ab.description}</span>}
-                  </div>
-                ))}
+                {(ch.abilities||[]).map((ab,i) => {
+                  const usedAb = party.usedAbilities?.[ch.id]?.[i] || 0
+                  return (
+                    <div key={i} className="pv-detail-ability">
+                      <strong>{ab.name}</strong>
+                      {ab.uses && <span className="pv-detail-ability-uses"> ({ab.uses})</span>}
+                      {ab.maxUses > 0 && (
+                        <span className="pv-ability-dots">
+                          {Array.from({length: ab.maxUses}, (_,j) => <span key={j} className={`pv-ability-dot ${j < usedAb ? 'used' : ''}`} />)}
+                        </span>
+                      )}
+                      {ab.description && <span> — {ab.description}</span>}
+                    </div>
+                  )
+                })}
               </PvAccordion>
 
               <button className="pv-detail-close" onClick={() => setExpandedCard(null)}>Cerrar</button>

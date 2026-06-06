@@ -305,3 +305,20 @@
   .pv-card { padding: 8px; }
   .pv-detail-modal { padding: 14px; }
 }
+
+/* ── Ability dots (viewer) ── */
+.pv-ability-dots {
+  display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle;
+}
+.pv-ability-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(200,169,110,0.2);
+  border: 1px solid rgba(200,169,110,0.3);
+  display: inline-block;
+}
+.pv-ability-dot.used {
+  background: #c8a96e;
+  border-color: #c8a96e;
+  box-shadow: 0 0 4px rgba(200,169,110,0.4);
+}

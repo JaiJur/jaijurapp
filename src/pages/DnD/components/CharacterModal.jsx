@@ -145,6 +145,17 @@ export default function CharacterModal({ mode, character: initialChar, onSave, o
         )}
 
         <div className="glossary-form-row">
+          <label>Recursos de clase <button className="dnd-btn-sm" onClick={() => setCh(prev => ({...prev, classResources: [...(prev.classResources||[]), {name:'', max: 1}]}))}>+</button></label>
+          {(ch.classResources||[]).map((cr, i) => (
+            <div key={i} className="glossary-list-item">
+              <input className="dnd-input" placeholder="Nombre (ej: Canalizar Divinidad)" value={cr.name} onChange={e => setCh(prev => ({...prev, classResources: prev.classResources.map((x,j) => j===i ? {...x, name: e.target.value} : x)}))} style={{flex:1}} />
+              <input className="dnd-input" type="number" min="1" max="30" value={cr.max} onChange={e => setCh(prev => ({...prev, classResources: prev.classResources.map((x,j) => j===i ? {...x, max: parseInt(e.target.value)||1} : x)}))} style={{flex:'0 0 60px',textAlign:'center'}} title="Nº de usos" />
+              <button className="dnd-btn-sm dnd-btn-danger" onClick={() => setCh(prev => ({...prev, classResources: prev.classResources.filter((_,j)=>j!==i)}))}>✕</button>
+            </div>
+          ))}
+        </div>
+
+        <div className="glossary-form-row">
           <label>Habilidades <button className="dnd-btn-sm" onClick={addSkill}>+</button></label>
           {(ch.skills||[]).map((sk,i) => (
             <div key={i} className="glossary-list-item">
@@ -243,6 +254,7 @@ export default function CharacterModal({ mode, character: initialChar, onSave, o
                 <option value="1/descanso largo">1/descanso largo</option>
                 <option value="A voluntad">A voluntad</option>
               </select>
+              <input className="dnd-input" type="number" min="0" max="20" placeholder="Usos" title="Nº de huecos (dejar 0 = sin huecos)" value={ab.maxUses||0} onChange={e=>updateAbility(i,'maxUses',parseInt(e.target.value)||0)} style={{flex:'0 0 65px',textAlign:'center'}} />
               <button className="dnd-btn-sm dnd-btn-danger" onClick={()=>removeAbility(i)}>✕</button>
               <input className="dnd-input" placeholder="Descripción" value={ab.description} onChange={e=>updateAbility(i,'description',e.target.value)} style={{width:'100%',marginTop:3}} />
             </div>

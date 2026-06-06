@@ -71,6 +71,7 @@ export default function DnD() {
 
   // Notas del Master
   const [noteModal, setNoteModal] = useState(null) // null | { campaignId, chapterId, mode: 'create'|'edit', note? }
+  const [noteImgPicker, setNoteImgPicker] = useState(null) // null | { path, folders, images }
 
   const headers = { 'Content-Type': 'application/json', 'x-user-id': user?.id }
 
@@ -350,6 +351,13 @@ export default function DnD() {
     await fetch(`/api/dnd/parties/${partyId}/initiative`, { method: 'PUT', headers, body: JSON.stringify({ initiative: newOrder }) })
     setParties(ps => ps.map(p => p.id === partyId ? { ...p, initiative: newOrder } : p))
   }
+  async function updateInitiativeValue(partyId, key, value) {
+    const res = await fetch(`/api/dnd/parties/${partyId}/initiative-value`, { method: 'PATCH', headers, body: JSON.stringify({ key, value }) })
+    const data = await res.json()
+    if (data.ok) {
+      setParties(ps => ps.map(p => p.id === partyId ? { ...p, initiative: data.initiative, initiativeValues: data.initiativeValues } : p))
+    }
+  }
   async function updatePartyHp(partyId, charId, hp) {
     await fetch(`/api/dnd/parties/${partyId}/hp/${charId}`, { method: 'PATCH', headers, body: JSON.stringify({ hp }) })
     setParties(ps => ps.map(p => p.id === partyId ? {
@@ -361,11 +369,25 @@ export default function DnD() {
     await fetch(`/api/dnd/parties/${partyId}/slots/${charId}`, { method: 'PATCH', headers, body: JSON.stringify({ usedSlots }) })
     setParties(ps => ps.map(p => p.id === partyId ? { ...p, usedSlots: { ...p.usedSlots, [charId]: usedSlots } } : p))
   }
+  async function updatePartyAbilitySlots(partyId, charId, usedAbilities) {
+    await fetch(`/api/dnd/parties/${partyId}/ability-slots/${charId}`, { method: 'PATCH', headers, body: JSON.stringify({ usedAbilities }) })
+    setParties(ps => ps.map(p => p.id === partyId ? { ...p, usedAbilities: { ...p.usedAbilities, [charId]: usedAbilities } } : p))
+  }
+  async function updatePartyClassResources(partyId, charId, usedClassResources) {
+    await fetch(`/api/dnd/parties/${partyId}/class-resources/${charId}`, { method: 'PATCH', headers, body: JSON.stringify({ usedClassResources }) })
+    setParties(ps => ps.map(p => p.id === partyId ? { ...p, usedClassResources: { ...p.usedClassResources, [charId]: usedClassResources } } : p))
+  }
   async function partyRest(partyId, type) {
-    if (!confirm(type === 'long' ? '¿Descanso largo? Se restaurarán PG y huecos de conjuro.' : '¿Descanso corto? Se restaurarán los PG.')) return
+    if (!confirm(type === 'long' ? '¿Descanso largo? Se restaurarán PG, huecos de conjuro y habilidades.' : '¿Descanso corto? Se restaurarán los PG.')) return
     await fetch(`/api/dnd/parties/${partyId}/rest`, { method: 'POST', headers, body: JSON.stringify({ type }) })
     fetchParties()
     showToast(type === 'long' ? '🌙 Descanso largo completado' : '☀️ Descanso corto completado')
+  }
+  async function resetInitiative(partyId) {
+    if (!confirm('¿Resetear la iniciativa de todos los integrantes?')) return
+    await fetch(`/api/dnd/parties/${partyId}/reset-initiative`, { method: 'POST', headers })
+    fetchParties()
+    showToast('🎲 Iniciativa reseteada')
   }
   function rollInitiative(dexMod, surprised) {
     const roll1 = Math.floor(Math.random() * 20) + 1 + dexMod
@@ -616,6 +638,7 @@ export default function DnD() {
     await fetch(url, { method, headers, body: JSON.stringify(note) })
     fetchCampaigns()
     setNoteModal(null)
+    setNoteImgPicker(null)
     showToast(isNew ? '📝 Nota creada' : '📝 Nota actualizada')
   }
 
@@ -624,7 +647,62 @@ export default function DnD() {
     await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/notes/${noteId}`, { method: 'DELETE', headers })
     fetchCampaigns()
     setNoteModal(null)
+    setNoteImgPicker(null)
     showToast('🗑 Nota eliminada')
+  }
+
+  async function loadNoteImages(path = '') {
+    try {
+      const q = path ? `?path=${encodeURIComponent(path)}` : ''
+      const r = await fetch(`/api/dnd/images${q}`)
+      if (r.ok) {
+        const data = await r.json()
+        setNoteImgPicker({ path, folders: data.folders || [], images: data.images || [] })
+      }
+    } catch {}
+  }
+
+  async function createNoteFolder(campaignId, chapterId, parentId = null) {
+    const name = prompt('Nombre de la carpeta:')
+    if (!name || !name.trim()) return
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/noteFolders`, {
+      method: 'POST', headers, body: JSON.stringify({ name: name.trim(), parentId })
+    })
+    fetchCampaigns()
+    showToast('📁 Carpeta creada')
+  }
+
+  async function renameNoteFolder(campaignId, chapterId, folderId, currentName) {
+    const name = prompt('Nuevo nombre:', currentName)
+    if (!name || !name.trim() || name.trim() === currentName) return
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/noteFolders/${folderId}`, {
+      method: 'PUT', headers, body: JSON.stringify({ name: name.trim() })
+    })
+    fetchCampaigns()
+    showToast('✏️ Carpeta renombrada')
+  }
+
+  async function deleteNoteFolder(campaignId, chapterId, folderId) {
+    if (!confirm('¿Eliminar esta carpeta y sus subcarpetas? Las notas volverán a la raíz.')) return
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/noteFolders/${folderId}`, {
+      method: 'DELETE', headers
+    })
+    fetchCampaigns()
+    showToast('🗑 Carpeta eliminada')
+  }
+
+  async function moveNoteFolder(campaignId, chapterId, folderId, parentId) {
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/noteFolders/${folderId}/move`, {
+      method: 'PATCH', headers, body: JSON.stringify({ parentId })
+    })
+    fetchCampaigns()
+  }
+
+  async function moveNote(campaignId, chapterId, noteId, folderId) {
+    await fetch(`/api/dnd/campaigns/${campaignId}/chapters/${chapterId}/notes/${noteId}/move`, {
+      method: 'PATCH', headers, body: JSON.stringify({ folderId })
+    })
+    fetchCampaigns()
   }
 
   async function createCampaign() {
@@ -859,20 +937,85 @@ export default function DnD() {
                             <div className="dnd-images-toggle" onClick={() => toggleExpand(`notes-${chapter.id}`)}>
                               <span className="dnd-chevron">{expanded[`notes-${chapter.id}`] ? '▾' : '▸'}</span>
                               <span>📝 Notas del Master {(chapter.notes||[]).length > 0 ? `(${chapter.notes.length})` : ''}</span>
-                              <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setNoteModal({ campaignId: campaign.id, chapterId: chapter.id, mode: 'create', note: { title: '', subtitle: '', body: '' } }) }}>+ Nota</button>
+                              <div style={{marginLeft:'auto', display:'flex', gap:4}} onClick={e => e.stopPropagation()}>
+                                <button className="dnd-btn-sm" onClick={() => createNoteFolder(campaign.id, chapter.id)}>+ Carpeta</button>
+                                <button className="dnd-btn-sm" onClick={() => setNoteModal({ campaignId: campaign.id, chapterId: chapter.id, mode: 'create', note: { title: '', subtitle: '', body: '', folderId: null } })}>+ Nota</button>
+                              </div>
                             </div>
-                            {expanded[`notes-${chapter.id}`] && (
-                              <div className="dnd-notes-grid">
-                                {(chapter.notes||[]).length === 0 && <div className="dnd-empty-sm">Sin notas — ¡añade la primera!</div>}
-                                {(chapter.notes||[]).map(note => (
-                                  <div key={note.id} className="dnd-note-card" onClick={() => setNoteModal({ campaignId: campaign.id, chapterId: chapter.id, mode: 'view', note: { ...note } })}>
+                            {expanded[`notes-${chapter.id}`] && (() => {
+                              const allNotes = chapter.notes || []
+                              const folders = chapter.noteFolders || []
+                              const rootNotes = allNotes.filter(n => !n.folderId)
+
+                              const NoteCard = ({ note, cId, chId }) => (
+                                <div className="dnd-note-card"
+                                  draggable
+                                  onDragStart={e => { e.dataTransfer.setData('application/note-id', String(note.id)); e.dataTransfer.effectAllowed = 'move' }}
+                                  onClick={() => setNoteModal({ campaignId: cId, chapterId: chId, mode: 'view', note: { ...note } })}>
+                                  <span className="dnd-note-drag-handle" title="Arrastrar">⠿</span>
+                                  <div className="dnd-note-card-content">
                                     <div className="dnd-note-card-title">{note.title}</div>
                                     {note.subtitle && <div className="dnd-note-card-subtitle">{note.subtitle}</div>}
                                     {note.body && <div className="dnd-note-card-body">{note.body.length > 120 ? note.body.slice(0, 120) + '…' : note.body}</div>}
                                   </div>
-                                ))}
-                              </div>
-                            )}
+                                </div>
+                              )
+
+                              const handleFolderDrop = (e, folderId) => {
+                                e.preventDefault(); e.currentTarget.classList.remove('dnd-folder-dragover')
+                                const noteId = parseInt(e.dataTransfer.getData('application/note-id'))
+                                if (!noteId) return
+                                moveNote(campaign.id, chapter.id, noteId, folderId)
+                              }
+                              const handleFolderDragOver = (e) => { e.preventDefault(); e.currentTarget.classList.add('dnd-folder-dragover') }
+                              const handleFolderDragLeave = (e) => { e.currentTarget.classList.remove('dnd-folder-dragover') }
+
+                              return (
+                                <div className="dnd-notes-container">
+                                  {/* Carpetas */}
+                                  {folders.map(folder => {
+                                    const folderNotes = allNotes.filter(n => n.folderId === folder.id)
+                                    const isOpen = expanded[`nf-${folder.id}`]
+                                    return (
+                                      <div key={folder.id} className={`dnd-note-folder ${isOpen ? 'open' : ''}`}
+                                        onDragOver={handleFolderDragOver} onDragLeave={handleFolderDragLeave}
+                                        onDrop={e => handleFolderDrop(e, folder.id)}>
+                                        <div className="dnd-note-folder-header" onClick={() => toggleExpand(`nf-${folder.id}`)}>
+                                          <span className="dnd-chevron">{isOpen ? '▾' : '▸'}</span>
+                                          <span className="dnd-note-folder-icon">📁</span>
+                                          <span className="dnd-note-folder-name">{folder.name}</span>
+                                          <span className="dnd-note-folder-count">{folderNotes.length}</span>
+                                          <div className="dnd-note-folder-actions" onClick={e => e.stopPropagation()}>
+                                            <button className="dnd-btn-sm" onClick={() => setNoteModal({ campaignId: campaign.id, chapterId: chapter.id, mode: 'create', note: { title: '', subtitle: '', body: '', folderId: folder.id } })} title="Nota en esta carpeta">+</button>
+                                            <button className="dnd-btn-sm" onClick={() => renameNoteFolder(campaign.id, chapter.id, folder.id, folder.name)} title="Renombrar">✏️</button>
+                                            <button className="dnd-btn-sm dnd-btn-danger" onClick={() => deleteNoteFolder(campaign.id, chapter.id, folder.id)} title="Eliminar carpeta">✕</button>
+                                          </div>
+                                        </div>
+                                        {isOpen && (
+                                          <div className="dnd-note-folder-content">
+                                            {folderNotes.length === 0 && <div className="dnd-empty-sm">Arrastra notas aquí</div>}
+                                            {folderNotes.map(note => <NoteCard key={note.id} note={note} cId={campaign.id} chId={chapter.id} />)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+
+                                  {/* Notas sueltas (raíz) */}
+                                  <div className="dnd-notes-root-zone"
+                                    onDragOver={handleFolderDragOver} onDragLeave={handleFolderDragLeave}
+                                    onDrop={e => handleFolderDrop(e, null)}>
+                                    {allNotes.length === 0 && folders.length === 0 && <div className="dnd-empty-sm">Sin notas — ¡añade la primera!</div>}
+                                    {rootNotes.length > 0 && <div className="dnd-notes-grid">
+                                      {rootNotes.map(note => <NoteCard key={note.id} note={note} cId={campaign.id} chId={chapter.id} />)}
+                                    </div>}
+                                    {rootNotes.length === 0 && folders.length > 0 && allNotes.length > 0 && (
+                                      <div className="dnd-empty-sm dnd-drop-hint">Suelta aquí para sacar de carpeta</div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </div>
                         </div>
                       )}
@@ -959,17 +1102,37 @@ export default function DnD() {
                 <>
                   <div className="dnd-note-view-header">
                     <h3>{noteModal.note.title}</h3>
-                    <button className="dnd-note-edit-icon" onClick={() => setNoteModal(prev => ({ ...prev, mode: 'edit' }))} title="Editar nota">✏️</button>
+                    <div style={{display:'flex',gap:6,flexShrink:0}}>
+                      <button className="dnd-note-edit-icon" onClick={() => setNoteModal(prev => ({ ...prev, mode: 'edit' }))} title="Editar nota">✏️</button>
+                      <button className="dnd-note-edit-icon" onClick={() => setNoteModal(null)} title="Cerrar">✕</button>
+                    </div>
                   </div>
                   {noteModal.note.subtitle && <div className="dnd-note-view-subtitle">{noteModal.note.subtitle}</div>}
+                  {(noteModal.note.imageShortcuts||[]).length > 0 && (
+                    <div className="dnd-note-shortcuts">
+                      {(noteModal.note.imageShortcuts||[]).map((img, i) => (
+                        <div key={i} className="dnd-note-shortcut">
+                          <img src={img.url} alt={img.name} />
+                          <span className="dnd-note-shortcut-name">{img.name}</span>
+                          <div className="dnd-note-shortcut-btns">
+                            <button onClick={() => sendImageToViewer(img, 'main')} title="Enviar a Main">📺</button>
+                            <button onClick={() => sendImageToViewer(img, 'tablet')} title="Enviar a Tablet">📱</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {noteModal.note.body && <div className="dnd-note-view-body">{noteModal.note.body}</div>}
-                  <div className="dnd-modal-btns">
-                    <button className="dnd-btn-cancel" onClick={() => setNoteModal(null)}>Cerrar</button>
-                  </div>
                 </>
               ) : (
                 <>
-                  <h3>{noteModal.mode === 'create' ? '📝 Nueva Nota' : '📝 Editar Nota'}</h3>
+                  <div className="dnd-note-view-header">
+                    <h3>{noteModal.mode === 'create' ? '📝 Nueva Nota' : '📝 Editar Nota'}</h3>
+                    <button className="dnd-note-edit-icon" onClick={() => {
+                      if (noteModal.mode === 'edit') setNoteModal(prev => ({ ...prev, mode: 'view' }))
+                      else setNoteModal(null)
+                    }} title="Cerrar">✕</button>
+                  </div>
                   <div className="dnd-note-field-row">
                     <input
                       className="dnd-input"
@@ -987,7 +1150,7 @@ export default function DnD() {
                       onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, subtitle: e.target.value } }))}
                     />
                   </div>
-                  <div className="dnd-note-field-row">
+                  <div className="dnd-note-field-row" style={{flex:1,display:'flex',flexDirection:'column'}}>
                     <textarea
                       className="dnd-textarea"
                       placeholder="Contenido de la nota..."
@@ -995,6 +1158,60 @@ export default function DnD() {
                       value={noteModal.note.body}
                       onChange={e => setNoteModal(prev => ({ ...prev, note: { ...prev.note, body: e.target.value } }))}
                     />
+                  </div>
+                  {/* Atajos de imagen adjuntos */}
+                  <div className="dnd-note-shortcuts-edit">
+                    <div className="dnd-note-shortcuts-label" onClick={() => { if (!noteImgPicker) loadNoteImages('') }}>
+                      🖼️ Atajos de imagen ({(noteModal.note.imageShortcuts||[]).length})
+                    </div>
+                    {(noteModal.note.imageShortcuts||[]).length > 0 && (
+                      <div className="dnd-note-shortcuts">
+                        {(noteModal.note.imageShortcuts||[]).map((img, i) => (
+                          <div key={i} className="dnd-note-shortcut">
+                            <img src={img.url} alt={img.name} />
+                            <span className="dnd-note-shortcut-name">{img.name}</span>
+                            <button className="dnd-note-shortcut-remove" onClick={() => {
+                              setNoteModal(prev => ({ ...prev, note: { ...prev.note, imageShortcuts: (prev.note.imageShortcuts||[]).filter((_, j) => j !== i) } }))
+                            }} title="Quitar">✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button className="dnd-btn-sm" style={{marginTop:4}} onClick={() => {
+                      if (noteImgPicker) { setNoteImgPicker(null) } else { loadNoteImages('') }
+                    }}>
+                      {noteImgPicker ? '▾ Cerrar explorador' : '+ Añadir imagen'}
+                    </button>
+                    {noteImgPicker && (
+                      <div className="dnd-note-img-picker">
+                        {noteImgPicker.path && (
+                          <button className="dnd-btn-sm" onClick={() => {
+                            const parts = noteImgPicker.path.split('/')
+                            parts.pop()
+                            loadNoteImages(parts.join('/'))
+                          }}>← Atrás</button>
+                        )}
+                        <div className="dnd-note-img-picker-grid">
+                          {(noteImgPicker.folders||[]).map(f => (
+                            <div key={f.path || f.name} className="dnd-note-img-picker-folder" onClick={() => loadNoteImages(f.path || f.name)}>
+                              📁 {f.name}
+                            </div>
+                          ))}
+                          {(noteImgPicker.images||[]).map(img => (
+                            <div key={img.url} className="dnd-note-img-picker-item" onClick={() => {
+                              const already = (noteModal.note.imageShortcuts||[]).some(s => s.url === img.url)
+                              if (!already) {
+                                setNoteModal(prev => ({ ...prev, note: { ...prev.note, imageShortcuts: [...(prev.note.imageShortcuts||[]), { url: img.url, name: img.name }] } }))
+                                showToast(`🖼️ "${img.name}" adjuntada`)
+                              }
+                            }}>
+                              <img src={img.url} alt={img.name} loading="lazy" />
+                              <span>{img.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="dnd-modal-btns">
                     <button className="dnd-btn-primary" onClick={() => saveNote(noteModal.campaignId, noteModal.chapterId, noteModal.note)} disabled={!noteModal.note.title.trim()}>
@@ -1044,6 +1261,7 @@ export default function DnD() {
                     {isMaster && <div className="dnd-party-rest-bar">
                       <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'short')}>☀️ Descanso corto</button>
                       <button className="dnd-btn-sm" onClick={() => partyRest(p.id, 'long')}>🌙 Descanso largo</button>
+                      <button className="dnd-btn-sm" onClick={() => resetInitiative(p.id)}>🎲 Reset iniciativa</button>
                       <span style={{flex:1}} />
                       {(p.enemies||[]).length > 0 && <button className="dnd-btn-sm dnd-btn-danger" onClick={() => clearEnemies(p.id)} title="Eliminar todos los enemigos">💀 Vaciar enemigos</button>}
                       <button className="dnd-btn-sm dnd-btn-danger" onClick={() => clearParty(p.id)} title="Vaciar todo el grupo">🧹 Vaciar todo</button>
@@ -1053,8 +1271,11 @@ export default function DnD() {
                       isMaster={isMaster}
                       userId={user?.id}
                       onReorder={(newOrder) => updateInitiative(p.id, newOrder)}
+                      onInitiativeChange={(key, value) => updateInitiativeValue(p.id, key, value)}
                       onHpChange={(charId, hp) => updatePartyHp(p.id, charId, hp)}
                       onSlotsChange={(charId, slots) => updatePartySlots(p.id, charId, slots)}
+                      onAbilitySlotsChange={(charId, used) => updatePartyAbilitySlots(p.id, charId, used)}
+                      onClassResourceChange={(charId, used) => updatePartyClassResources(p.id, charId, used)}
                       onRemove={(charId) => removeFromParty(p.id, charId)}
                       onEnemyHpChange={(enemyId, hp) => updateEnemyHp(p.id, enemyId, hp)}
                       onRemoveEnemy={(enemyId) => removeEnemyFromParty(p.id, enemyId)}
