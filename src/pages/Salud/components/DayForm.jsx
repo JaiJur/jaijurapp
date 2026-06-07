@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import MealEntries from './MealEntries'
 
 const SLEEP_OPTIONS = [
@@ -55,17 +55,20 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
     CONTORNO_FIELDS.some(f => existing?.contorno?.[f.key] != null)
   )
   const [openMealKey, setOpenMealKey] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const debounceRef = useRef(null)
+  const isFirstRender = useRef(true)
 
   const mealTotal = (key) => meals[key].reduce((s, e) => s + (e.kcal || 0), 0)
   const totalCal = MEALS.reduce((s, m) => s + mealTotal(m.key), 0)
   const hasCals = MEALS.some(m => meals[m.key].length > 0)
 
-  const handleSubmit = () => {
+  const buildData = useCallback(() => {
     const mealsData = {}
     MEALS.forEach(m => {
       mealsData[m.key] = meals[m.key].length > 0 ? meals[m.key] : null
     })
-    const data = {
+    return {
       meals: mealsData,
       calories: hasCals ? totalCal : null,
       sleep,
@@ -83,8 +86,19 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
         return any ? c : null
       })(),
     }
-    onSave(data)
-  }
+  }, [meals, sleep, steps, strength, strengthType, weight, notes, contorno, hasCals, totalCal])
+
+  // Autosave con debounce de 800ms
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setSaving(true)
+      await onSave(buildData())
+      setSaving(false)
+    }, 800)
+    return () => clearTimeout(debounceRef.current)
+  }, [meals, sleep, steps, strength, strengthType, weight, notes, contorno])
 
   const dateLabel = new Date(date + 'T12:00:00').toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -205,8 +219,8 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
       </label>
 
       <div className="salud-form-actions">
-        <button className="salud-btn salud-btn-save" onClick={handleSubmit}>Guardar</button>
-        <button className="salud-btn salud-btn-cancel" onClick={onCancel}>Cancelar</button>
+        <span className="salud-autosave-indicator">{saving ? '💾 Guardando…' : '✓ Guardado automáticamente'}</span>
+        <button className="salud-btn salud-btn-cancel" onClick={onCancel}>Cerrar</button>
       </div>
 
       {existing && onDelete && (

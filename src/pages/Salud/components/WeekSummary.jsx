@@ -103,7 +103,6 @@ export default function WeekSummary({ entries, config }) {
   }
   const calAvg = tab === 'cal' ? calcAvg(calData) : null
   const stepsAvg = tab === 'steps' ? calcAvg(stepsData) : null
-  const weightAvg = tab === 'weight' ? calcAvg(weightData) : null
 
   // Labels de día
   const dayLabels = days.map(d => {
@@ -170,10 +169,6 @@ export default function WeekSummary({ entries, config }) {
             <line x1={0} y1={stepsScale.yFn(stepsAvg)} x2={totalW} y2={stepsScale.yFn(stepsAvg)}
               stroke="#50bbff" strokeWidth="1" strokeDasharray="2 4" opacity=".6" />
           )}
-          {weightAvg != null && weightScale && (
-            <line x1={0} y1={weightScale.yFn(weightAvg)} x2={totalW} y2={weightScale.yFn(weightAvg)}
-              stroke="#ffaa30" strokeWidth="1" strokeDasharray="2 4" opacity=".6" />
-          )}
 
           {/* ── Steps line ── */}
           {showSteps && steps.points.length > 1 && (
@@ -222,7 +217,6 @@ export default function WeekSummary({ entries, config }) {
         {showSteps && goalSteps && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#4dff88' }} />Obj {goalSteps.toLocaleString()}</span>}
         {calAvg != null && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#ff5050' }} />Media {Math.round(calAvg)}</span>}
         {stepsAvg != null && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#50bbff' }} />Media {Math.round(stepsAvg).toLocaleString()}</span>}
-        {weightAvg != null && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#ffaa30' }} />Media {weightAvg.toFixed(1)}kg</span>}
       </div>
     </div>
   )

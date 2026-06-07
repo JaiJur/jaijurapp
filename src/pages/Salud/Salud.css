@@ -244,6 +244,14 @@
 .salud-btn-cancel {
   background: #2a2a3a;
   color: #aaa;
+  flex: 0 0 auto;
+  padding: .7rem 1.4rem;
+}
+.salud-autosave-indicator {
+  flex: 1;
+  font-size: .78rem;
+  color: #555;
+  align-self: center;
 }
 
 /* ── History ── */

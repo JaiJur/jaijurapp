@@ -83,7 +83,6 @@ export default function Salud() {
             bmr={config.bmr}
             onSave={async (data) => {
               await saveEntry(editingDate, data)
-              setEditingDate(null)
             }}
             onCancel={() => setEditingDate(null)}
             onDelete={async (date) => {
