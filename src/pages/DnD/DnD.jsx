@@ -14,6 +14,7 @@ import CharacterCard from './components/CharacterCard'
 import CharacterModal from './components/CharacterModal'
 import PartyTracker from './components/PartyTracker'
 import PartyAddModal from './components/PartyAddModal'
+import PlayerView from './components/PlayerView'
 import './DnD.css'
 
 export default function DnD() {
@@ -803,6 +804,19 @@ export default function DnD() {
   // ── Auth gate: si no hay usuario, mostrar login/registro ──
   if (authLoading) return <div className="dnd-root"><div className="dnd-bg" /></div>
   if (!user) return <DnDAuthGate />
+
+  // ── Vista jugador ──────────────────────────────────────────────────────────
+  if (isPlayer) {
+    return (
+      <div className="dnd-root">
+        <div className="dnd-bg" />
+        <AppHeader />
+        <main className="dnd-main dnd-main-player">
+          <PlayerView user={user} characters={characters} onCharacterSaved={fetchCharacters} />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="dnd-root">

@@ -3415,3 +3415,739 @@ textarea.dnd-input {
   min-width: 36px;
   flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   PLAYER VIEW — Vista de jugador
+   ═══════════════════════════════════════════════════════════ */
+
+.pv-root {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 0 80px;
+}
+
+/* Header */
+.pv-header {
+  padding: 24px 16px 8px;
+}
+.pv-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--dnd-accent, #c9a84c);
+}
+.pv-empty {
+  color: var(--dnd-muted, #888);
+  font-style: italic;
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+/* Grid de selección */
+.pv-char-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px;
+}
+
+/* Card de personaje */
+.pv-charcard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--dnd-card-bg, #1e1e2e);
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.pv-charcard:hover {
+  border-color: var(--dnd-accent, #c9a84c);
+  transform: translateX(3px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.pv-charcard:active {
+  transform: translateX(1px);
+}
+
+.pv-charcard-portrait {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--dnd-card-bg2, #2a2a3e);
+  border: 2px solid var(--dnd-border, #333);
+}
+.pv-charcard-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pv-charcard-portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.pv-charcard-info {
+  flex: 1;
+  min-width: 0;
+}
+.pv-charcard-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--dnd-text, #e8e8e8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-charcard-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--dnd-muted, #888);
+}
+.pv-charcard-level {
+  background: var(--dnd-accent, #c9a84c);
+  color: #000;
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+.pv-charcard-hp {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+.pv-hp-label {
+  color: var(--dnd-muted, #888);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.pv-hp-val {
+  color: #6fcf87;
+  font-weight: 600;
+}
+.pv-charcard-desc {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--dnd-muted, #888);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-charcard-arrow {
+  color: var(--dnd-accent, #c9a84c);
+  opacity: 0.5;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* ── Detalle del personaje ── */
+
+.pv-detail-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--dnd-border, #333);
+  position: sticky;
+  top: 0;
+  background: var(--dnd-bg, #141420);
+  z-index: 10;
+}
+.pv-back-btn {
+  background: none;
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 8px;
+  color: var(--dnd-accent, #c9a84c);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.pv-back-btn:hover { background: rgba(201,168,76,0.1); }
+.pv-detail-charname {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dnd-text, #e8e8e8);
+}
+
+/* Hero banner */
+.pv-detail-hero {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px 16px;
+}
+.pv-detail-portrait {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid var(--dnd-accent, #c9a84c);
+  flex-shrink: 0;
+}
+.pv-detail-hero-info { flex: 1; }
+.pv-detail-hero-info h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--dnd-accent, #c9a84c);
+}
+.pv-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  color: var(--dnd-muted, #888);
+}
+
+/* Stats row */
+.pv-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.pv-stat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--dnd-card-bg2, #2a2a3e);
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 52px;
+  font-size: 0.7rem;
+  color: var(--dnd-muted, #888);
+  text-transform: uppercase;
+}
+.pv-stat-badge strong {
+  font-size: 1rem;
+  color: var(--dnd-text, #e8e8e8);
+  font-weight: 700;
+  margin-top: 2px;
+}
+.pv-stat-hp strong { color: #6fcf87; }
+
+/* Atributos */
+.pv-attrs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+.pv-attr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--dnd-card-bg2, #2a2a3e);
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 10px;
+  padding: 8px 4px;
+}
+.pv-attr-label {
+  font-size: 0.65rem;
+  color: var(--dnd-muted, #888);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.pv-attr-val {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--dnd-text, #e8e8e8);
+  line-height: 1.2;
+}
+.pv-attr-mod {
+  font-size: 0.75rem;
+  color: var(--dnd-accent, #c9a84c);
+}
+
+@media (max-width: 480px) {
+  .pv-attrs { grid-template-columns: repeat(3, 1fr); }
+  .pv-detail-portrait { width: 80px; height: 80px; }
+  .pv-detail-hero-info h2 { font-size: 1.2rem; }
+}
+
+/* ── Huecos de hechizo ── */
+.pv-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pv-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pv-slot-label {
+  font-size: 0.8rem;
+  color: var(--dnd-muted, #888);
+  width: 64px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.pv-slot-pips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.pv-pip {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 2px solid var(--dnd-accent, #c9a84c);
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  padding: 0;
+}
+.pv-pip:active { transform: scale(0.88); }
+.pv-pip-free {
+  background: transparent;
+}
+.pv-pip-used {
+  background: var(--dnd-accent, #c9a84c);
+  opacity: 0.35;
+}
+.pv-slot-count {
+  font-size: 0.78rem;
+  color: var(--dnd-muted, #888);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Rasgos ── */
+.pv-traits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pv-trait-card {
+  background: var(--dnd-card-bg2, #2a2a3e);
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.pv-trait-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dnd-text, #e8e8e8);
+  margin-bottom: 4px;
+}
+.pv-trait-desc {
+  font-size: 0.8rem;
+  color: var(--dnd-muted, #aaa);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* ── Acciones favoritas ── */
+.pv-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pv-action-card {
+  background: var(--dnd-card-bg2, #2a2a3e);
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.pv-action-card.pv-action-open {
+  border-color: var(--dnd-accent, #c9a84c);
+}
+.pv-action-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.pv-action-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pv-action-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--dnd-text, #e8e8e8);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-action-badges {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.pv-action-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.06);
+  white-space: nowrap;
+}
+.pv-badge-spell {
+  background: rgba(139, 92, 246, 0.2);
+  color: #b794f4;
+}
+.pv-badge-cantrip {
+  background: rgba(99, 179, 237, 0.15);
+  color: #90cdf4;
+}
+.pv-action-stats {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.pv-action-mod {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f6ad55;
+}
+.pv-action-dmg {
+  font-size: 0.78rem;
+  color: #fc8181;
+}
+.pv-action-chevron {
+  color: var(--dnd-muted, #888);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.pv-action-note {
+  padding: 0 13px 12px 29px;
+  font-size: 0.78rem;
+  color: var(--dnd-muted, #aaa);
+  line-height: 1.55;
+  white-space: pre-line;
+  border-top: 1px solid var(--dnd-border, #2a2a3e);
+  padding-top: 10px;
+}
+
+/* ── Sección desplegable ── */
+.pv-section {
+  border-top: 1px solid var(--dnd-border, #222);
+}
+.pv-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.pv-section-header:hover { background: rgba(255,255,255,0.02); }
+.pv-section-chevron {
+  font-size: 0.8rem;
+  color: var(--dnd-accent, #c9a84c);
+  width: 12px;
+}
+.pv-section-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dnd-accent, #c9a84c);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pv-section-body {
+  padding: 0 16px 16px;
+}
+
+/* ── Habilidades y salvaciones ── */
+.pv-skills-group { margin-bottom: 10px; }
+.pv-skills-group:last-child { margin-bottom: 0; }
+.pv-skills-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dnd-muted, #888);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.pv-skills-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+.pv-skill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--dnd-card-bg2, #2a2a3e);
+}
+.pv-skill-save {
+  background: rgba(201,168,76,0.07);
+  border: 1px solid rgba(201,168,76,0.15);
+}
+.pv-skill-name {
+  font-size: 0.8rem;
+  color: var(--dnd-text, #e8e8e8);
+}
+.pv-skill-bonus {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--dnd-accent, #c9a84c);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Pips de rasgos de clase (descanso corto = amarillo) ── */
+.pv-pip-short {
+  border-color: #f6c90e;
+}
+.pv-pip-short.pv-pip-used {
+  background: #f6c90e;
+  opacity: 0.4;
+}
+
+/* Label de rasgo en slot row — más ancho y con nombre limpio */
+.pv-slot-label-trait {
+  width: auto;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.pv-slot-die {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 0.65rem;
+  background: rgba(168,85,247,0.2);
+  border: 1px solid rgba(168,85,247,0.35);
+  color: #d8b4fe;
+  padding: 0 5px;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+.pv-slot-rest {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--dnd-muted, #666);
+  line-height: 1.2;
+  text-align: right;
+}
+
+/* ── Consumibles ── */
+.pv-consumables {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pv-consumables-empty {
+  font-size: 0.8rem;
+  color: var(--dnd-muted, #666);
+  font-style: italic;
+  padding: 4px 0;
+}
+.pv-consumable-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--dnd-card-bg2, #2a2a3e);
+  border: 1px solid var(--dnd-border, #333);
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: opacity 0.2s;
+}
+.pv-consumable-row.pv-consumable-empty {
+  opacity: 0.45;
+}
+.pv-consumable-name {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--dnd-text, #e8e8e8);
+}
+.pv-consumable-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pv-cons-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--dnd-border, #444);
+  background: rgba(255,255,255,0.06);
+  color: var(--dnd-accent, #c9a84c);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+}
+.pv-cons-btn:hover { background: rgba(201,168,76,0.15); }
+.pv-consumable-qty {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dnd-accent, #c9a84c);
+  min-width: 24px;
+  text-align: center;
+}
+.pv-cons-del {
+  background: none;
+  border: none;
+  color: var(--dnd-muted, #666);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.12s;
+}
+.pv-cons-del:hover { color: #f87171; }
+
+/* Fila de añadir */
+.pv-consumable-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pv-cons-input {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--dnd-border, #444);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--dnd-text, #e8e8e8);
+  font-size: 0.82rem;
+  outline: none;
+}
+.pv-cons-input:focus { border-color: var(--dnd-accent, #c9a84c); }
+.pv-cons-input::placeholder { color: var(--dnd-muted, #555); }
+.pv-cons-qty-input {
+  width: 48px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--dnd-border, #444);
+  border-radius: 7px;
+  padding: 7px 6px;
+  color: var(--dnd-accent, #c9a84c);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+.pv-cons-qty-input:focus { border-color: var(--dnd-accent, #c9a84c); }
+.pv-cons-add-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--dnd-accent, #c9a84c);
+  background: rgba(201,168,76,0.1);
+  color: var(--dnd-accent, #c9a84c);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+}
+.pv-cons-add-btn:hover { background: rgba(201,168,76,0.25); }
+
+/* ── Player main sin padding top extra ── */
+.dnd-main-player {
+  padding-top: 0;
+  padding-bottom: 40px;
+}
+
+/* Attrs dentro de sección (sin margen lateral propio) */
+.pv-attrs-inline {
+  margin: 0 0 4px;
+}
+
+/* ── Barra de vida ── */
+.pv-hp-bar-wrap {
+  margin: 8px 0 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pv-hp-bar-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pv-hp-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.pv-hp-bar-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ── Franja de stats desacoplada ── */
+.pv-stats-strip {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--dnd-border, #222);
+  border-bottom: 1px solid var(--dnd-border, #222);
+  flex-wrap: wrap;
+}
+.pv-stats-strip .pv-stat-badge {
+  flex: 1;
+  min-width: 48px;
+}
+
+/* ── Acción: layout dos renglones ── */
+.pv-action-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pv-action-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--dnd-text, #e8e8e8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-action-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 1. Sin espacio encima del topbar */
+.pv-root { padding-top: 0; }
+
+/* 3. Padding superior en el contenido de cada acordeón */
+.pv-section-body { padding-top: 10px; }
