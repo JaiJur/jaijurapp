@@ -27,6 +27,20 @@ function RefDataSection() {
     if (type === 'weapons' && typeof body.properties === 'string') body.properties = body.properties.split(',').map(s => s.trim()).filter(Boolean)
     if (type === 'backgrounds' && typeof body.skillProficiencies === 'string') body.skillProficiencies = body.skillProficiencies.split(',').map(s => s.trim()).filter(Boolean)
     if (type === 'backgrounds' && typeof body.toolProficiencies === 'string') body.toolProficiencies = body.toolProficiencies.split(',').map(s => s.trim()).filter(Boolean)
+    if (type === 'classes') {
+      if (typeof body.savingThrows === 'string') body.savingThrows = body.savingThrows.split(',').map(s => s.trim()).filter(Boolean)
+      if (typeof body.armorProficiencies === 'string') body.armorProficiencies = body.armorProficiencies.split(',').map(s => s.trim()).filter(Boolean)
+      if (typeof body.weaponProficiencies === 'string') body.weaponProficiencies = body.weaponProficiencies.split(',').map(s => s.trim()).filter(Boolean)
+      if (typeof body.toolProficiencies === 'string') body.toolProficiencies = body.toolProficiencies.split(',').map(s => s.trim()).filter(Boolean)
+      if (typeof body.skillOptions === 'string') body.skillOptions = body.skillOptions.split(',').map(s => s.trim()).filter(Boolean)
+      // Generar id del nombre si es nueva
+      if (!body.id && body.name) body.id = body.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')
+      // Inicializar 20 niveles vacíos si no tiene
+      if (!body.levels || Object.keys(body.levels).length === 0) {
+        body.levels = {}
+        for (let i = 1; i <= 20; i++) body.levels[i] = { profBonus: i <= 4 ? 2 : i <= 8 ? 3 : i <= 12 ? 4 : i <= 16 ? 5 : 6, slots: [], features: [] }
+      }
+    }
     try {
       const r = await fetch(url, { method, headers, body: JSON.stringify(body) })
       if (r.ok) { setEditItem(null); loadData() }
@@ -43,6 +57,8 @@ function RefDataSection() {
       ? { name:'',damage:'',damageType:'Cortante',mastery:'',masteryDesc:'',properties:[],category:'Simple cuerpo a cuerpo',simple:true }
       : tab === 'armor'
       ? { name:'',ac:'',acBase:10,category:'Ligera',stealthDisadv:false,strReq:null }
+      : tab === 'classes'
+      ? { name:'',nameEn:'',hitDie:8,primaryAbility:'',savingThrows:'',armorProficiencies:'',weaponProficiencies:'',toolProficiencies:'',skillChoices:2,skillOptions:'',startingEquipment:'',spellcaster:false,spellcastingAbility:'',subclassLevel:3,subclassName:'',source:'Homebrew',levels:{},subclasses:[] }
       : { name:'',desc:'',skillProficiencies:[],toolProficiencies:[],languages:0,equipment:'',feat:'',featDesc:'',abilityScores:'+2/+1',source:'Homebrew' }
     setEditDraft(defaults)
     setEditItem('new')
@@ -68,10 +84,107 @@ function RefDataSection() {
     return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><input {...inputProps} type={opts.type === 'number' ? 'number' : 'text'} style={{...inputProps.style,width:'100%'}} /></div>
   }
 
+  const [classEditModal, setClassEditModal] = useState(null) // null | clase completa
+  const [classDraft, setClassDraft] = useState(null)
+  const [classEditLevel, setClassEditLevel] = useState(null) // nivel abierto en editor
+
+  function openClassEdit(cls) {
+    // Deep copy para edición segura
+    const draft = JSON.parse(JSON.stringify(cls))
+    // Asegurar que cada nivel tiene traitDescs {}
+    Object.keys(draft.levels).forEach(lv => {
+      if (!draft.levels[lv].traitDescs) draft.levels[lv].traitDescs = {}
+    })
+    if (!draft.baseTraits) draft.baseTraits = []
+    setClassDraft(draft)
+    setClassEditModal(cls)
+    setClassEditLevel(null)
+  }
+
+  async function saveClassEdit() {
+    try {
+      const r = await fetch(`/api/dnd/refdata/classes/${classDraft.id}`, {
+        method: 'PUT', headers, body: JSON.stringify(classDraft)
+      })
+      if (r.ok) { setClassEditModal(null); setClassDraft(null); loadData() }
+    } catch {}
+  }
+
+  function updateLevelFeatureName(lv, idx, value) {
+    setClassDraft(d => {
+      const features = [...(d.levels[lv].features || [])]
+      features[idx] = { ...features[idx], name: value }
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], features } } }
+    })
+  }
+
+  function updateLevelFeatureDesc(lv, idx, value) {
+    setClassDraft(d => {
+      const features = [...(d.levels[lv].features || [])]
+      features[idx] = { ...features[idx], desc: value }
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], features } } }
+    })
+  }
+
+  function addLevelFeature(lv) {
+    setClassDraft(d => {
+      const features = [...(d.levels[lv].features || []), { name: '', desc: '' }]
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], features } } }
+    })
+  }
+
+  function removeLevelFeature(lv, idx) {
+    setClassDraft(d => {
+      const features = (d.levels[lv].features || []).filter((_, i) => i !== idx)
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], features } } }
+    })
+  }
+
+  function updateLevelSlot(lv, idx, field, value) {
+    setClassDraft(d => {
+      const slots = [...(d.levels[lv].slots || [])]
+      slots[idx] = { ...slots[idx], [field]: field === 'count' ? (value === '' ? null : parseInt(value) || 0) : value }
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], slots } } }
+    })
+  }
+
+  function addLevelSlot(lv) {
+    setClassDraft(d => {
+      const slots = [...(d.levels[lv].slots || []), { name: '', count: 1 }]
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], slots } } }
+    })
+  }
+
+  function removeLevelSlot(lv, idx) {
+    setClassDraft(d => {
+      const slots = (d.levels[lv].slots || []).filter((_, i) => i !== idx)
+      return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], slots } } }
+    })
+  }
+
+  function updateBaseTrait(idx, field, value) {
+    setClassDraft(d => {
+      const bt = [...(d.baseTraits || [])]
+      bt[idx] = { ...bt[idx], [field]: value }
+      return { ...d, baseTraits: bt }
+    })
+  }
+
+  function addBaseTrait() {
+    setClassDraft(d => ({ ...d, baseTraits: [...(d.baseTraits || []), { name: '', desc: '' }] }))
+  }
+
+  function removeBaseTrait(idx) {
+    setClassDraft(d => ({ ...d, baseTraits: (d.baseTraits || []).filter((_, i) => i !== idx) }))
+  }
+
+  const [expandedLevel, setExpandedLevel] = useState(null)
+
   const tabs = [
     { id: 'weapons', icon: '⚔️', label: 'Armas' },
     { id: 'armor', icon: '🛡️', label: 'Armaduras' },
     { id: 'backgrounds', icon: '📜', label: 'Trasfondos' },
+    { id: 'classes', icon: '🧙', label: 'Clases' },
   ]
 
   return (
@@ -86,7 +199,8 @@ function RefDataSection() {
               <button key={t.id} className={`ref-data-tab ${tab === t.id ? 'active' : ''}`}
                 onClick={() => { setTab(t.id); setExpandedItem(null); setEditItem(null) }}>{t.icon} {t.label}</button>
             ))}
-            <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={openNew}>+ {tabs.find(t=>t.id===tab)?.icon}</button>
+            {tab !== 'classes' && <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={openNew}>+ {tabs.find(t=>t.id===tab)?.icon}</button>}
+            {tab === 'classes' && <button className="dnd-btn-sm" style={{marginLeft:'auto'}} onClick={openNew}>+ 🧙</button>}
           </div>
 
           {/* ── Modal edición ── */}
@@ -123,6 +237,33 @@ function RefDataSection() {
                 {field('feat','Dote')}
                 {field('featDesc','Descripción de la dote',{type:'textarea'})}
                 {field('abilityScores','Características')}
+              </>}
+              {tab === 'classes' && <>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+                  {field('name','Nombre (ES)')}
+                  {field('nameEn','Nombre (EN)')}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
+                  {field('hitDie','Dado de golpe',{type:'select',options:[4,6,8,10,12]})}
+                  {field('primaryAbility','Caract. principal')}
+                  {field('skillChoices','Habilidades a elegir',{type:'number'})}
+                </div>
+                {field('savingThrows','Tiradas de salvación (separadas por coma, ej: FUE, CON)')}
+                {field('armorProficiencies','Competencias en armaduras (coma)')}
+                {field('weaponProficiencies','Competencias en armas (coma)')}
+                {field('toolProficiencies','Competencias en herramientas (coma)')}
+                {field('skillOptions','Opciones de habilidad (coma, o "todas")')}
+                {field('startingEquipment','Equipo inicial',{type:'textarea'})}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+                  {field('spellcaster','Es lanzador',{type:'bool'})}
+                  {editDraft.spellcaster && field('spellcastingAbility','Caract. de lanzamiento')}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+                  {field('subclassLevel','Nivel de subclase',{type:'number'})}
+                  {field('subclassName','Nombre de subclase')}
+                </div>
+                {field('source','Fuente')}
+                <div style={{fontSize:'.72rem',color:'#6b7280',marginTop:4}}>Los niveles y rasgos se rellenan después desde el editor ✏️</div>
               </>}
               <div style={{display:'flex',gap:6,marginTop:8}}>
                 <button className="dnd-btn-sm" style={{color:'#4ade80',borderColor:'rgba(74,222,128,0.3)'}} onClick={saveItem}>✓ Guardar</button>
@@ -227,7 +368,280 @@ function RefDataSection() {
             </div>
           )}
 
+          {tab === 'classes' && data && !editItem && (
+            <div className="ref-data-list">
+              {(data.classes || []).map(cls => {
+                const isOpen = expandedItem === cls.id
+                const lvlData = cls.levels?.[expandedLevel] || null
+                return (
+                  <div key={cls.id} className={`ref-data-item ${isOpen ? 'expanded' : ''}`}
+                    onClick={() => { setExpandedItem(isOpen ? null : cls.id); setExpandedLevel(null) }}>
+                    <div className="ref-data-item-row">
+                      <span className="ref-data-item-name">{cls.name}</span>
+                      <span className="ref-data-item-meta">d{cls.hitDie} · {cls.primaryAbility}</span>
+                      <span className="ref-data-item-tag" style={{color: cls.spellcaster ? '#a78bfa' : '#94a3b8'}}>{cls.spellcaster ? '✨ Lanzador' : '⚔️ Marcial'}</span>
+                    </div>
+                    {isOpen && (
+                      <div className="ref-data-item-detail" onClick={e => e.stopPropagation()}>
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px 12px',marginBottom:8,fontSize:'.78rem',color:'#a09880'}}>
+                          <div>🎲 Dado de Golpe: d{cls.hitDie}</div>
+                          <div>💪 Caract. principal: {cls.primaryAbility}</div>
+                          <div>🛡 Tiradas de salvación: {cls.savingThrows.join(', ')}</div>
+                          <div>🎓 Competencias: {cls.skillChoices} habilidades</div>
+                          {cls.spellcaster && <div>✨ Característica: {cls.spellcastingAbility}</div>}
+                          <div>🌿 Subclase (nv.{cls.subclassLevel}): {cls.subclassName}</div>
+                        </div>
+                        {cls.armorProficiencies.length > 0 && <div className="ref-data-props">🛡 Armaduras: {cls.armorProficiencies.join(', ')}</div>}
+                        <div className="ref-data-props">⚔️ Armas: {cls.weaponProficiencies.join(', ')}</div>
+                        {cls.toolProficiencies.length > 0 && <div className="ref-data-props">🔧 Herramientas: {cls.toolProficiencies.join(', ')}</div>}
+                        <div className="ref-data-props" style={{marginTop:4}}>🎒 Equipo inicial: {cls.startingEquipment}</div>
+                        {/* Rasgos base */}
+                        {(cls.baseTraits || []).length > 0 && (
+                          <div style={{marginTop:8}}>
+                            <div style={{fontSize:'.8rem',fontWeight:600,color:'#c8a96e',marginBottom:4}}>📖 Rasgos de clase</div>
+                            {cls.baseTraits.map((t, i) => (
+                              <div key={i} style={{marginBottom:6}}>
+                                <div style={{fontSize:'.8rem',fontWeight:600,color:'#d4c5a0'}}>{t.name}</div>
+                                {t.desc && <div style={{fontSize:'.76rem',color:'#a09880',lineHeight:1.5,whiteSpace:'pre-wrap'}}>{t.desc}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Tabla de progresión */}
+                        <div style={{marginTop:10}}>
+                          <div style={{fontSize:'.8rem',fontWeight:600,color:'#c8a96e',marginBottom:6}}>📊 Progresión por nivel</div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                            {Object.keys(cls.levels).map(lv => (
+                              <button key={lv}
+                                className={`dnd-btn-sm ${expandedLevel === parseInt(lv) ? 'active' : ''}`}
+                                style={{minWidth:32, fontWeight: expandedLevel === parseInt(lv) ? 700 : 400}}
+                                onClick={() => setExpandedLevel(expandedLevel === parseInt(lv) ? null : parseInt(lv))}>
+                                {lv}
+                              </button>
+                            ))}
+                          </div>
+                          {lvlData && (
+                            <div style={{marginTop:8,padding:'8px 10px',background:'rgba(0,0,0,0.2)',borderRadius:6,fontSize:'.78rem'}}>
+                              <div style={{fontWeight:600,color:'#c8a96e',marginBottom:4}}>Nivel {expandedLevel}</div>
+                              <div style={{display:'flex',flexWrap:'wrap',gap:'3px 14px',color:'#a09880',marginBottom:6}}>
+                                <span>🎖 Bon. competencia: +{lvlData.profBonus}</span>
+                                {lvlData.rages != null && <span>💢 Rabia: {lvlData.rages} ({lvlData.rageDamage > 0 ? `+${lvlData.rageDamage}` : '—'})</span>}
+                                {lvlData.kiPoints != null && <span>☯ Ki: {lvlData.kiPoints}</span>}
+                                {lvlData.martialDie != null && <span>👊 Artes marciales: d{lvlData.martialDie}</span>}
+                                {lvlData.sneakAttack != null && <span>🗡 Ataque furtivo: {lvlData.sneakAttack}</span>}
+                                {lvlData.cantrips != null && <span>✨ Trucos: {lvlData.cantrips}</span>}
+                                {lvlData.spellsKnown != null && <span>📖 Conjuros conocidos: {lvlData.spellsKnown}</span>}
+                                {lvlData.sorceryPoints != null && <span>💜 Puntos hechicería: {lvlData.sorceryPoints}</span>}
+                                {lvlData.pactSlots != null && <span>🔮 Espacios de pacto: {lvlData.pactSlots} (nv.{lvlData.pactSlotLevel})</span>}
+                                {lvlData.invocations != null && <span>📜 Invocaciones: {lvlData.invocations}</span>}
+                              </div>
+                              {lvlData.slots?.length > 0 && (
+                                <div style={{marginBottom:6}}>
+                                  <span style={{color:'#8b7d5c'}}>Espacios de conjuro: </span>
+                                  {lvlData.slots.map((s, i) => s > 0 ? <span key={i} style={{marginRight:8}}>Nv.{i+1}: {s}</span> : null)}
+                                </div>
+                              )}
+                              {/* Huecos de uso */}
+                              {(lvlData.slots || []).length > 0 && (
+                                <div style={{marginBottom:6,display:'flex',flexWrap:'wrap',gap:'4px 12px'}}>
+                                  {lvlData.slots.map((s, i) => (
+                                    <span key={i} style={{color:'#c8a96e',fontWeight:600}}>
+                                      {s.name}: <span style={{color:'#d4c5a0'}}>{s.count ?? '∞'}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Rasgos del nivel */}
+                              {(lvlData.features || []).map((f, i) => (
+                                <div key={i} style={{marginTop:5,paddingTop:5,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+                                  <div style={{fontWeight:600,color:'#d4c5a0',fontSize:'.8rem',marginBottom:2}}>📌 {f.name}</div>
+                                  {f.desc && <div style={{color:'#a09880',fontSize:'.76rem',lineHeight:1.5,whiteSpace:'pre-wrap'}}>{f.desc}</div>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="ref-data-item-actions" style={{marginTop:8}}>
+                          <button className="dnd-btn-sm" onClick={() => openClassEdit(cls)}>✏️ Editar clase</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           {!data && <div className="dnd-empty-sm">Cargando datos...</div>}
+        </div>
+      )}
+
+      {/* ── Modal editor de clase ── */}
+      {classEditModal && classDraft && (
+        <div className="dnd-modal-overlay" onClick={() => { setClassEditModal(null); setClassDraft(null) }}>
+          <div className="dnd-modal glossary-modal cw-modal" style={{maxWidth:640,maxHeight:'90vh',overflowY:'auto'}} onClick={e => e.stopPropagation()}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+              <span style={{fontSize:'1.1rem',fontWeight:700,color:'#c8a96e'}}>✏️ Editar — {classDraft.name}</span>
+              <button className="dnd-btn-sm" style={{marginLeft:'auto',color:'#4ade80',borderColor:'rgba(74,222,128,0.3)'}} onClick={saveClassEdit}>✓ Guardar</button>
+              <button className="dnd-btn-sm" onClick={() => { setClassEditModal(null); setClassDraft(null) }}>✕</button>
+            </div>
+            {/* Rasgos base */}
+            <div style={{marginBottom:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                <span style={{fontWeight:600,fontSize:'.85rem',color:'#c8a96e'}}>📖 Rasgos de clase (base)</span>
+                <button className="dnd-btn-sm" onClick={addBaseTrait}>+ Rasgo</button>
+              </div>
+              {(classDraft.baseTraits || []).length === 0 && <div className="dnd-empty-sm">Sin rasgos base. Pulsa "+ Rasgo" para añadir.</div>}
+              {(classDraft.baseTraits || []).map((t, i) => (
+                <div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:6,padding:'8px 10px',marginBottom:6}}>
+                  <div style={{display:'flex',gap:6,marginBottom:4}}>
+                    <input className="dnd-input" style={{flex:1,fontSize:'.82rem',padding:'4px 8px'}} placeholder="Nombre del rasgo..." value={t.name} onChange={e => updateBaseTrait(i, 'name', e.target.value)} />
+                    <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeBaseTrait(i)}>🗑</button>
+                  </div>
+                  <textarea className="dnd-input" style={{width:'100%',fontSize:'.78rem',padding:'4px 8px',resize:'vertical',minHeight:60}} placeholder="Descripción del rasgo..." value={t.desc || ''} onChange={e => updateBaseTrait(i, 'desc', e.target.value)} />
+                </div>
+              ))}
+            </div>
+            {/* Rasgos por nivel */}
+            <div style={{fontWeight:600,fontSize:'.85rem',color:'#c8a96e',marginBottom:8}}>📊 Rasgos por nivel</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>
+              {Object.keys(classDraft.levels).map(lv => (
+                <button key={lv}
+                  className={`dnd-btn-sm ${classEditLevel === parseInt(lv) ? 'active' : ''}`}
+                  style={{minWidth:32, fontWeight: classEditLevel === parseInt(lv) ? 700 : 400,
+                    borderColor: (classDraft.levels[lv].features?.length > 0) ? 'rgba(200,169,110,0.4)' : undefined }}
+                  onClick={() => setClassEditLevel(classEditLevel === parseInt(lv) ? null : parseInt(lv))}>
+                  {lv}
+                </button>
+              ))}
+            </div>
+            {classEditLevel && classDraft.levels[classEditLevel] && (() => {
+              const lvl = classDraft.levels[classEditLevel]
+              const lv = classEditLevel
+              const isLv1 = lv === 1
+              return (
+                <div style={{background:'rgba(0,0,0,0.2)',borderRadius:6,padding:'10px 12px'}}>
+                  <div style={{fontWeight:600,color:'#c8a96e',marginBottom:10,fontSize:'.85rem'}}>Nivel {lv}</div>
+
+                  {/* Nivel 1: datos fijos de clase */}
+                  {isLv1 && (
+                    <div style={{marginBottom:12,padding:'8px 10px',background:'rgba(200,169,110,0.07)',borderRadius:6,border:'1px solid rgba(200,169,110,0.15)'}}>
+                      <div style={{fontWeight:600,fontSize:'.78rem',color:'#c8a96e',marginBottom:8}}>🏛 Datos de clase (nivel 1)</div>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
+                        <div>
+                          <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Dado de golpe</span>
+                          <select className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                            value={classDraft.hitDie}
+                            onChange={e => setClassDraft(d => ({...d, hitDie: parseInt(e.target.value)}))}>
+                            {[4,6,8,10,12].map(d => <option key={d} value={d}>d{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Característica principal</span>
+                          <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                            value={classDraft.primaryAbility}
+                            onChange={e => setClassDraft(d => ({...d, primaryAbility: e.target.value}))} />
+                        </div>
+                        <div>
+                          <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Tiradas de salvación</span>
+                          <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                            placeholder="FUE, CON"
+                            value={(classDraft.savingThrows || []).join(', ')}
+                            onChange={e => setClassDraft(d => ({...d, savingThrows: e.target.value.split(',').map(s => s.trim()).filter(Boolean)}))} />
+                        </div>
+                        <div>
+                          <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Habilidades a elegir</span>
+                          <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}} type="number" min="1" max="6"
+                            value={classDraft.skillChoices}
+                            onChange={e => setClassDraft(d => ({...d, skillChoices: parseInt(e.target.value)||1}))} />
+                        </div>
+                      </div>
+                      <div style={{marginTop:4}}>
+                        <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Opciones de habilidad (separadas por coma)</span>
+                        <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                          value={(classDraft.skillOptions || []).join(', ')}
+                          onChange={e => setClassDraft(d => ({...d, skillOptions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)}))} />
+                      </div>
+                      <div style={{marginTop:4}}>
+                        <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Competencias en armaduras</span>
+                        <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                          value={(classDraft.armorProficiencies || []).join(', ')}
+                          onChange={e => setClassDraft(d => ({...d, armorProficiencies: e.target.value.split(',').map(s => s.trim()).filter(Boolean)}))} />
+                      </div>
+                      <div style={{marginTop:4}}>
+                        <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Competencias en armas</span>
+                        <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                          value={(classDraft.weaponProficiencies || []).join(', ')}
+                          onChange={e => setClassDraft(d => ({...d, weaponProficiencies: e.target.value.split(',').map(s => s.trim()).filter(Boolean)}))} />
+                      </div>
+                      <div style={{marginTop:4}}>
+                        <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Competencias en herramientas</span>
+                        <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}}
+                          value={(classDraft.toolProficiencies || []).join(', ')}
+                          onChange={e => setClassDraft(d => ({...d, toolProficiencies: e.target.value.split(',').map(s => s.trim()).filter(Boolean)}))} />
+                      </div>
+                      <div style={{marginTop:4}}>
+                        <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Equipo inicial</span>
+                        <textarea className="dnd-input" style={{width:'100%',fontSize:'.78rem',padding:'4px 8px',resize:'vertical',minHeight:48}}
+                          value={classDraft.startingEquipment || ''}
+                          onChange={e => setClassDraft(d => ({...d, startingEquipment: e.target.value}))} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bonificación de competencia */}
+                  <div style={{marginBottom:8,display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:'.78rem',color:'#8b7d5c',minWidth:140}}>🎖 Bonificación competencia</span>
+                    <input className="dnd-input" style={{width:60,fontSize:'.82rem',padding:'4px 8px'}} type="number" min="2" max="6"
+                      value={lvl.profBonus || 2}
+                      onChange={e => setClassDraft(d => ({...d, levels: {...d.levels, [lv]: {...d.levels[lv], profBonus: parseInt(e.target.value)||2}}}))} />
+                  </div>
+
+                  {/* Huecos de uso */}
+                  <div style={{marginBottom:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                      <span style={{fontSize:'.78rem',color:'#8b7d5c'}}>💢 Huecos de uso</span>
+                      <button className="dnd-btn-sm" onClick={() => addLevelSlot(lv)}>+ Hueco</button>
+                    </div>
+                    {(lvl.slots || []).length === 0 && <div style={{fontSize:'.75rem',color:'#6b6050',fontStyle:'italic'}}>Sin huecos de uso en este nivel</div>}
+                    {(lvl.slots || []).map((s, i) => (
+                      <div key={i} style={{display:'flex',gap:6,marginBottom:4,alignItems:'center'}}>
+                        <input className="dnd-input" style={{flex:2,fontSize:'.8rem',padding:'4px 8px'}} placeholder="Nombre (ej: Rabia)" value={s.name}
+                          onChange={e => updateLevelSlot(lv, i, 'name', e.target.value)} />
+                        <input className="dnd-input" style={{width:70,fontSize:'.8rem',padding:'4px 8px'}} type="number" min="0" placeholder="∞"
+                          value={s.count ?? ''}
+                          onChange={e => updateLevelSlot(lv, i, 'count', e.target.value)} />
+                        <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeLevelSlot(lv, i)}>🗑</button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Rasgos del nivel */}
+                  <div>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                      <span style={{fontSize:'.78rem',color:'#8b7d5c'}}>📖 Rasgos obtenidos</span>
+                      <button className="dnd-btn-sm" onClick={() => addLevelFeature(lv)}>+ Rasgo</button>
+                    </div>
+                    {(lvl.features || []).length === 0 && <div style={{fontSize:'.75rem',color:'#6b6050',fontStyle:'italic'}}>Sin rasgos nuevos en este nivel</div>}
+                    {(lvl.features || []).map((feat, i) => (
+                      <div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:6,padding:'8px 10px',marginBottom:6}}>
+                        <div style={{display:'flex',gap:6,marginBottom:4}}>
+                          <input className="dnd-input" style={{flex:1,fontSize:'.82rem',padding:'4px 8px'}} placeholder="Nombre del rasgo..."
+                            value={feat.name}
+                            onChange={e => updateLevelFeatureName(lv, i, e.target.value)} />
+                          <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeLevelFeature(lv, i)}>🗑</button>
+                        </div>
+                        <textarea className="dnd-input" style={{width:'100%',fontSize:'.77rem',padding:'4px 8px',resize:'vertical',minHeight:60}}
+                          placeholder="Descripción del rasgo..."
+                          value={feat.desc || ''}
+                          onChange={e => updateLevelFeatureDesc(lv, i, e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
         </div>
       )}
     </div>

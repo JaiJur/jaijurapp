@@ -16,11 +16,145 @@
   margin: 0 auto;
   padding: 1rem 1rem 3rem;
 }
+.salud-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
 .salud-title {
   font-size: 1.6rem;
   font-weight: 700;
-  margin: 0 0 1.2rem;
+  margin: 0;
   color: #fff;
+}
+.salud-settings-btn {
+  background: #1c1c28;
+  border: 1px solid #333;
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: border-color .15s;
+  flex-shrink: 0;
+}
+.salud-settings-btn:active {
+  border-color: #4b90ff;
+}
+
+/* ── Day progress bars ── */
+.salud-day-progress {
+  background: #0c0c14;
+  border: 1px solid #1a1a28;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+.salud-progress-item {
+  margin-bottom: .9rem;
+}
+.salud-progress-item:last-child {
+  margin-bottom: 0;
+}
+.salud-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.salud-progress-label {
+  font-size: .85rem;
+  font-weight: 500;
+  color: #bbb;
+}
+.salud-progress-value {
+  font-size: .8rem;
+  color: #888;
+  font-weight: 600;
+}
+.salud-progress-track {
+  position: relative;
+  height: 14px;
+  background: #1c1c28;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.salud-progress-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255,255,255,.55);
+  z-index: 2;
+}
+.salud-progress-marker.salud-marker-min {
+  background: rgba(255,200,60,.7);
+}
+.salud-progress-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width .3s ease;
+}
+.salud-progress-fill.salud-progress-cal {
+  background: linear-gradient(90deg, #ff8040, #ff5050);
+}
+.salud-progress-fill.salud-progress-steps {
+  background: linear-gradient(90deg, #4b90ff, #50bbff);
+}
+.salud-progress-fill.over {
+  background: linear-gradient(90deg, #ff6060, #ff3030);
+}
+.salud-progress-hint {
+  font-size: .78rem;
+  color: #666;
+  text-align: center;
+  margin: .6rem 0 0;
+}
+
+/* ── Calorías: barra apilada por comida ── */
+.salud-progress-fill-stack {
+  display: flex;
+  height: 100%;
+  border-radius: 8px;
+  transition: width .3s ease;
+}
+.salud-cal-segment {
+  height: 100%;
+  border-right: 1px solid rgba(0,0,0,.3);
+}
+.salud-cal-segment:last-child {
+  border-right: none;
+}
+.salud-progress-fill-stack.under .salud-cal-segment:nth-child(1) { background: #46e08a; }
+.salud-progress-fill-stack.under .salud-cal-segment:nth-child(2) { background: #37cf78; }
+.salud-progress-fill-stack.under .salud-cal-segment:nth-child(3) { background: #2bbd68; }
+.salud-progress-fill-stack.under .salud-cal-segment:nth-child(4) { background: #20aa58; }
+
+.salud-progress-fill-stack.over .salud-cal-segment:nth-child(1) { background: #ff7a7a; }
+.salud-progress-fill-stack.over .salud-cal-segment:nth-child(2) { background: #ff5f5f; }
+.salud-progress-fill-stack.over .salud-cal-segment:nth-child(3) { background: #ff4444; }
+.salud-progress-fill-stack.over .salud-cal-segment:nth-child(4) { background: #f02b2b; }
+
+.salud-progress-fill-stack.low .salud-cal-segment:nth-child(1) { background: #ffd166; }
+.salud-progress-fill-stack.low .salud-cal-segment:nth-child(2) { background: #ffc23e; }
+.salud-progress-fill-stack.low .salud-cal-segment:nth-child(3) { background: #ffb31a; }
+.salud-progress-fill-stack.low .salud-cal-segment:nth-child(4) { background: #f2a400; }
+
+.salud-progress-fill-stack.neutral .salud-cal-segment:nth-child(1) { background: #ff9060; }
+.salud-progress-fill-stack.neutral .salud-cal-segment:nth-child(2) { background: #ff7a50; }
+.salud-progress-fill-stack.neutral .salud-cal-segment:nth-child(3) { background: #ff6545; }
+.salud-progress-fill-stack.neutral .salud-cal-segment:nth-child(4) { background: #ff5040; }
+
+.salud-cal-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.salud-cal-breakdown-item {
+  font-size: .72rem;
+  color: #999;
 }
 
 /* ── Week summary ── */
@@ -62,24 +196,17 @@
   color: #e0e0e0;
 }
 
-/* ── Chart scroll ── */
-.salud-chart-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+/* ── Chart wrap (ancho completo, sin scroll) ── */
+.salud-chart-wrap {
   background: #0c0c14;
   border-radius: 12px;
   border: 1px solid #1a1a28;
-}
-.salud-chart-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-.salud-chart-scroll::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 2px;
+  overflow: hidden;
 }
 .salud-chart-svg {
   display: block;
-  min-width: 100%;
+  width: 100%;
+  height: auto;
 }
 
 /* ── Legend ── */
@@ -128,6 +255,24 @@
   opacity: .85;
 }
 
+/* ── Day edit modal (para días distintos de hoy) ── */
+.salud-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.salud-modal-body {
+  width: 100%;
+  max-width: 520px;
+  margin-top: 2rem;
+}
+
 /* ── Form ── */
 .salud-form {
   background: #14141c;
@@ -154,6 +299,14 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+}
+.salud-row {
+  display: flex;
+  gap: 10px;
+}
+.salud-row > .salud-field {
+  flex: 1;
+  min-width: 0;
 }
 .salud-label {
   font-size: .85rem;
@@ -200,26 +353,36 @@
   background: #1a2540;
 }
 
-/* Toggle */
-.salud-toggle {
-  padding: .4rem 1rem;
-  border-radius: 8px;
-  font-size: .85rem;
-  font-weight: 600;
-  border: 1px solid #444;
+/* Strength group buttons */
+.salud-strength-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.salud-strength-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: .6rem .3rem;
   background: #1c1c28;
-  color: #888;
+  border: 2px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
   transition: all .15s;
+  color: #999;
 }
-.salud-toggle.on {
-  background: #1a3a20;
-  border-color: #2a6a35;
-  color: #6dff6d;
+.salud-strength-icon {
+  font-size: 1.3rem;
 }
-.salud-strength-type {
-  margin-top: .5rem;
-  font-size: .85rem;
+.salud-strength-label {
+  font-size: .72rem;
+  font-weight: 500;
+}
+.salud-strength-btn.active {
+  border-color: #4b90ff;
+  background: #1a2540;
+  color: #e0e0e0;
 }
 
 /* Form actions */
@@ -497,6 +660,18 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+.salud-meals-col {
+  grid-template-columns: 1fr;
+}
+.salud-meals-col .salud-meal-btn {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: .55rem .8rem;
+}
+.salud-meals-col .salud-meal-count {
+  margin-left: 6px;
+}
 .salud-meal-item {
   display: flex;
   flex-direction: column;
@@ -701,6 +876,12 @@
 }
 .meal-entries-add {
   width: 100%;
+}
+.meal-entries-add-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 1.4rem;
 }
 
 /* ── FotoMeal modal ── */
@@ -1001,4 +1182,95 @@
     padding: .45rem .5rem;
     font-size: .85rem;
   }
+}
+
+/* ── Meal entries add row ── */
+.meal-entries-add-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.meal-entries-add-row .salud-btn {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.9rem;
+}
+.meal-entries-add-manual {
+  background: var(--surface, #2a2a3a);
+  color: var(--text, #e0e0e0);
+  border: 1px solid var(--border, #444);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.meal-entries-add-manual:hover {
+  background: var(--surface2, #333348);
+}
+
+/* ── View tabs (Home / Historial) ── */
+.salud-view-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #1a1a28;
+}
+.salud-view-tab {
+  flex: 1;
+  padding: .6rem 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #666;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.salud-view-tab.active {
+  color: #c8f135;
+  border-bottom-color: #c8f135;
+}
+
+/* ── History view filters ── */
+.salud-history-view {
+  display: flex;
+  flex-direction: column;
+}
+.salud-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-bottom: .8rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.salud-filters::-webkit-scrollbar {
+  display: none;
+}
+.salud-filter-btn {
+  padding: .4rem .8rem;
+  background: #12121a;
+  border: 1px solid #1e1e2a;
+  border-radius: 20px;
+  color: #888;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.salud-filter-btn.active {
+  background: #1e2030;
+  border-color: #c8a96e;
+  color: #c8a96e;
+}
+.salud-range-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: .8rem;
+}
+.salud-range-sep {
+  color: #555;
 }

@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import MealAnalyzer from './MealAnalyzer'
+import MealManualAdd from './MealManualAdd'
 
 export default function MealEntries({ mealKey, mealLabel, entries, onChange, onClose }) {
-  const [analyzerOpen, setAnalyzerOpen] = useState(false)
-  const [editIdx, setEditIdx] = useState(null) // index being edited inline
+  const [addOpen, setAddOpen] = useState(false)
+  const [editIdx, setEditIdx] = useState(null)
 
   const total = entries.reduce((s, e) => s + (e.kcal || 0), 0)
 
@@ -71,18 +71,18 @@ export default function MealEntries({ mealKey, mealLabel, entries, onChange, onC
         )}
 
         <button
-          className="salud-btn salud-btn-save meal-entries-add"
-          onClick={() => setAnalyzerOpen(true)}
-        >＋ Añadir registro</button>
+          className="salud-btn salud-btn-save meal-entries-add-btn"
+          onClick={() => setAddOpen(true)}
+        >➕ Añadir plato</button>
 
-        {analyzerOpen && (
-          <MealAnalyzer
+        {addOpen && (
+          <MealManualAdd
             mealLabel={mealLabel}
             onAccept={(kcal, items) => {
               onChange([...entries, { kcal, items: items || [] }])
-              setAnalyzerOpen(false)
+              setAddOpen(false)
             }}
-            onClose={() => setAnalyzerOpen(false)}
+            onClose={() => setAddOpen(false)}
           />
         )}
       </div>

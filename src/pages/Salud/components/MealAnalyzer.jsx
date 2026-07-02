@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 
-export default function MealAnalyzer({ mealLabel, onAccept, onClose }) {
+export default function MealAnalyzer({ mealLabel, onAccept, onClose, manualMode = false }) {
   const { user } = useAuth()
-  const [items, setItems] = useState(null)
+  const [items, setItems] = useState(manualMode ? [{ name: '', kcal: 0 }] : null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -121,61 +121,111 @@ export default function MealAnalyzer({ mealLabel, onAccept, onClose }) {
 
         {error && <p className="foto-meal-error">{error}</p>}
 
-        {/* ── Results table (shared) ── */}
+        {/* ── Results table ── */}
         {items && (
           <div className="foto-meal-results">
             <div className="foto-meal-table-wrap">
-              <table className="foto-meal-table">
-                <thead>
-                  <tr>
-                    <th>Alimento</th>
-                    <th>g</th>
-                    <th>kcal</th>
-                    <th>P</th>
-                    <th>C</th>
-                    <th>G</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it, i) => (
-                    <tr key={i}>
-                      <td>
-                        <input className="foto-meal-cell-input foto-meal-cell-name" value={it.name}
-                          onChange={e => updateItem(i, 'name', e.target.value)} />
-                      </td>
-                      <td><input className="foto-meal-cell-input" type="number" value={it.weight}
-                        onChange={e => updateItem(i, 'weight', e.target.value)} inputMode="numeric" /></td>
-                      <td><input className="foto-meal-cell-input" type="number" value={it.kcal}
-                        onChange={e => updateItem(i, 'kcal', e.target.value)} inputMode="numeric" /></td>
-                      <td><input className="foto-meal-cell-input" type="number" value={it.protein}
-                        onChange={e => updateItem(i, 'protein', e.target.value)} inputMode="numeric" /></td>
-                      <td><input className="foto-meal-cell-input" type="number" value={it.carbs}
-                        onChange={e => updateItem(i, 'carbs', e.target.value)} inputMode="numeric" /></td>
-                      <td><input className="foto-meal-cell-input" type="number" value={it.fat}
-                        onChange={e => updateItem(i, 'fat', e.target.value)} inputMode="numeric" /></td>
-                      <td><button className="foto-meal-remove" onClick={() => removeItem(i)}>✕</button></td>
+              {manualMode ? (
+                /* Tabla simplificada: solo nombre + kcal */
+                <table className="foto-meal-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>kcal</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="foto-meal-totals">
-                    <td>Total</td>
-                    <td></td>
-                    <td>{Math.round(totals.kcal)}</td>
-                    <td>{Math.round(totals.protein)}</td>
-                    <td>{Math.round(totals.carbs)}</td>
-                    <td>{Math.round(totals.fat)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {items.map((it, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input className="foto-meal-cell-input foto-meal-cell-name" value={it.name}
+                            placeholder="Nombre…"
+                            onChange={e => updateItem(i, 'name', e.target.value)} />
+                        </td>
+                        <td>
+                          <input className="foto-meal-cell-input" type="number" value={it.kcal}
+                            onChange={e => updateItem(i, 'kcal', e.target.value)} inputMode="numeric" />
+                        </td>
+                        <td><button className="foto-meal-remove" onClick={() => removeItem(i)}>✕</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="foto-meal-totals">
+                      <td>Total</td>
+                      <td>{Math.round(totals.kcal)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              ) : (
+                /* Tabla completa (modo IA) */
+                <table className="foto-meal-table">
+                  <thead>
+                    <tr>
+                      <th>Alimento</th>
+                      <th>g</th>
+                      <th>kcal</th>
+                      <th>P</th>
+                      <th>C</th>
+                      <th>G</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input className="foto-meal-cell-input foto-meal-cell-name" value={it.name}
+                            onChange={e => updateItem(i, 'name', e.target.value)} />
+                        </td>
+                        <td><input className="foto-meal-cell-input" type="number" value={it.weight}
+                          onChange={e => updateItem(i, 'weight', e.target.value)} inputMode="numeric" /></td>
+                        <td><input className="foto-meal-cell-input" type="number" value={it.kcal}
+                          onChange={e => updateItem(i, 'kcal', e.target.value)} inputMode="numeric" /></td>
+                        <td><input className="foto-meal-cell-input" type="number" value={it.protein}
+                          onChange={e => updateItem(i, 'protein', e.target.value)} inputMode="numeric" /></td>
+                        <td><input className="foto-meal-cell-input" type="number" value={it.carbs}
+                          onChange={e => updateItem(i, 'carbs', e.target.value)} inputMode="numeric" /></td>
+                        <td><input className="foto-meal-cell-input" type="number" value={it.fat}
+                          onChange={e => updateItem(i, 'fat', e.target.value)} inputMode="numeric" /></td>
+                        <td><button className="foto-meal-remove" onClick={() => removeItem(i)}>✕</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="foto-meal-totals">
+                      <td>Total</td>
+                      <td></td>
+                      <td>{Math.round(totals.kcal)}</td>
+                      <td>{Math.round(totals.protein)}</td>
+                      <td>{Math.round(totals.carbs)}</td>
+                      <td>{Math.round(totals.fat)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
             </div>
 
+            <button
+              className="meal-text-add"
+              onClick={() => setItems(prev => [...prev, manualMode ? { name: '', kcal: 0 } : { name: '', weight: 0, kcal: 0, protein: 0, carbs: 0, fat: 0 }])}
+              type="button"
+            >+ Añadir fila</button>
+
             <div className="meal-analyzer-actions">
-              <button className="salud-btn meal-analyzer-back" onClick={reset}>
-                ← Volver
-              </button>
+              {!manualMode && (
+                <button className="salud-btn meal-analyzer-back" onClick={reset}>
+                  ← Volver
+                </button>
+              )}
+              {manualMode && (
+                <button className="salud-btn meal-analyzer-back" onClick={onClose}>
+                  ✕ Cancelar
+                </button>
+              )}
               <button className="salud-btn salud-btn-save" onClick={() => onAccept(Math.round(totals.kcal), items)}>
                 ✅ Usar {Math.round(totals.kcal)} kcal
               </button>

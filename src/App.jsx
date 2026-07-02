@@ -11,6 +11,7 @@ const MealPlanner = lazy(() => import('./pages/MealPlanner/MealPlanner'))
 const DnD = lazy(() => import('./pages/DnD/DnD'))
 const MapEditor = lazy(() => import('./pages/DnD/MapEditor'))
 const MapViewer = lazy(() => import('./pages/DnD/MapViewer'))
+const MapViewerMulti = lazy(() => import('./pages/DnD/MapViewerMulti'))
 const PartyViewer = lazy(() => import('./pages/DnD/PartyViewer'))
 const Salud = lazy(() => import('./pages/Salud/Salud'))
 const Notes = lazy(() => import('./pages/Notes/Notes'))
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/dnd/editor/:mapId" element={<ProtectedRoute roles={['master','dndMaster']}><MapEditor /></ProtectedRoute>} />
           <Route path="/dnd/viewer" element={<MapViewer />} />
           <Route path="/dnd/viewer/:channel" element={<MapViewer />} />
+          <Route path="/dnd/viewer/:channel/multi" element={<MapViewerMulti />} />
           <Route path="/dnd/party" element={<PartyViewer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,17 +1,32 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import AppHeader from '../../components/AppHeader'
 import useSalud from '../../hooks/useSalud'
 import DayForm from './components/DayForm'
 import HistoryList from './components/HistoryList'
-import WeekSummary from './components/WeekSummary'
+import DayProgress from './components/DayProgress'
+import HistoryView from './components/HistoryView'
 import BmrConfig from './components/BmrConfig'
+import { lastNDays } from './dateUtils'
 import './Salud.css'
+
+const VIEW_TABS = [
+  { key: 'home', label: 'Home' },
+  { key: 'history', label: 'Historial' },
+]
 
 export default function Salud() {
   const { entries, config, loading, saveEntry, deleteEntry, getToday, saveConfig, todayStr } = useSalud()
   const [editingDate, setEditingDate] = useState(null)
-  const [pickingDate, setPickingDate] = useState(false)
-  const [customDate, setCustomDate] = useState('')
+  const [view, setView] = useState('home')
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const last10Days = useMemo(() => lastNDays(10), [])
+  const historyCardEntries = useMemo(
+    () => entries
+      .filter(e => last10Days.includes(e.date))
+      .sort((a, b) => b.date.localeCompare(a.date)),
+    [entries, last10Days]
+  )
 
   if (loading) {
     return <div className="salud-loading">Cargando…</div>
@@ -19,85 +34,108 @@ export default function Salud() {
 
   const today = todayStr()
   const todayEntry = getToday()
-  const showForm = editingDate !== null
+  const isEditingToday = editingDate === today
+  const showTodayForm = isEditingToday
+  const showModal = editingDate !== null && !isEditingToday
 
-  const handlePickDate = () => {
-    if (customDate && customDate <= today) {
-      setEditingDate(customDate)
-      setPickingDate(false)
-      setCustomDate('')
-    }
-  }
+  const closeEditor = () => setEditingDate(null)
 
   return (
     <div className="salud-root">
       <AppHeader />
       <main className="salud-main">
-        <h1 className="salud-title">Salud</h1>
+        <div className="salud-header-row">
+          <h1 className="salud-title">Salud</h1>
+          <button className="salud-settings-btn" onClick={() => setSettingsOpen(true)}>⚙️</button>
+        </div>
 
-        <BmrConfig config={config} onSave={saveConfig} />
-
-        <WeekSummary entries={entries} config={config} />
-
-        {!showForm && !pickingDate && (
-          <div className="salud-action-row">
+        <div className="salud-view-tabs">
+          {VIEW_TABS.map(t => (
             <button
-              className="salud-btn-today"
-              onClick={() => setEditingDate(today)}
+              key={t.key}
+              className={`salud-view-tab ${view === t.key ? 'active' : ''}`}
+              onClick={() => setView(t.key)}
             >
-              {todayEntry ? '✏️ Editar hoy' : '➕ Registrar hoy'}
+              {t.label}
             </button>
-            <button
-              className="salud-btn-other"
-              onClick={() => setPickingDate(true)}
-            >
-              📅 Otro día
-            </button>
-          </div>
-        )}
+          ))}
+        </div>
 
-        {pickingDate && !showForm && (
-          <div className="salud-date-picker">
-            <input
-              type="date"
-              className="salud-input"
-              value={customDate}
-              max={today}
-              onChange={e => setCustomDate(e.target.value)}
+        {view === 'home' && (
+          <>
+            <DayProgress entry={todayEntry} config={config} />
+
+            {!showTodayForm && (
+              <div className="salud-action-row">
+                <button
+                  className="salud-btn-today"
+                  onClick={() => setEditingDate(today)}
+                >
+                  {todayEntry ? '✏️ Editar hoy' : '➕ Registrar hoy'}
+                </button>
+              </div>
+            )}
+
+            {showTodayForm && (
+              <DayForm
+                date={editingDate}
+                existing={entries.find(e => e.date === editingDate)}
+                bmr={config.bmr}
+                onSave={async (data) => {
+                  await saveEntry(editingDate, data)
+                }}
+                onCancel={closeEditor}
+                onDelete={async (date) => {
+                  await deleteEntry(date)
+                  closeEditor()
+                }}
+              />
+            )}
+
+            <HistoryList
+              entries={historyCardEntries}
+              bmr={config.bmr}
+              onEdit={(date) => setEditingDate(date)}
             />
-            <div className="salud-date-picker-actions">
-              <button className="salud-btn salud-btn-save" onClick={handlePickDate} disabled={!customDate}>
-                Continuar
-              </button>
-              <button className="salud-btn salud-btn-cancel" onClick={() => { setPickingDate(false); setCustomDate('') }}>
-                Cancelar
-              </button>
-            </div>
-          </div>
+          </>
         )}
 
-        {showForm && (
-          <DayForm
-            date={editingDate}
-            existing={entries.find(e => e.date === editingDate)}
-            bmr={config.bmr}
-            onSave={async (data) => {
-              await saveEntry(editingDate, data)
-            }}
-            onCancel={() => setEditingDate(null)}
-            onDelete={async (date) => {
-              await deleteEntry(date)
-              setEditingDate(null)
-            }}
+        {view === 'history' && (
+          <HistoryView
+            entries={entries}
+            config={config}
+            onEdit={(date) => setEditingDate(date)}
           />
         )}
-
-        <HistoryList
-          entries={entries}
-          bmr={config.bmr}
-          onEdit={(date) => setEditingDate(date)}
-        />
       </main>
+
+      {showModal && (
+        <div className="salud-modal-overlay" onClick={closeEditor}>
+          <div className="salud-modal-body" onClick={e => e.stopPropagation()}>
+            <DayForm
+              date={editingDate}
+              existing={entries.find(e => e.date === editingDate)}
+              bmr={config.bmr}
+              onSave={async (data) => {
+                await saveEntry(editingDate, data)
+              }}
+              onCancel={closeEditor}
+              onDelete={async (date) => {
+                await deleteEntry(date)
+                closeEditor()
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div className="salud-modal-overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="salud-modal-body" onClick={e => e.stopPropagation()}>
+            <BmrConfig config={config} onSave={saveConfig} onCancel={() => setSettingsOpen(false)} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

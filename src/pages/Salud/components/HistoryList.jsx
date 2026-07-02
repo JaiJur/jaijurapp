@@ -5,6 +5,11 @@ const CONTORNO_LABELS = {
   tripa: '🫃', cintura: '📏', pierna: '🦵',
 }
 
+const STRENGTH_ICONS = {
+  brazo: '💪', pierna: '🦵', hombro: '🤾',
+  pecho: '🫁', espalda: '🔙', abdomen: '🍫',
+}
+
 export default function HistoryList({ entries, bmr, onEdit }) {
   if (!entries.length) {
     return <p className="salud-empty">No hay registros todavía.</p>
@@ -32,7 +37,13 @@ export default function HistoryList({ entries, bmr, onEdit }) {
               })()}
               {entry.sleep != null && <span className="salud-metric">{SLEEP_EMOJI[entry.sleep]} Sueño</span>}
               {entry.steps != null && <span className="salud-metric">🚶 {entry.steps.toLocaleString()}</span>}
-              {entry.strength && <span className="salud-metric">🏋️ {typeof entry.strength === 'string' ? entry.strength : 'Fuerza'}</span>}
+              {entry.strength && (
+                <span className="salud-metric">
+                  🏋️ {Array.isArray(entry.strength)
+                    ? entry.strength.map(k => STRENGTH_ICONS[k] || k).join(' ')
+                    : (typeof entry.strength === 'string' ? entry.strength : 'Fuerza')}
+                </span>
+              )}
               {entry.weight != null && <span className="salud-metric">⚖️ {entry.weight} kg</span>}
             </div>
             {entry.contorno && (

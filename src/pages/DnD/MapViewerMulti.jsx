@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import TokenLayer from './components/TokenLayer'
+import TokenLayerNorm from './components/TokenLayerNorm'
 import './MapViewer.css'
 
 function hexCenter(col, row, size) {
@@ -147,7 +147,7 @@ function renderBrushLayer(tex, cw, ch, img) {
   return off
 }
 
-export default function MapViewer() {
+export default function MapViewerMulti() {
   const { channel: channelParam } = useParams()
   const channel = channelParam && ['main','tablet'].includes(channelParam) ? channelParam : 'main'
   const canvasRef = useRef(null)
@@ -778,14 +778,14 @@ export default function MapViewer() {
         }}>
           <canvas ref={canvasRef} className="viewer-canvas" />
           <canvas ref={particleCanvasRef} className="viewer-particle-canvas" />
-          <TokenLayer
+          <TokenLayerNorm
             partyId={viewerState?.partyId ?? null}
             userId={userId}
             isMaster={isMaster}
-            canvasW={map?.canvasW || window.innerWidth}
-            canvasH={map?.canvasH || window.innerHeight}
+            canvasRef={canvasRef}
+            mapW={map?.canvasW || 1600}
+            mapH={map?.canvasH || 1000}
             characters={characters}
-            readOnly={false}
           />
         </div>
       )}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AppHeader from '../../components/AppHeader'
 import CharacterWizard from './CharacterWizard'
+import CharacterWizardV2 from './CharacterWizardV2'
 import { CONDITION_LIST, SOUND_CATEGORIES, SOUND_ICONS, ConditionPills, ConditionManager, spellToAction, TraitCard, SectionAccordion, ActionCard, ActionsPanel } from './components/shared'
 import SoundModal from './components/SoundModal'
 import DnDAuthGate from './components/DnDAuthGate'
@@ -15,6 +16,8 @@ import CharacterModal from './components/CharacterModal'
 import PartyTracker from './components/PartyTracker'
 import PartyAddModal from './components/PartyAddModal'
 import PlayerView from './components/PlayerView'
+import { useTokenSocket } from '../../hooks/useTokenSocket'
+import TokenManager from './components/TokenManager'
 import './DnD.css'
 
 export default function DnD() {
@@ -45,6 +48,7 @@ export default function DnD() {
   // Characters
   const [characters, setCharacters] = useState([])
   const [characterModal, setCharacterModal] = useState(null) // null | { mode: 'create'|'edit', character }
+  const [showWizardV2, setShowWizardV2] = useState(false)
   const [expandedCharacter, setExpandedCharacter] = useState(null)
   const [charSearch, setCharSearch] = useState('')
 
@@ -54,6 +58,10 @@ export default function DnD() {
   const [partyCreateModal, setPartyCreateModal] = useState(false)
   const [partyCreateName, setPartyCreateName] = useState('')
   const [visiblePartyId, setVisiblePartyId] = useState(null)
+
+  // ── WebSocket tokens (DM) ──
+  const { tokens: dmTokens, connected: wsConnected, initToken, removeToken, setTokenVisible } =
+    useTokenSocket(visiblePartyId, user?.id, isMaster && !!visiblePartyId)
 
   // Gestor de Imágenes global
   const [globalImages, setGlobalImages] = useState(null)
@@ -564,7 +572,7 @@ export default function DnD() {
   async function sendMapToViewer(mapId, mapName, channel) {
     await fetch(`/api/dnd/viewer/${channel}`, {
       method: 'PUT', headers,
-      body: JSON.stringify({ mode: 'map', mapId })
+      body: JSON.stringify({ mode: 'map', mapId, partyId: visiblePartyId ?? null })
     })
     await fetchViewer()
     const label = channel === 'tablet' ? '📱' : '📺'
@@ -1296,6 +1304,17 @@ export default function DnD() {
                       onEnemyClick={scrollToGlossaryEntry}
                       onConditionsChange={(key, conds) => updateConditions(p.id, key, conds)}
                     />
+                    {visiblePartyId === p.id && (
+                      <TokenManager
+                        party={p}
+                        characters={characters}
+                        tokens={dmTokens}
+                        connected={wsConnected}
+                        onInit={initToken}
+                        onRemove={removeToken}
+                        onSetVisible={setTokenVisible}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -1333,6 +1352,7 @@ export default function DnD() {
             <span className="dnd-chevron">{expanded.characters ? '▾' : '▸'}</span>
             <span className="dnd-glossary-title">🛡️ Personajes</span>
             {isMaster && <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setCharacterModal({ mode: 'create', character: null }) }}>+ Personaje</button>}
+            {isMaster && <button className="dnd-btn-sm" style={{marginLeft:4, background:'#c8a96e22', borderColor:'#c8a96e44', color:'#c8a96e'}} onClick={e => { e.stopPropagation(); setShowWizardV2(true) }}>✦ Nuevo v2</button>}
           </div>
           {expanded.characters && <>
             <input className="dnd-glossary-search" placeholder="Buscar por nombre, clase, nivel o jugador..." value={charSearch} onChange={e => setCharSearch(e.target.value)} style={{marginBottom:8}} />
@@ -1502,6 +1522,15 @@ export default function DnD() {
           glossarySpells={glossary.entries.filter(e => e.category === 'spell')}
           glossaryItems={glossary.entries.filter(e => e.category === 'artifact' || e.category === 'lore')}
           dndPlayers={dndPlayers}
+        />
+      )}
+
+      {showWizardV2 && (
+        <CharacterWizardV2
+          onSave={saveCharacter}
+          onClose={() => setShowWizardV2(false)}
+          dndPlayers={dndPlayers}
+          glossarySpells={glossary.entries.filter(e => e.spellLevel !== undefined)}
         />
       )}
 

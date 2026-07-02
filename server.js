@@ -1,13 +1,135 @@
 import express from 'express'
+import { createServer } from 'http'
+import { Server as SocketIOServer } from 'socket.io'
 import bcrypt from 'bcrypt'
 import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, unlinkSync } from 'fs'
 import { resolve, join, normalize } from 'path'
 import { randomBytes } from 'crypto'
 
 const app = express()
+const httpServer = createServer(app)
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+})
 const PORT = process.env.PORT || 3000
 const DIST = new URL('./dist', import.meta.url).pathname
 const DB_PATH = resolve('/home/jai/apps/db.json')
+
+// ── WebSocket: tokens de jugadores ──────────────────────
+// Tokens en memoria: { [partyId]: { [charId]: { x, y, userId, charName, color } } }
+const tokenState = {}
+
+io.on('connection', (socket) => {
+  const userId = parseInt(socket.handshake.query.userId)
+  const partyId = socket.handshake.query.partyId
+
+  if (!partyId) return socket.disconnect()
+
+  socket.join(`party:${partyId}`)
+  console.log(`[WS] conectado userId:${userId} partyId:${partyId} sala size:`, io.sockets.adapter.rooms.get(`party:${partyId}`)?.size)
+
+  // Enviar estado actual de tokens al recién conectado
+  const current = tokenState[partyId] || {}
+  socket.emit('tokens:sync', current)
+
+  // Jugador mueve su token
+  socket.on('token:move', (data) => {
+    const { charId, x, y } = data
+    if (!charId || x == null || y == null) return
+
+    const db = JSON.parse(readFileSync(DB_PATH, 'utf8'))
+    const user = (db.users || []).find(u => u.id === userId)
+    if (!user) return
+
+    const isMaster = user.role === 'dndMaster' || user.role === 'master'
+
+    // Verificar permiso: master mueve cualquiera, jugador solo el suyo
+    const existingToken = tokenState[partyId]?.[charId]
+    const isOwner = existingToken?.userId === userId
+    if (!isMaster && !isOwner) return
+
+    if (!tokenState[partyId]) tokenState[partyId] = {}
+    tokenState[partyId][charId] = {
+      ...tokenState[partyId][charId],
+      x, y
+    }
+
+    const roomSize = io.sockets.adapter.rooms.get(`party:${partyId}`)?.size || 0
+    console.log(`[WS token:move] charId:${charId} x:${x} y:${y} → broadcast a ${roomSize} sockets`)
+    io.to(`party:${partyId}`).emit('tokens:update', tokenState[partyId])
+  })
+
+  // Master puede cambiar visibilidad de un token
+  socket.on('token:setVisible', (data) => {
+    const { charId, visible } = data
+    const db = JSON.parse(readFileSync(DB_PATH, 'utf8'))
+    const user = (db.users || []).find(u => u.id === userId)
+    const isMaster = user?.role === 'dndMaster' || user?.role === 'master'
+    if (!isMaster) return
+
+    if (tokenState[partyId]?.[charId]) {
+      tokenState[partyId][charId].visible = visible
+      io.to(`party:${partyId}`).emit('tokens:update', tokenState[partyId])
+    }
+  })
+
+  // Master puede inicializar token de un personaje o enemigo en el mapa
+  socket.on('token:init', (data) => {
+    const { charId, x, y, color, name, portrait } = data
+    console.log('[WS token:init] userId:', userId, 'partyId:', partyId, 'charId:', charId)
+    const db = JSON.parse(readFileSync(DB_PATH, 'utf8'))
+    const user = (db.users || []).find(u => u.id === userId)
+    console.log('[WS token:init] user found:', user?.username, 'role:', user?.role)
+    const isMaster = user?.role === 'dndMaster' || user?.role === 'master'
+    console.log('[WS token:init] isMaster:', isMaster)
+    if (!isMaster) return
+
+    // Resolver nombre y portrait: primero del payload, luego de la DB
+    let charName = name
+    let charPortrait = portrait
+    if (!charName) {
+      const chars = db.dnd?.characters || []
+      const char = chars.find(c => String(c.id) === String(charId))
+      charName = char?.name || charId
+      charPortrait = charPortrait || char?.portrait
+    }
+
+    if (!tokenState[partyId]) tokenState[partyId] = {}
+    // Para personajes: buscar el userId del jugador dueño
+    const chars2 = db.dnd?.characters || []
+    const charForUser = chars2.find(c => String(c.id) === String(charId))
+    const tokenUserId = charForUser?.playerUserId ?? null
+
+    tokenState[partyId][charId] = {
+      charId,
+      userId: tokenUserId,
+      charName,
+      portrait: charPortrait || null,
+      x, y,
+      color: color || '#6366f1',
+      visible: true
+    }
+    io.to(`party:${partyId}`).emit('tokens:update', tokenState[partyId])
+  })
+
+  // Master puede eliminar token del mapa
+  socket.on('token:remove', (data) => {
+    const { charId } = data
+    const db = JSON.parse(readFileSync(DB_PATH, 'utf8'))
+    const user = (db.users || []).find(u => u.id === userId)
+    const isMaster = user?.role === 'dndMaster' || user?.role === 'master'
+    if (!isMaster) return
+
+    if (tokenState[partyId]) {
+      delete tokenState[partyId][charId]
+      io.to(`party:${partyId}`).emit('tokens:update', tokenState[partyId])
+    }
+  })
+
+  socket.on('disconnect', () => {
+    // No limpiar tokens al desconectar — persisten hasta que el master los elimine
+  })
+})
 
 app.use(express.json({ limit: '30mb' }))
 
@@ -842,7 +964,7 @@ app.get('/api/dnd/viewer/:channel', (req, res) => {
 app.put('/api/dnd/viewer/:channel', requireUser, (req, res) => {
   const { channel } = req.params
   if (!VIEWER_CHANNELS.includes(channel)) return res.status(404).json({ error: 'Canal inválido' })
-  const { mode, mapId, imageUrl, imageName, rotation } = req.body
+  const { mode, mapId, imageUrl, imageName, rotation, partyId } = req.body
   if (!['map', 'image', 'blank'].includes(mode)) {
     return res.status(400).json({ error: 'Modo inválido' })
   }
@@ -852,6 +974,7 @@ app.put('/api/dnd/viewer/:channel', requireUser, (req, res) => {
   channels[channel] = {
     mode,
     mapId: mode === 'map' ? (mapId ?? null) : null,
+    partyId: mode === 'map' ? (partyId ?? prev.partyId ?? null) : null,
     imageUrl: mode === 'image' ? (imageUrl ?? null) : null,
     imageName: mode === 'image' ? (imageName ?? null) : null,
     rotation: typeof rotation === 'number' ? rotation : (mode === prev.mode ? (prev.rotation || 0) : 0),
@@ -1559,7 +1682,7 @@ app.post('/api/dnd/props/folder', requireUser, requireDnDMaster, (req, res) => {
 // ── API: D&D Reference Data (armas, armaduras, trasfondos) ──
 function getRefData(db) {
   const dnd = getDnDData(db)
-  if (!dnd.refData) dnd.refData = { weapons: [], armor: [], backgrounds: [] }
+  if (!dnd.refData) dnd.refData = { weapons: [], armor: [], backgrounds: [], classes: [], races: [] }
   return dnd.refData
 }
 
@@ -1615,6 +1738,50 @@ app.get('/api/dnd/refdata', requireUser, (req, res) => {
     saveDB(db)
     res.json({ ok: true })
   })
+})
+
+// ── API: Clases SRD (id es string, no número) ────────────
+app.put('/api/dnd/refdata/classes/:id', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const ref = getRefData(db)
+  if (!ref.classes) ref.classes = []
+  const idx = ref.classes.findIndex(c => c.id === req.params.id)
+  if (idx === -1) return res.status(404).json({ error: 'Clase no encontrada' })
+  ref.classes[idx] = { ...ref.classes[idx], ...req.body, id: ref.classes[idx].id }
+  saveDB(db)
+  res.json(ref.classes[idx])
+})
+
+// ── API: Razas SRD (id es string) ────────────────────────
+app.put('/api/dnd/refdata/races/:id', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const ref = getRefData(db)
+  if (!ref.races) ref.races = []
+  const idx = ref.races.findIndex(r => r.id === req.params.id)
+  if (idx === -1) return res.status(404).json({ error: 'Raza no encontrada' })
+  ref.races[idx] = { ...ref.races[idx], ...req.body, id: ref.races[idx].id }
+  saveDB(db)
+  res.json(ref.races[idx])
+})
+
+app.post('/api/dnd/refdata/races', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const ref = getRefData(db)
+  if (!ref.races) ref.races = []
+  const race = { id: req.body.id || req.body.name?.toLowerCase().replace(/\s+/g,'-'), ...req.body }
+  if (ref.races.find(r => r.id === race.id)) return res.status(409).json({ error: 'Ya existe una raza con ese id' })
+  ref.races.push(race)
+  saveDB(db)
+  res.json(race)
+})
+
+app.delete('/api/dnd/refdata/races/:id', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const ref = getRefData(db)
+  if (!ref.races) ref.races = []
+  ref.races = ref.races.filter(r => r.id !== req.params.id)
+  saveDB(db)
+  res.json({ ok: true })
 })
 
 // ── Foto Meal Analysis (Claude Vision) ───────────────────
@@ -1834,6 +2001,6 @@ app.get('*', (req, res) => {
   res.sendFile(resolve(DIST, 'index.html'))
 })
 
-app.listen(PORT, () => {
-  console.log(`jaijur.com · puerto ${PORT}`)
+httpServer.listen(PORT, () => {
+  console.log(`jaijur.com · puerto ${PORT} (WS activo)`)
 })
