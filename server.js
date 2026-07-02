@@ -1513,7 +1513,7 @@ function requireMaster(req, res, next) {
 }
 
 const AVAILABLE_ROLES = ['master', 'premium', 'dnd', 'dndPlayer', 'user']
-const AVAILABLE_APPS = ['dnd', 'planner', 'stardewpedia']
+const AVAILABLE_APPS = ['dnd', 'planner', 'salud', 'notes']
 
 app.get('/api/admin/users', requireUser, requireMaster, (req, res) => {
   const db = getDB()

@@ -12,7 +12,8 @@ const ROLES = [
 const APPS = [
   { id: 'dnd', label: '🎲 D&D' },
   { id: 'planner', label: '🍽 Meal Planner' },
-  { id: 'stardewpedia', label: '🌾 StardewPedia' },
+  { id: 'salud', label: '❤️ Salud' },
+  { id: 'notes', label: '📝 Notes' },
 ]
 
 export default function UserManager() {

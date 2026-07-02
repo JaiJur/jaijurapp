@@ -136,6 +136,7 @@ export default function TokenLayerNorm({ partyId, userId, isMaster, canvasRef, m
   }, [onPointerMove, onPointerUp])
 
   // ── Render ────────────────────────────────────────────────────────────────
+  console.log('[TokenNorm] DEBUG — partyId:', partyId, 'userId:', userId, 'connected:', connected)
   if (!partyId) return null
   const tokenList = Object.values(tokens)
   console.log('[TokenNorm] render — partyId:', partyId, 'tokens:', tokenList.length, 'canvasRect:', canvasRect)
