@@ -4151,3 +4151,27 @@ textarea.dnd-input {
 
 /* 3. Padding superior en el contenido de cada acordeón */
 .pv-section-body { padding-top: 10px; }
+
+/* ── Toggle de estado del enemigo: Enemigo / NPC / Aliado ── */
+.party-disposition-toggle {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+.party-disposition-btn {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.6);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.party-disposition-btn:hover { background: rgba(255,255,255,0.09); }
+.party-disposition-enemy.active { background: rgba(239,68,68,0.18); border-color: #ef4444; color: #ef4444; }
+.party-disposition-npc.active   { background: rgba(59,130,246,0.18); border-color: #3b82f6; color: #3b82f6; }
+.party-disposition-ally.active  { background: rgba(34,197,94,0.18); border-color: #22c55e; color: #22c55e; }

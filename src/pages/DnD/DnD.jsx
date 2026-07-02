@@ -450,6 +450,12 @@ export default function DnD() {
       ...p, enemies: (p.enemies || []).map(e => e.id === enemyId ? { ...e, hpCurrent: hp } : e)
     } : p))
   }
+  async function updateEnemyDisposition(partyId, enemyId, disposition) {
+    await fetch(`/api/dnd/parties/${partyId}/enemy/${enemyId}/disposition`, { method: 'PATCH', headers, body: JSON.stringify({ disposition }) })
+    setParties(ps => ps.map(p => p.id === partyId ? {
+      ...p, enemies: (p.enemies || []).map(e => e.id === enemyId ? { ...e, disposition } : e)
+    } : p))
+  }
   function scrollToGlossaryEntry(entryId) {
     // Expandir glosario, filtrar enemigos, expandir la entrada
     if (!expanded.glossary) toggleExpand('glossary')
@@ -1300,6 +1306,7 @@ export default function DnD() {
                       onClassResourceChange={(charId, used) => updatePartyClassResources(p.id, charId, used)}
                       onRemove={(charId) => removeFromParty(p.id, charId)}
                       onEnemyHpChange={(enemyId, hp) => updateEnemyHp(p.id, enemyId, hp)}
+                      onEnemyDispositionChange={(enemyId, disposition) => updateEnemyDisposition(p.id, enemyId, disposition)}
                       onRemoveEnemy={(enemyId) => removeEnemyFromParty(p.id, enemyId)}
                       onEnemyClick={scrollToGlossaryEntry}
                       onConditionsChange={(key, conds) => updateConditions(p.id, key, conds)}

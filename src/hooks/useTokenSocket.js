@@ -55,9 +55,9 @@ export function useTokenSocket(partyId, userId, enabled = true) {
   }, [])
 
   /** (Master) Inicializar token en el mapa */
-  const initToken = useCallback((charId, x, y, color, name, portrait) => {
-    console.log('[TokenWS] emitiendo token:init', { charId, x, y, color, name, socket: socketRef.current?.id })
-    socketRef.current?.emit('token:init', { charId, x, y, color, name, portrait })
+  const initToken = useCallback((charId, x, y, color, name, portrait, disposition) => {
+    console.log('[TokenWS] emitiendo token:init', { charId, x, y, color, name, disposition, socket: socketRef.current?.id })
+    socketRef.current?.emit('token:init', { charId, x, y, color, name, portrait, disposition })
   }, [])
 
   /** (Master) Eliminar token del mapa */

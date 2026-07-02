@@ -49,6 +49,18 @@
   position: relative;
   z-index: 1;
 }
+.token-norm-enemy .token-norm-circle {
+  border-color: #ef4444;
+  box-shadow: 2px 3px 6px rgba(0,0,0,0.5), 0 0 6px rgba(239,68,68,0.6);
+}
+.token-norm-npc .token-norm-circle {
+  border-color: #3b82f6;
+  box-shadow: 2px 3px 6px rgba(0,0,0,0.5), 0 0 6px rgba(59,130,246,0.6);
+}
+.token-norm-ally .token-norm-circle {
+  border-color: #22c55e;
+  box-shadow: 2px 3px 6px rgba(0,0,0,0.5), 0 0 6px rgba(34,197,94,0.6);
+}
 .token-norm-img {
   width: 100%; height: 100%;
   object-fit: cover;

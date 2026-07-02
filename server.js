@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
 
   // Master puede inicializar token de un personaje o enemigo en el mapa
   socket.on('token:init', (data) => {
-    const { charId, x, y, color, name, portrait } = data
+    const { charId, x, y, color, name, portrait, disposition } = data
     console.log('[WS token:init] userId:', userId, 'partyId:', partyId, 'charId:', charId)
     const db = JSON.parse(readFileSync(DB_PATH, 'utf8'))
     const user = (db.users || []).find(u => u.id === userId)
@@ -107,6 +107,7 @@ io.on('connection', (socket) => {
       portrait: charPortrait || null,
       x, y,
       color: color || '#6366f1',
+      disposition: disposition || null,
       visible: true
     }
     io.to(`party:${partyId}`).emit('tokens:update', tokenState[partyId])
@@ -1169,6 +1170,13 @@ app.delete('/api/dnd/parties/:partyId/members/:charId', requireUser, requireDnDM
   party.members = (party.members || []).filter(id => id !== charId)
   party.initiative = (party.initiative || []).filter(id => id !== charId && id !== String(charId))
   saveDB(db)
+
+  // Quitar también su token del mapa multijugador si estaba colocado
+  if (tokenState[party.id] && tokenState[party.id][String(charId)]) {
+    delete tokenState[party.id][String(charId)]
+    io.to(`party:${party.id}`).emit('tokens:update', tokenState[party.id])
+  }
+
   res.json(enrichParty(dnd, party))
 })
 
@@ -1326,6 +1334,14 @@ app.delete('/api/dnd/parties/:partyId/enemy/:id', requireUser, requireDnDMaster,
   party.enemies = (party.enemies || []).filter(e => e.id !== enemyId)
   party.initiative = (party.initiative || []).filter(k => k !== `e${enemyId}`)
   saveDB(db)
+
+  // Quitar también su token del mapa multijugador si estaba colocado
+  const tokenCharId = `e_${enemyId}`
+  if (tokenState[party.id] && tokenState[party.id][tokenCharId]) {
+    delete tokenState[party.id][tokenCharId]
+    io.to(`party:${party.id}`).emit('tokens:update', tokenState[party.id])
+  }
+
   res.json({ ok: true })
 })
 
@@ -1340,6 +1356,29 @@ app.patch('/api/dnd/parties/:partyId/enemy/:id/hp', requireUser, (req, res) => {
   enemy.hpCurrent = req.body.hp
   saveDB(db)
   res.json({ ok: true })
+})
+
+// Estado del enemigo: enemy | npc | ally (afecta color de borde del token en el mapa)
+app.patch('/api/dnd/parties/:partyId/enemy/:id/disposition', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const enemy = (party.enemies || []).find(e => e.id === parseInt(req.params.id))
+  if (!enemy) return res.status(404).json({ error: 'Enemigo no encontrado' })
+  const { disposition } = req.body
+  if (!['enemy', 'npc', 'ally'].includes(disposition)) return res.status(400).json({ error: 'disposition inválida' })
+  enemy.disposition = disposition
+  saveDB(db)
+
+  // Si el token ya está colocado en el mapa, actualizar su color en vivo
+  const tokenCharId = `e_${enemy.id}`
+  if (tokenState[party.id] && tokenState[party.id][tokenCharId]) {
+    tokenState[party.id][tokenCharId].disposition = disposition
+    io.to(`party:${party.id}`).emit('tokens:update', tokenState[party.id])
+  }
+
+  res.json({ ok: true, disposition })
 })
 
 // Descanso en party

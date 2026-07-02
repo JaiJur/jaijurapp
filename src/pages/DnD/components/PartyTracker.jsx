@@ -165,7 +165,7 @@ function PCDetailModal({ ch, party, onHpChange, onSlotsChange, onAbilitySlotsCha
 }
 
 // ── Sub: Modal detalle Enemigo ─────────────────────────
-function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick, mod, onClose, conditions, onConditionsChange, isMaster }) {
+function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick, onEnemyDispositionChange, mod, onClose, conditions, onConditionsChange, isMaster }) {
   const g = enemy.glossaryData || {}
   const s = g.stats || {}
   const hp = enemy.hpCurrent ?? 0
@@ -198,6 +198,11 @@ function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick,
           </div>
         </div>
       </div>
+      {isMaster && <div className="party-disposition-toggle">
+        <button className={`party-disposition-btn party-disposition-enemy ${(enemy.disposition || 'enemy') === 'enemy' ? 'active' : ''}`} onClick={() => onEnemyDispositionChange(enemy.id, 'enemy')}>😈 Enemigo</button>
+        <button className={`party-disposition-btn party-disposition-npc ${enemy.disposition === 'npc' ? 'active' : ''}`} onClick={() => onEnemyDispositionChange(enemy.id, 'npc')}>🎭 NPC</button>
+        <button className={`party-disposition-btn party-disposition-ally ${enemy.disposition === 'ally' ? 'active' : ''}`} onClick={() => onEnemyDispositionChange(enemy.id, 'ally')}>🤝 Aliado</button>
+      </div>}
       {conditions.length > 0 && <div className="party-mini-conditions" style={{justifyContent:'flex-start'}}>{conditions.map((c,i) => { const def = CONDITION_LIST.find(x => x.id === (c.id||c)); return def ? <span key={i} className="condition-pill">{def.levels ? `${def.label}${c.level||1}` : def.label}</span> : null })}</div>}
       <div className="party-detail-hp">
         <div className="party-hp-bar" style={{height:22}}><div className="party-hp-fill" style={{ width: `${hpPct}%`, background: hpColor }} /><span className="party-hp-text">{hp} / {hpMax}</span></div>
@@ -230,7 +235,7 @@ function EnemyDetailModal({ enemy, onEnemyHpChange, onRemoveEnemy, onEnemyClick,
 }
 
 // ── Componente principal: Party Tracker ─────────────────
-export default function PartyTracker({ party, isMaster, userId, onReorder, onInitiativeChange, onHpChange, onSlotsChange, onAbilitySlotsChange, onClassResourceChange, onRemove, onEnemyHpChange, onRemoveEnemy, onEnemyClick, onConditionsChange }) {
+export default function PartyTracker({ party, isMaster, userId, onReorder, onInitiativeChange, onHpChange, onSlotsChange, onAbilitySlotsChange, onClassResourceChange, onRemove, onEnemyHpChange, onEnemyDispositionChange, onRemoveEnemy, onEnemyClick, onConditionsChange }) {
   const [dragId, setDragId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const [expandedCard, setExpandedCard] = useState(null)
@@ -358,7 +363,7 @@ export default function PartyTracker({ party, isMaster, userId, onReorder, onIni
         return (
           <div className="action-card-overlay" onClick={() => setExpandedCard(null)}>
             <div className="party-detail-modal" onClick={e => e.stopPropagation()}>
-              <EnemyDetailModal enemy={item.data} onEnemyHpChange={onEnemyHpChange} onRemoveEnemy={onRemoveEnemy} onEnemyClick={onEnemyClick} mod={mod} onClose={() => setExpandedCard(null)}
+              <EnemyDetailModal enemy={item.data} onEnemyHpChange={onEnemyHpChange} onRemoveEnemy={onRemoveEnemy} onEnemyClick={onEnemyClick} onEnemyDispositionChange={onEnemyDispositionChange} mod={mod} onClose={() => setExpandedCard(null)}
                 conditions={conditions} onConditionsChange={conds => onConditionsChange(item.key, conds)} isMaster={isMaster} />
             </div>
           </div>

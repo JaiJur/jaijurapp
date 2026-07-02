@@ -169,11 +169,14 @@ export default function TokenLayerNorm({ partyId, userId, isMaster, canvasRef, m
         const hidden = !token.visible
         const draggable = canDrag(token)
         const isDragging = draggingRef.current?.charId === token.charId
+        const isEnemyToken = String(token.charId).startsWith('e_')
+        const disposition = isEnemyToken ? (token.disposition || 'enemy') : null
+        const dispositionClass = disposition ? `token-norm-${disposition}` : ''
 
         return (
           <div
             key={token.charId}
-            className={`token-norm ${draggable ? 'token-draggable' : ''} ${isDragging ? 'token-dragging' : ''} ${hidden ? 'token-hidden' : ''}`}
+            className={`token-norm ${draggable ? 'token-draggable' : ''} ${isDragging ? 'token-dragging' : ''} ${hidden ? 'token-hidden' : ''} ${dispositionClass}`}
             style={{
               position: 'absolute',
               left: sx,

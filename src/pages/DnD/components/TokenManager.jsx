@@ -22,8 +22,8 @@ export default function TokenManager({ party, characters, tokens, connected, onI
     return !!tokens[String(tokenId)]
   }
 
-  function handlePlace(tokenId, name, color, portrait, isEnemy = false) {
-    onInit(String(tokenId), 400, 300, color, name, portrait, isEnemy)
+  function handlePlace(tokenId, name, color, portrait, isEnemy = false, disposition = null) {
+    onInit(String(tokenId), 400, 300, color, name, portrait, disposition)
   }
 
   return (
@@ -83,7 +83,7 @@ export default function TokenManager({ party, characters, tokens, connected, onI
                   onMap={onMap}
                   tok={tok}
                   isEnemy
-                  onPlace={() => handlePlace(tokenId, enemy.label, ENEMY_COLORS[idx % ENEMY_COLORS.length], enemy.portrait, true)}
+                  onPlace={() => handlePlace(tokenId, enemy.label, ENEMY_COLORS[idx % ENEMY_COLORS.length], enemy.portrait, true, enemy.disposition)}
                   onRemove={() => onRemove(tokenId)}
                   onSetVisible={(v) => onSetVisible(tokenId, v)}
                 />
