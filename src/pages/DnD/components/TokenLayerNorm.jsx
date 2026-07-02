@@ -120,6 +120,15 @@ export default function TokenLayerNorm({ partyId, userId, isMaster, canvasRef, m
     const pos = dragPos[charId]
     if (pos) moveToken(charId, pos.x, pos.y)
     draggingRef.current = null
+    // Limpiar dragPos: a partir de ahora confiar en la posición que llegue por WS,
+    // si no, este token queda "congelado" en la última posición local para siempre
+    // y no refleja movimientos hechos por otros (DM o el propio jugador desde otra sesión).
+    setDragPos(prev => {
+      if (!(charId in prev)) return prev
+      const next = { ...prev }
+      delete next[charId]
+      return next
+    })
   }, [dragPos, moveToken])
 
   useEffect(() => {
@@ -136,10 +145,8 @@ export default function TokenLayerNorm({ partyId, userId, isMaster, canvasRef, m
   }, [onPointerMove, onPointerUp])
 
   // ── Render ────────────────────────────────────────────────────────────────
-  console.log('[TokenNorm] DEBUG — partyId:', partyId, 'userId:', userId, 'connected:', connected)
   if (!partyId) return null
   const tokenList = Object.values(tokens)
-  console.log('[TokenNorm] render — partyId:', partyId, 'tokens:', tokenList.length, 'canvasRect:', canvasRect)
   const R = 20  // radio del token en px CSS
 
   return (
