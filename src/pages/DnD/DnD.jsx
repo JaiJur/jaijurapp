@@ -851,7 +851,7 @@ export default function DnD() {
                 <button className="dnd-btn-sm" onClick={() => clearViewer('main')}>🚫</button>
               </div>
             </div>
-            <div className="dnd-channel-card" title="Canal tablet (pantalla secundaria)">
+            <div className="dnd-channel-card" title="Canal secundario (tablet u otra pantalla)">
               <div className="dnd-channel-head">
                 <span className="dnd-channel-icon">📱</span>
                 <span className="dnd-channel-label">{channelLabel('tablet')}</span>
@@ -860,6 +860,25 @@ export default function DnD() {
                 <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/tablet','_blank')}>🖥</button>
                 {(viewerState?.tablet?.mode === 'image' || viewerState?.tablet?.mode === 'map') && <button className="dnd-btn-sm" onClick={() => rotateViewer('tablet')} title="Rotar 90°">↻</button>}
                 <button className="dnd-btn-sm" onClick={() => clearViewer('tablet')}>🚫</button>
+              </div>
+            </div>
+            <div className="dnd-channel-card" title="Vista multijugador — mapa con tokens en tiempo real (canal principal)">
+              <div className="dnd-channel-head">
+                <span className="dnd-channel-icon">🎮</span>
+                <span className="dnd-channel-label">Multijugador</span>
+              </div>
+              <div className="dnd-channel-btns">
+                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/main/multi','_blank')} title="Abrir vista multijugador (canal principal)">🖥</button>
+                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/tablet/multi','_blank')} title="Abrir vista multijugador (canal secundario)">📱</button>
+              </div>
+            </div>
+            <div className="dnd-channel-card" title="Vista de la party para los jugadores">
+              <div className="dnd-channel-head">
+                <span className="dnd-channel-icon">⚔️</span>
+                <span className="dnd-channel-label">Party</span>
+              </div>
+              <div className="dnd-channel-btns">
+                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/party','_blank')} title="Abrir vista de party">🖥</button>
               </div>
             </div>
           </div>}
@@ -926,7 +945,7 @@ export default function DnD() {
                                 <div className="dnd-map-actions">
                                   <button className="dnd-btn-sm" onClick={() => window.open(`/dnd/editor/${map.id}`, '_blank')}>Editar</button>
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Main" onClick={() => sendMapToViewer(map.id, map.name, 'main')}>📺</button>
-                                  <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Tablet" onClick={() => sendMapToViewer(map.id, map.name, 'tablet')}>📱</button>
+                                  <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Secundaria" onClick={() => sendMapToViewer(map.id, map.name, 'tablet')}>📱</button>
                                   <button className="dnd-btn-sm dnd-btn-danger" title="Borrar mapa" onClick={() => deleteMap(campaign.id, chapter.id, map.id)}>✕</button>
                                 </div>
                               </div>
@@ -949,7 +968,7 @@ export default function DnD() {
                                       <img src={img.url} alt={img.name} loading="lazy" />
                                       <div className="dnd-image-overlay">
                                         <button className="dnd-image-send" onClick={() => sendImageToViewer(img, 'main')} title="Enviar a Main">📺</button>
-                                        <button className="dnd-image-send dnd-image-send-tablet" onClick={() => sendImageToViewer(img, 'tablet')} title="Enviar a Tablet">📱</button>
+                                        <button className="dnd-image-send dnd-image-send-tablet" onClick={() => sendImageToViewer(img, 'tablet')} title="Enviar a Secundaria">📱</button>
                                         <button className="dnd-image-send dnd-image-remove" onClick={() => removeImageFromChapter(campaign.id, chapter.id, img.url)} title="Quitar">✕</button>
                                         <span className="dnd-image-name">{img.name}</span>
                                       </div>
@@ -1144,7 +1163,7 @@ export default function DnD() {
                           <span className="dnd-note-shortcut-name">{img.name}</span>
                           <div className="dnd-note-shortcut-btns">
                             <button onClick={() => sendImageToViewer(img, 'main')} title="Enviar a Main">📺</button>
-                            <button onClick={() => sendImageToViewer(img, 'tablet')} title="Enviar a Tablet">📱</button>
+                            <button onClick={() => sendImageToViewer(img, 'tablet')} title="Enviar a Secundaria">📱</button>
                           </div>
                         </div>
                       ))}

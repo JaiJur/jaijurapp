@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import TokenLayer from './components/TokenLayer'
 import './MapViewer.css'
 
 function hexCenter(col, row, size) {
@@ -158,19 +157,6 @@ export default function MapViewer() {
   const pollRef = useRef(null)
   const lastMapIdRef = useRef(null)
   const lastUpdatedRef = useRef(0)
-
-  // ── Identidad del usuario (para tokens) ──
-  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('jaijur_user') || 'null') } catch { return null } })()
-  const userId = storedUser?.id ?? null
-  const isMaster = storedUser?.role === 'master' || storedUser?.role === 'dndMaster'
-  const [characters, setCharacters] = useState([])
-  // Cargar personajes una sola vez para avatares/colores en tokens
-  useEffect(() => {
-    fetch('/api/dnd/characters', { headers: { 'x-user-id': String(userId || '') } })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setCharacters(Array.isArray(data) ? data : []))
-      .catch(() => {})
-  }, [userId])
 
   // ── Particle system refs ──
   const particleCanvasRef = useRef(null)
@@ -778,15 +764,6 @@ export default function MapViewer() {
         }}>
           <canvas ref={canvasRef} className="viewer-canvas" />
           <canvas ref={particleCanvasRef} className="viewer-particle-canvas" />
-          <TokenLayer
-            partyId={viewerState?.partyId ?? null}
-            userId={userId}
-            isMaster={isMaster}
-            canvasW={map?.canvasW || window.innerWidth}
-            canvasH={map?.canvasH || window.innerHeight}
-            characters={characters}
-            readOnly={false}
-          />
         </div>
       )}
 
