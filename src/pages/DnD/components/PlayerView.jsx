@@ -18,6 +18,7 @@ export default function PlayerView({ user, characters, onCharacterSaved }) {
     <div className="pv-root">
       <div className="pv-header">
         <h2 className="pv-title">⚔️ Elige tu personaje</h2>
+        <button className="pv-map-link" onClick={() => window.open('/dnd/viewer/main/multi', '_blank')}>🗺️ Ver mapa</button>
         {myChars.length === 0 && <p className="pv-empty">No tienes personajes asignados todavía.</p>}
       </div>
       <div className="pv-char-grid">
@@ -147,9 +148,10 @@ function PlayerCharacterDetail({ character: ch, user, onBack, onCharacterSaved }
 
   return (
     <div className="pv-root">
-      {/* Topbar — solo botón volver */}
+      {/* Topbar — volver + acceso al mapa */}
       <div className="pv-detail-topbar">
         <button className="pv-back-btn" onClick={onBack}>← Volver</button>
+        <button className="pv-map-link" onClick={() => window.open('/dnd/viewer/main/multi', '_blank')}>🗺️ Ver mapa</button>
       </div>
 
       {/* Hero */}
