@@ -1791,6 +1791,18 @@ app.put('/api/dnd/refdata/classes/:id', requireUser, requireDnDMaster, (req, res
   res.json(ref.classes[idx])
 })
 
+app.post('/api/dnd/refdata/classes', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const ref = getRefData(db)
+  if (!ref.classes) ref.classes = []
+  const cls = { id: req.body.id || req.body.name?.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''), ...req.body }
+  if (!cls.id) return res.status(400).json({ error: 'Nombre requerido' })
+  if (ref.classes.find(c => c.id === cls.id)) return res.status(409).json({ error: 'Ya existe una clase con ese nombre' })
+  ref.classes.push(cls)
+  saveDB(db)
+  res.json(cls)
+})
+
 // ── API: Razas SRD (id es string) ────────────────────────
 app.put('/api/dnd/refdata/races/:id', requireUser, requireDnDMaster, (req, res) => {
   const db = getDB()

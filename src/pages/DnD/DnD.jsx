@@ -51,6 +51,9 @@ export default function DnD() {
   const [showWizardV2, setShowWizardV2] = useState(false)
   const [expandedCharacter, setExpandedCharacter] = useState(null)
   const [charSearch, setCharSearch] = useState('')
+  const [charPlayerFilter, setCharPlayerFilter] = useState('all')
+  const [charPage, setCharPage] = useState(0)
+  const CHAR_PAGE_SIZE = 10
 
   // Parties (multi-party)
   const [parties, setParties] = useState([])
@@ -1381,36 +1384,63 @@ export default function DnD() {
             {isMaster && <button className="dnd-btn-sm" style={{marginLeft:4, background:'#c8a96e22', borderColor:'#c8a96e44', color:'#c8a96e'}} onClick={e => { e.stopPropagation(); setShowWizardV2(true) }}>✦ Nuevo v2</button>}
           </div>
           {expanded.characters && <>
-            <input className="dnd-glossary-search" placeholder="Buscar por nombre, clase, nivel o jugador..." value={charSearch} onChange={e => setCharSearch(e.target.value)} style={{marginBottom:8}} />
-            <div className="dnd-glossary-list">
-              {characters.length === 0 && <div className="dnd-empty-sm">Sin personajes — ¡crea el primero!</div>}
-              {(() => {
-                const q = charSearch.toLowerCase().trim()
-                const filtered = q ? characters.filter(ch => {
-                  const name = (ch.name||'').toLowerCase()
-                  const cls = (ch.class||'').toLowerCase()
-                  const sub = (ch.subclass||'').toLowerCase()
-                  const race = (ch.race||'').toLowerCase()
-                  const player = (ch.player||'').toLowerCase()
-                  const lvl = String(ch.level||1)
-                  return name.includes(q) || cls.includes(q) || sub.includes(q) || race.includes(q) || player.includes(q) || lvl === q
-                }) : characters
-                return filtered.length === 0 && q ? (
-                  <div className="dnd-empty-sm">Sin resultados para "{charSearch}"</div>
-                ) : filtered.map(ch => (
-                <CharacterCard key={ch.id} character={ch}
-                  expanded={expandedCharacter === ch.id}
-                  onToggle={() => setExpandedCharacter(expandedCharacter === ch.id ? null : ch.id)}
-                  onEdit={() => setCharacterModal({ mode: 'edit', character: ch })}
-                  onDelete={() => deleteCharacter(ch.id)}
-                  onSave={quickSaveCharacter}
-                  onAddToParty={addToParty}
-                  parties={parties}
-                  isMaster={isMaster}
-                  glossaryEntries={glossary.entries} />
-              ))
-              })()}
-            </div>
+            <input className="dnd-glossary-search" placeholder="Buscar por nombre, clase, nivel o jugador..." value={charSearch} onChange={e => { setCharSearch(e.target.value); setCharPage(0) }} style={{marginBottom:8}} />
+            {isMaster && (() => {
+              const players = [...new Set(characters.map(ch => ch.player).filter(Boolean))].sort((a,b) => a.localeCompare(b,'es'))
+              if (players.length === 0) return null
+              return (
+                <div className="dnd-glossary-subfilters" style={{marginBottom:8}}>
+                  <button className={`dnd-glossary-subfilter ${charPlayerFilter==='all'?'active':''}`}
+                    onClick={() => { setCharPlayerFilter('all'); setCharPage(0) }}>Todos</button>
+                  {players.map(p => (
+                    <button key={p} className={`dnd-glossary-subfilter ${charPlayerFilter===p?'active':''}`}
+                      onClick={() => { setCharPlayerFilter(p); setCharPage(0) }}>🎮 {p}</button>
+                  ))}
+                </div>
+              )
+            })()}
+            {(() => {
+              const q = charSearch.toLowerCase().trim()
+              const filtered = characters.filter(ch => {
+                if (charPlayerFilter !== 'all' && ch.player !== charPlayerFilter) return false
+                if (!q) return true
+                const name = (ch.name||'').toLowerCase()
+                const cls = (ch.class||'').toLowerCase()
+                const sub = (ch.subclass||'').toLowerCase()
+                const race = (ch.race||'').toLowerCase()
+                const player = (ch.player||'').toLowerCase()
+                const lvl = String(ch.level||1)
+                return name.includes(q) || cls.includes(q) || sub.includes(q) || race.includes(q) || player.includes(q) || lvl === q
+              })
+              const totalPages = Math.ceil(filtered.length / CHAR_PAGE_SIZE)
+              const pageItems = filtered.slice(charPage * CHAR_PAGE_SIZE, (charPage + 1) * CHAR_PAGE_SIZE)
+              return <>
+                <div className="dnd-glossary-list">
+                  {filtered.length === 0 && (
+                    <div className="dnd-empty-sm">{characters.length === 0 ? 'Sin personajes — ¡crea el primero!' : 'Sin resultados'}</div>
+                  )}
+                  {pageItems.map(ch => (
+                    <CharacterCard key={ch.id} character={ch}
+                      expanded={expandedCharacter === ch.id}
+                      onToggle={() => setExpandedCharacter(expandedCharacter === ch.id ? null : ch.id)}
+                      onEdit={() => setCharacterModal({ mode: 'edit', character: ch })}
+                      onDelete={() => deleteCharacter(ch.id)}
+                      onSave={quickSaveCharacter}
+                      onAddToParty={addToParty}
+                      parties={parties}
+                      isMaster={isMaster}
+                      glossaryEntries={glossary.entries} />
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="glossary-pagination">
+                    <button className="dnd-btn-sm" disabled={charPage === 0} onClick={() => setCharPage(p => p - 1)}>← Anterior</button>
+                    <span className="glossary-page-info">{charPage + 1} / {totalPages} ({filtered.length} personajes)</span>
+                    <button className="dnd-btn-sm" disabled={charPage >= totalPages - 1} onClick={() => setCharPage(p => p + 1)}>Siguiente →</button>
+                  </div>
+                )}
+              </>
+            })()}
           </>}
         </div>
 

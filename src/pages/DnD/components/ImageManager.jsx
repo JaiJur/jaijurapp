@@ -44,7 +44,8 @@ function RefDataSection() {
     try {
       const r = await fetch(url, { method, headers, body: JSON.stringify(body) })
       if (r.ok) { setEditItem(null); loadData() }
-    } catch {}
+      else { const err = await r.json().catch(() => ({})); alert(err.error || `Error al guardar (${r.status})`) }
+    } catch { alert('Error de conexión al guardar') }
   }
 
   async function deleteItem(type, id) {
@@ -96,6 +97,8 @@ function RefDataSection() {
       if (!draft.levels[lv].traitDescs) draft.levels[lv].traitDescs = {}
     })
     if (!draft.baseTraits) draft.baseTraits = []
+    if (!draft.subclasses) draft.subclasses = []
+    draft.subclasses.forEach(s => { if (!s.features) s.features = []; if (!s.spellGrants) s.spellGrants = [] })
     setClassDraft(draft)
     setClassEditModal(cls)
     setClassEditLevel(null)
@@ -178,7 +181,69 @@ function RefDataSection() {
     setClassDraft(d => ({ ...d, baseTraits: (d.baseTraits || []).filter((_, i) => i !== idx) }))
   }
 
+  // ── Subclases ──
+  function addSubclass() {
+    setClassDraft(d => ({ ...d, subclasses: [...(d.subclasses || []), { id: `sub_${Date.now()}`, name: '', desc: '', features: [], spellGrants: [] }] }))
+  }
+  function removeSubclass(idx) {
+    setClassDraft(d => ({ ...d, subclasses: (d.subclasses || []).filter((_, i) => i !== idx) }))
+  }
+  function updateSubclass(idx, field, value) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      subs[idx] = { ...subs[idx], [field]: value }
+      return { ...d, subclasses: subs }
+    })
+  }
+  function addSubclassFeature(idx) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      subs[idx] = { ...subs[idx], features: [...(subs[idx].features || []), { fromLevel: d.subclassLevel || 3, name: '', desc: '' }] }
+      return { ...d, subclasses: subs }
+    })
+  }
+  function updateSubclassFeature(idx, featIdx, field, value) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      const features = [...(subs[idx].features || [])]
+      features[featIdx] = { ...features[featIdx], [field]: field === 'fromLevel' ? (parseInt(value) || 1) : value }
+      subs[idx] = { ...subs[idx], features }
+      return { ...d, subclasses: subs }
+    })
+  }
+  function removeSubclassFeature(idx, featIdx) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      subs[idx] = { ...subs[idx], features: (subs[idx].features || []).filter((_, i) => i !== featIdx) }
+      return { ...d, subclasses: subs }
+    })
+  }
+  function addSubclassSpellGrant(idx) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      subs[idx] = { ...subs[idx], spellGrants: [...(subs[idx].spellGrants || []), { fromLevel: d.subclassLevel || 3, spells: [] }] }
+      return { ...d, subclasses: subs }
+    })
+  }
+  function updateSubclassSpellGrant(idx, grantIdx, field, value) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      const grants = [...(subs[idx].spellGrants || [])]
+      grants[grantIdx] = { ...grants[grantIdx], [field]: field === 'fromLevel' ? (parseInt(value) || 1) : value.split(',').map(s => s.trim()).filter(Boolean) }
+      subs[idx] = { ...subs[idx], spellGrants: grants }
+      return { ...d, subclasses: subs }
+    })
+  }
+  function removeSubclassSpellGrant(idx, grantIdx) {
+    setClassDraft(d => {
+      const subs = [...(d.subclasses || [])]
+      subs[idx] = { ...subs[idx], spellGrants: (subs[idx].spellGrants || []).filter((_, i) => i !== grantIdx) }
+      return { ...d, subclasses: subs }
+    })
+  }
+
   const [expandedLevel, setExpandedLevel] = useState(null)
+  const [expandedSubclass, setExpandedSubclass] = useState(null)
 
   const tabs = [
     { id: 'weapons', icon: '⚔️', label: 'Armas' },
@@ -502,6 +567,62 @@ function RefDataSection() {
                 </div>
               ))}
             </div>
+            {/* Subclases */}
+            <div style={{marginBottom:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                <span style={{fontWeight:600,fontSize:'.85rem',color:'#c8a96e'}}>🌿 Subclases {classDraft.subclassName ? `— ${classDraft.subclassName} (nv.${classDraft.subclassLevel||'?'})` : ''}</span>
+                <button className="dnd-btn-sm" onClick={addSubclass}>+ Subclase</button>
+              </div>
+              {(classDraft.subclasses || []).length === 0 && <div className="dnd-empty-sm">Sin subclases. Pulsa "+ Subclase" para añadir.</div>}
+              {(classDraft.subclasses || []).map((sub, si) => {
+                const isOpen = expandedSubclass === si
+                return (
+                  <div key={sub.id || si} style={{background:'rgba(0,0,0,0.15)',borderRadius:6,padding:'8px 10px',marginBottom:6}}>
+                    <div style={{display:'flex',gap:6,marginBottom:4,alignItems:'center'}}>
+                      <input className="dnd-input" style={{flex:1,fontSize:'.82rem',padding:'4px 8px'}} placeholder="Nombre de la subclase..." value={sub.name} onChange={e => updateSubclass(si, 'name', e.target.value)} />
+                      <button className="dnd-btn-sm" onClick={() => setExpandedSubclass(isOpen ? null : si)}>{isOpen ? '▾' : '▸'}</button>
+                      <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeSubclass(si)}>🗑</button>
+                    </div>
+                    <textarea className="dnd-input" style={{width:'100%',fontSize:'.78rem',padding:'4px 8px',resize:'vertical',minHeight:40}} placeholder="Descripción de la subclase..." value={sub.desc || ''} onChange={e => updateSubclass(si, 'desc', e.target.value)} />
+                    {isOpen && (
+                      <div style={{marginTop:8}}>
+                        {/* Rasgos de subclase */}
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                          <span style={{fontSize:'.78rem',color:'#8b7d5c'}}>📖 Rasgos de subclase</span>
+                          <button className="dnd-btn-sm" onClick={() => addSubclassFeature(si)}>+ Rasgo</button>
+                        </div>
+                        {(sub.features || []).length === 0 && <div style={{fontSize:'.75rem',color:'#6b6050',fontStyle:'italic',marginBottom:6}}>Sin rasgos añadidos</div>}
+                        {(sub.features || []).map((f, fi) => (
+                          <div key={fi} style={{background:'rgba(0,0,0,0.2)',borderRadius:6,padding:'8px 10px',marginBottom:6}}>
+                            <div style={{display:'flex',gap:6,marginBottom:4,alignItems:'center'}}>
+                              <span style={{fontSize:'.7rem',color:'#8b7d5c'}}>Nv.</span>
+                              <input className="dnd-input" style={{width:50,fontSize:'.8rem',padding:'4px 6px'}} type="number" min="1" max="20" value={f.fromLevel || 1} onChange={e => updateSubclassFeature(si, fi, 'fromLevel', e.target.value)} />
+                              <input className="dnd-input" style={{flex:1,fontSize:'.82rem',padding:'4px 8px'}} placeholder="Nombre del rasgo..." value={f.name} onChange={e => updateSubclassFeature(si, fi, 'name', e.target.value)} />
+                              <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeSubclassFeature(si, fi)}>🗑</button>
+                            </div>
+                            <textarea className="dnd-input" style={{width:'100%',fontSize:'.77rem',padding:'4px 8px',resize:'vertical',minHeight:50}} placeholder="Descripción..." value={f.desc || ''} onChange={e => updateSubclassFeature(si, fi, 'desc', e.target.value)} />
+                          </div>
+                        ))}
+                        {/* Conjuros otorgados por la subclase */}
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6,marginTop:8}}>
+                          <span style={{fontSize:'.78rem',color:'#8b7d5c'}}>🔮 Conjuros otorgados</span>
+                          <button className="dnd-btn-sm" onClick={() => addSubclassSpellGrant(si)}>+ Nivel</button>
+                        </div>
+                        {(sub.spellGrants || []).length === 0 && <div style={{fontSize:'.75rem',color:'#6b6050',fontStyle:'italic'}}>Sin conjuros automáticos</div>}
+                        {(sub.spellGrants || []).map((g, gi) => (
+                          <div key={gi} style={{display:'flex',gap:6,marginBottom:4,alignItems:'center'}}>
+                            <span style={{fontSize:'.7rem',color:'#8b7d5c'}}>Nv.</span>
+                            <input className="dnd-input" style={{width:50,fontSize:'.8rem',padding:'4px 6px'}} type="number" min="1" max="20" value={g.fromLevel || 1} onChange={e => updateSubclassSpellGrant(si, gi, 'fromLevel', e.target.value)} />
+                            <input className="dnd-input" style={{flex:1,fontSize:'.8rem',padding:'4px 8px'}} placeholder="Conjuros (nombre exacto, separados por coma)" value={(g.spells||[]).join(', ')} onChange={e => updateSubclassSpellGrant(si, gi, 'spells', e.target.value)} />
+                            <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeSubclassSpellGrant(si, gi)}>🗑</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
             {/* Rasgos por nivel */}
             <div style={{fontWeight:600,fontSize:'.85rem',color:'#c8a96e',marginBottom:8}}>📊 Rasgos por nivel</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>
@@ -555,6 +676,18 @@ function RefDataSection() {
                             value={classDraft.skillChoices}
                             onChange={e => setClassDraft(d => ({...d, skillChoices: parseInt(e.target.value)||1}))} />
                         </div>
+                        <div>
+                          <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Nivel de subclase</span>
+                          <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}} type="number" min="1" max="20"
+                            value={classDraft.subclassLevel || ''}
+                            onChange={e => setClassDraft(d => ({...d, subclassLevel: parseInt(e.target.value)||1}))} />
+                        </div>
+                        <div>
+                          <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Nombre genérico subclase</span>
+                          <input className="dnd-input" style={{width:'100%',fontSize:'.82rem',padding:'4px 8px'}} placeholder="Senda, Dominio, Círculo..."
+                            value={classDraft.subclassName || ''}
+                            onChange={e => setClassDraft(d => ({...d, subclassName: e.target.value}))} />
+                        </div>
                       </div>
                       <div style={{marginTop:4}}>
                         <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>Opciones de habilidad (separadas por coma)</span>
@@ -597,6 +730,31 @@ function RefDataSection() {
                       onChange={e => setClassDraft(d => ({...d, levels: {...d.levels, [lv]: {...d.levels[lv], profBonus: parseInt(e.target.value)||2}}}))} />
                   </div>
 
+                  {/* Progresión de conjuros (solo clases lanzadoras) */}
+                  <div style={{marginBottom:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <span style={{fontSize:'.78rem',color:'#8b7d5c',minWidth:140}}>🔮 Conjuros preparados</span>
+                      <input className="dnd-input" style={{width:60,fontSize:'.82rem',padding:'4px 8px'}} type="number" min="0"
+                        value={lvl.preparedSpells ?? ''} placeholder="—"
+                        onChange={e => setClassDraft(d => ({...d, levels: {...d.levels, [lv]: {...d.levels[lv], preparedSpells: e.target.value === '' ? null : (parseInt(e.target.value)||0)}}}))} />
+                    </div>
+                    <div style={{fontSize:'.72rem',color:'#8b7d5c',marginBottom:4}}>Huecos de conjuro por nivel de hechizo</div>
+                    <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                      {[0,1,2,3,4,5,6,7,8].map(i => (
+                        <div key={i} style={{textAlign:'center'}}>
+                          <div style={{fontSize:'.65rem',color:'#6b6050'}}>Nv.{i+1}</div>
+                          <input className="dnd-input" style={{width:34,fontSize:'.78rem',padding:'3px 4px',textAlign:'center'}} type="number" min="0"
+                            value={(lvl.spellSlots || [])[i] || ''} placeholder="0"
+                            onChange={e => setClassDraft(d => {
+                              const arr = [...(d.levels[lv].spellSlots || Array(9).fill(0))]
+                              arr[i] = parseInt(e.target.value) || 0
+                              return { ...d, levels: { ...d.levels, [lv]: { ...d.levels[lv], spellSlots: arr } } }
+                            })} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Huecos de uso */}
                   <div style={{marginBottom:10}}>
                     <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
@@ -606,11 +764,26 @@ function RefDataSection() {
                     {(lvl.slots || []).length === 0 && <div style={{fontSize:'.75rem',color:'#6b6050',fontStyle:'italic'}}>Sin huecos de uso en este nivel</div>}
                     {(lvl.slots || []).map((s, i) => (
                       <div key={i} style={{display:'flex',gap:6,marginBottom:4,alignItems:'center'}}>
-                        <input className="dnd-input" style={{flex:2,fontSize:'.8rem',padding:'4px 8px'}} placeholder="Nombre (ej: Rabia)" value={s.name}
+                        <input className="dnd-input" style={{flex:2,fontSize:'.8rem',padding:'4px 8px'}} placeholder="Nombre (ej: Inspiración Bárdica)" value={s.name}
                           onChange={e => updateLevelSlot(lv, i, 'name', e.target.value)} />
-                        <input className="dnd-input" style={{width:70,fontSize:'.8rem',padding:'4px 8px'}} type="number" min="0" placeholder="∞"
-                          value={s.count ?? ''}
-                          onChange={e => updateLevelSlot(lv, i, 'count', e.target.value)} />
+                        <select className="dnd-input" style={{width:72,fontSize:'.76rem',padding:'4px 4px'}}
+                          value={s.statKey || ''}
+                          onChange={e => updateLevelSlot(lv, i, 'statKey', e.target.value)}>
+                          <option value="">Fijo</option>
+                          <option value="FUE">FUE</option>
+                          <option value="DES">DES</option>
+                          <option value="CON">CON</option>
+                          <option value="INT">INT</option>
+                          <option value="SAB">SAB</option>
+                          <option value="CAR">CAR</option>
+                        </select>
+                        {!s.statKey ? (
+                          <input className="dnd-input" style={{width:60,fontSize:'.8rem',padding:'4px 8px'}} type="number" min="0" placeholder="∞"
+                            value={s.count ?? ''}
+                            onChange={e => updateLevelSlot(lv, i, 'count', e.target.value)} />
+                        ) : (
+                          <span style={{fontSize:'.68rem',color:'#8b7d5c',width:60,textAlign:'center'}}>= mod.{s.statKey}</span>
+                        )}
                         <button className="dnd-btn-sm" style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}} onClick={() => removeLevelSlot(lv, i)}>🗑</button>
                       </div>
                     ))}

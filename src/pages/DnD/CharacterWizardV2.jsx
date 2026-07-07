@@ -5,6 +5,11 @@ import { spellToAction } from './components/shared'
 const statMod = v => { const m = Math.floor((v - 10) / 2); return (m >= 0 ? '+' : '') + m }
 const STAT_KEYS = ['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR']
 const STAT_FULL = { FUE: 'Fuerza', DES: 'Destreza', CON: 'Constitución', INT: 'Inteligencia', SAB: 'Sabiduría', CAR: 'Carisma' }
+const ALL_SKILLS = [
+  'Acrobacia','Arcanos','Atletismo','Engaño','Historia','Intimidación','Investigación',
+  'Juego de manos','Medicina','Naturaleza','Percepción','Perspicacia','Persuasión',
+  'Religión','Sigilo','Supervivencia','Trato con animales'
+]
 
 const STEPS = [
   { id: 1, label: 'Descripción' },
@@ -122,16 +127,37 @@ export default function CharacterWizardV2({ onSave, onClose, dndPlayers = [], gl
         if (spell) actions.push(spellToAction(spell))
       })
     }
+    // Conjuros otorgados automáticamente por la subclase (dominio, círculo, etc.)
+    if (sub?.spellGrants?.length) {
+      const allSpells = glossarySpells
+      sub.spellGrants.filter(g => (g.fromLevel || 1) <= form.level).forEach(g => {
+        ;(g.spells || []).forEach(name => {
+          const spell = allSpells.find(s => (s.name || '').toLowerCase().trim() === name.toLowerCase().trim())
+          if (spell && !actions.find(a => a.name === spell.name)) {
+            actions.push({ ...spellToAction(spell), alwaysPrepared: true })
+          }
+        })
+      })
+    }
     // favoriteActions = mismas acciones (se muestran en la tab "favoritos")
     const favoriteActions = actions.map(a => ({ ...a }))
 
-    // classResources desde slots del nivel
-    const classResources = (lvlData.slots || []).map(s => ({ name: s.name, max: s.count ?? 999, current: s.count ?? 999 }))
+    // classResources desde slots del nivel (fijo o = modificador de característica)
+    const classResources = (lvlData.slots || []).map(s => {
+      let max
+      if (s.statKey) {
+        const modVal = Math.floor(((finalStats[s.statKey] || 10) - 10) / 2)
+        max = Math.max(1, modVal)
+      } else {
+        max = s.count ?? 999
+      }
+      return { name: s.name, max, current: max }
+    })
 
     // spellSlots desde tabla de clase si lanzador
     const spellSlots = {}
-    if (form.isSpellcaster && Array.isArray(lvlData.slots)) {
-      lvlData.slots.forEach((s, i) => { if (s > 0) spellSlots[`slot${i + 1}`] = s })
+    if (form.isSpellcaster && Array.isArray(lvlData.spellSlots)) {
+      lvlData.spellSlots.forEach((n, i) => { if (n > 0) spellSlots[`slot${i + 1}`] = n })
     }
 
     // Competencias
@@ -172,6 +198,8 @@ export default function CharacterWizardV2({ onSave, onClose, dndPlayers = [], gl
       name: form.name,
       portrait: form.portrait || '',
       playerUserId: form.playerUserId,
+      classId: form.classId,
+      subclassId: form.subclassId || '',
       class: cls?.name || form.classId,
       subclass: sub?.name || '',
       race: race?.name || form.raceId,
@@ -180,6 +208,7 @@ export default function CharacterWizardV2({ onSave, onClose, dndPlayers = [], gl
       description: form.description,
       notes: form.notes,
       isSpellcaster: form.isSpellcaster,
+      maxPreparedSpells: lvlData.preparedSpells ?? null,
       stats: {
         str: finalStats.FUE, dex: finalStats.DES, con: finalStats.CON,
         int: finalStats.INT, wis: finalStats.SAB, cha: finalStats.CAR,
@@ -387,7 +416,8 @@ function Step1({ form, setF, dndPlayers }) {
 function Step2({ form, setF, cls, refData }) {
   const classes = refData?.classes || []
   const maxSkills = cls?.skillChoices || 2
-  const skillOpts = cls?.skillOptions || []
+  const rawSkillOpts = cls?.skillOptions || []
+  const skillOpts = (rawSkillOpts.length === 0 || rawSkillOpts.some(s => (s || '').toLowerCase().trim() === 'todas')) ? ALL_SKILLS : rawSkillOpts
   const needsSub = cls && cls.subclassLevel && form.level >= cls.subclassLevel
   const lvlData = cls?.levels?.[form.level] || {}
 

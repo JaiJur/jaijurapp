@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ActionsPanel, SectionAccordion, TraitCard } from './shared'
+import LevelUpModal from './LevelUpModal'
 
 export default function CharacterCard({ character, expanded, onToggle, onEdit, onDelete, onSave, onAddToParty, parties, isMaster, glossaryEntries }) {
   const s = character.stats || {}
@@ -8,6 +9,7 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
   const [actionTab, setActionTab] = useState('fav')
   const [openActionIdx, setOpenActionIdx] = useState(null)
   const [loreModal, setLoreModal] = useState(null)
+  const [levelUpModal, setLevelUpModal] = useState(false)
   const toggleSec = key => setOpenSections(p => ({ ...p, [key]: !p[key] }))
 
   const hasSaves = character.savingThrows && Object.values(character.savingThrows).some(v => v)
@@ -126,11 +128,14 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
                     <span className="glossary-spell-slots-label">🔮 Huecos de conjuro:</span>
                     <div className="glossary-spell-slots-grid">
                       {[1,2,3,4,5,6,7,8,9].map(lv => {
-                        const val = character.spellSlots[lv] || 0
+                        const val = character.spellSlots[`slot${lv}`] || 0
                         if (!val) return null
                         return <span key={lv} className="glossary-spell-slot-badge">Nv.{lv}: {val}</span>
                       })}
                     </div>
+                    {character.maxPreparedSpells != null && (
+                      <div style={{fontSize:'.72rem',color:'#8b7d5c',marginTop:4,width:'100%'}}>📖 Conjuros preparados: {character.maxPreparedSpells}</div>
+                    )}
                   </div>
                 )}
                 {(character.classResources||[]).length > 0 && (
@@ -231,6 +236,7 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
 
           {isMaster && <div className="glossary-card-actions">
             <button className="dnd-btn-sm" onClick={onEdit}>✏ Editar</button>
+            <button className="dnd-btn-sm" style={{color:'#4ade80',borderColor:'rgba(74,222,128,0.3)'}} onClick={() => setLevelUpModal(true)}>⬆️ Subir nivel</button>
             {isMaster && parties && parties.length > 0 && (
               <div className="char-party-assign">
                 {parties.map(p => {
@@ -275,6 +281,15 @@ export default function CharacterCard({ character, expanded, onToggle, onEdit, o
             <button className="dnd-btn-cancel lore-detail-close" onClick={() => setLoreModal(null)}>Cerrar</button>
           </div>
         </div>
+      )}
+
+      {levelUpModal && (
+        <LevelUpModal
+          character={character}
+          glossarySpells={(glossaryEntries || []).filter(e => e.category === 'spell')}
+          onSave={onSave}
+          onClose={() => setLevelUpModal(false)}
+        />
       )}
     </div>
   )
