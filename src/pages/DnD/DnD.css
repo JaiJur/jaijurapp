@@ -268,7 +268,98 @@
 
 .dnd-campaign-actions { display: flex; gap: 8px; align-items: center; }
 
-.dnd-chapters { padding: 0 16px 12px 28px; display: flex; flex-direction: column; gap: 8px; }
+/* ── Documentación de campaña (editor enriquecido) ── */
+.dnd-campaign-docs {
+  margin: 0 16px 14px;
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(200,169,110,.15);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.dnd-docs-toolbar-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.dnd-docs-edit-btn { flex-shrink: 0; margin-left: auto; }
+.dnd-docs-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px; padding: 6px 8px; flex: 1;
+}
+.dnd-docs-toolbar button {
+  background: transparent; color: #c8a96e; border: 1px solid transparent;
+  border-radius: 6px; padding: 4px 8px; font-size: 0.82rem; cursor: pointer;
+  min-width: 26px; line-height: 1.2;
+}
+.dnd-docs-toolbar button:hover { background: rgba(255,255,255,.06); }
+.dnd-docs-toolbar button.active { background: rgba(124,58,237,.25); border-color: rgba(124,58,237,.5); color: #e8e0d0; }
+.dnd-docs-sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.1); margin: 0 2px; }
+.dnd-docs-savestate { margin-left: auto; font-size: 0.78rem; color: #7c9; padding: 0 4px; white-space: nowrap; }
+
+.dnd-docs-content { color: #c8c0b0; font-size: 0.92rem; line-height: 1.55; }
+.dnd-docs-content .tiptap { outline: none; }
+.dnd-docs-content.is-editing .tiptap {
+  background: rgba(255,255,255,.03); border: 1px solid rgba(124,58,237,.35);
+  border-radius: 8px; padding: 10px 12px; min-height: 80px;
+}
+.dnd-docs-content h1 { font-size: 1.3rem; color: #e8e0d0; margin: 0.6em 0 0.3em; }
+.dnd-docs-content h2 { font-size: 1.08rem; color: #c8a96e; margin: 0.6em 0 0.3em; }
+.dnd-docs-content p { margin: 0.4em 0; }
+.dnd-docs-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); float: left; color: #555; pointer-events: none; height: 0;
+}
+.dnd-docs-content ul, .dnd-docs-content ol { padding-left: 1.4em; margin: 0.4em 0; }
+.dnd-docs-content ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
+.dnd-docs-content ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 6px; }
+.dnd-docs-content ul[data-type="taskList"] li > label { margin-top: 3px; }
+.dnd-docs-content ul[data-type="taskList"] input[type="checkbox"] { cursor: pointer; accent-color: #7c3aed; }
+.dnd-docs-content ul[data-type="taskList"] li[data-checked="true"] > div { color: #7c9; text-decoration: line-through; opacity: 0.75; }
+
+.dnd-docs-pager { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.dnd-docs-pager-arrow {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); color: #c8c0b0;
+  border-radius: 6px; width: 26px; height: 26px; line-height: 1; cursor: pointer; flex-shrink: 0;
+}
+.dnd-docs-pager-arrow:hover:not(:disabled) { background: rgba(255,255,255,.08); }
+.dnd-docs-pager-arrow:disabled { opacity: 0.3; cursor: default; }
+.dnd-docs-pager-tabs {
+  display: flex; gap: 6px; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden; min-width: 0;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+.dnd-docs-pager-tabs::-webkit-scrollbar { height: 5px; }
+.dnd-docs-pager-tabs::-webkit-scrollbar-thumb { background: rgba(200,169,110,0.3); border-radius: 3px; }
+.dnd-docs-pager-tab {
+  position: relative; min-width: 26px; height: 26px; padding: 0 8px; display: flex; align-items: center; gap: 4px; justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 6px;
+  color: #a89a80; font-size: 0.82rem; cursor: pointer; user-select: none;
+}
+.dnd-docs-pager-tab:hover { background: rgba(255,255,255,.08); }
+.dnd-docs-pager-tab.active { background: rgba(124,58,237,.25); border-color: rgba(124,58,237,.5); color: #e8e0d0; }
+.dnd-docs-pager-tab.dnd-docs-page-dragover { border-color: #c8a96e; }
+.dnd-docs-page-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dnd-docs-page-rename { color: #8b7d5c; font-size: 0.7rem; line-height: 1; }
+.dnd-docs-page-rename:hover { color: #c8a96e; }
+.dnd-docs-page-del {
+  color: #d97; font-size: 0.7rem; line-height: 1;
+}
+.dnd-docs-page-del:hover { color: #e55; }
+.dnd-docs-page-add { flex-shrink: 0; margin-left: auto; }
+
+.dnd-campaign-docs { max-width: 100%; overflow-x: hidden; }
+.dnd-docs-content, .dnd-docs-content * { max-width: 100%; overflow-wrap: break-word; }
+
+@media (max-width: 600px) {
+  .dnd-docs-toolbar-row { flex-wrap: wrap; }
+  .dnd-docs-toolbar { flex-wrap: wrap; row-gap: 4px; }
+  .dnd-docs-savestate { flex: 1 1 100%; margin-left: 0; text-align: right; }
+  .dnd-docs-content { font-size: 0.88rem; }
+  .dnd-docs-pager { flex-wrap: wrap; row-gap: 6px; }
+  .dnd-docs-pager-tabs { flex: 1 1 auto; }
+}
+
+.dnd-chapters { padding: 0 16px 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 
 .dnd-chapter {
   background: rgba(0,0,0,.25);
@@ -1448,6 +1539,26 @@ textarea.dnd-input {
   .glossary-components-row { flex-wrap: wrap; }
   .dnd-auth-card { padding: 24px 16px; }
 }
+
+/* ── Cabecera y visores en móvil (breakpoint alineado con useIsMobile, 768px) ── */
+@media (max-width: 768px) {
+  .dnd-header {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .dnd-header > * { width: 100%; }
+  .dnd-visores-accordion { width: 100%; }
+  .dnd-visores-accordion .dnd-glossary-header { justify-content: center; }
+  .dnd-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .dnd-channel-card { width: 100%; min-width: 0; }
+}
+
 
 
 /* ══════════════════════════════════════════════════════

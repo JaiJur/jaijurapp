@@ -373,6 +373,24 @@ app.put('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) => {
   res.json(campaign)
 })
 
+// Guardar documentación de campaña (autoguardado desde el editor enriquecido)
+app.put('/api/dnd/campaigns/:id/documentation', requireUser, requireDnDMaster, (req, res) => {
+  const { pages } = req.body
+  if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages debe ser un array' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.id))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  campaign.documentationPages = pages.map(p => ({
+    id: p.id,
+    html: typeof p.html === 'string' ? p.html : '',
+    name: (typeof p.name === 'string' && p.name.trim()) ? p.name.trim() : null
+  }))
+  delete campaign.documentation
+  saveDB(db)
+  res.json({ ok: true })
+})
+
 // Crear capítulo
 app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaster, (req, res) => {
   const { name } = req.body
@@ -384,6 +402,26 @@ app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaste
   campaign.chapters.push(chapter)
   saveDB(db)
   res.json(chapter)
+})
+
+// Guardar documentación de capítulo/acto (autoguardado desde el editor enriquecido)
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/documentation', requireUser, requireDnDMaster, (req, res) => {
+  const { pages } = req.body
+  if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages debe ser un array' })
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const chapter = campaign.chapters.find(c => c.id === parseInt(req.params.chapterId))
+  if (!chapter) return res.status(404).json({ error: 'Capítulo no encontrado' })
+  chapter.documentationPages = pages.map(p => ({
+    id: p.id,
+    html: typeof p.html === 'string' ? p.html : '',
+    name: (typeof p.name === 'string' && p.name.trim()) ? p.name.trim() : null
+  }))
+  delete chapter.documentation
+  saveDB(db)
+  res.json({ ok: true })
 })
 
 // Renombrar capítulo

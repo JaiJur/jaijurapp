@@ -18,11 +18,14 @@ import PartyAddModal from './components/PartyAddModal'
 import PlayerView from './components/PlayerView'
 import { useTokenSocket } from '../../hooks/useTokenSocket'
 import TokenManager from './components/TokenManager'
+import CampaignDocumentation from './components/CampaignDocumentation'
+import useIsMobile from './components/useIsMobile'
 import './DnD.css'
 
 export default function DnD() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const isMaster = user?.role === 'master' || user?.role === 'dndMaster'
   const isPlayer = user?.role === 'dnd' || user?.role === 'dndPlayer'
   const [campaigns, setCampaigns] = useState([])
@@ -835,6 +838,53 @@ export default function DnD() {
     )
   }
 
+  // ── Tarjetas de los 4 canales/visores (reutilizadas en escritorio y en el acordeón móvil) ──
+  const channelCards = (
+    <>
+      <div className="dnd-channel-card" title="Canal principal (TV/proyector)">
+        <div className="dnd-channel-head">
+          <span className="dnd-channel-icon">📺</span>
+          <span className="dnd-channel-label">{channelLabel('main')}</span>
+        </div>
+        <div className="dnd-channel-btns">
+          <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/main','_blank')}>🖥</button>
+          {(viewerState?.main?.mode === 'image' || viewerState?.main?.mode === 'map') && <button className="dnd-btn-sm" onClick={() => rotateViewer('main')} title="Rotar 90°">↻</button>}
+          <button className="dnd-btn-sm" onClick={() => clearViewer('main')}>🚫</button>
+        </div>
+      </div>
+      <div className="dnd-channel-card" title="Canal secundario (tablet u otra pantalla)">
+        <div className="dnd-channel-head">
+          <span className="dnd-channel-icon">📱</span>
+          <span className="dnd-channel-label">{channelLabel('tablet')}</span>
+        </div>
+        <div className="dnd-channel-btns">
+          <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/tablet','_blank')}>🖥</button>
+          {(viewerState?.tablet?.mode === 'image' || viewerState?.tablet?.mode === 'map') && <button className="dnd-btn-sm" onClick={() => rotateViewer('tablet')} title="Rotar 90°">↻</button>}
+          <button className="dnd-btn-sm" onClick={() => clearViewer('tablet')}>🚫</button>
+        </div>
+      </div>
+      <div className="dnd-channel-card" title="Vista multijugador — mapa con tokens en tiempo real (canal principal)">
+        <div className="dnd-channel-head">
+          <span className="dnd-channel-icon">🎮</span>
+          <span className="dnd-channel-label">Multijugador</span>
+        </div>
+        <div className="dnd-channel-btns">
+          <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/main/multi','_blank')} title="Abrir vista multijugador (canal principal)">🖥</button>
+          <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/tablet/multi','_blank')} title="Abrir vista multijugador (canal secundario)">📱</button>
+        </div>
+      </div>
+      <div className="dnd-channel-card" title="Vista de la party para los jugadores">
+        <div className="dnd-channel-head">
+          <span className="dnd-channel-icon">⚔️</span>
+          <span className="dnd-channel-label">Party</span>
+        </div>
+        <div className="dnd-channel-btns">
+          <button className="dnd-btn-sm" onClick={() => window.open('/dnd/party','_blank')} title="Abrir vista de party">🖥</button>
+        </div>
+      </div>
+    </>
+  )
+
   return (
     <div className="dnd-root">
       <div className="dnd-bg" />
@@ -842,49 +892,17 @@ export default function DnD() {
       <main className="dnd-main">
         <div className="dnd-header">
           <h1 className="dnd-title">⚔️ D&amp;D</h1>
-          {isMaster && <div className="dnd-header-actions">
-            <div className="dnd-channel-card" title="Canal principal (TV/proyector)">
-              <div className="dnd-channel-head">
-                <span className="dnd-channel-icon">📺</span>
-                <span className="dnd-channel-label">{channelLabel('main')}</span>
+          {isMaster && (isMobile ? (
+            <div className="dnd-visores-accordion">
+              <div className="dnd-glossary-header" onClick={() => toggleExpand('visores')}>
+                <span className="dnd-chevron">{expanded.visores ? '▾' : '▸'}</span>
+                <span className="dnd-glossary-title">📺 Visores</span>
               </div>
-              <div className="dnd-channel-btns">
-                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/main','_blank')}>🖥</button>
-                {(viewerState?.main?.mode === 'image' || viewerState?.main?.mode === 'map') && <button className="dnd-btn-sm" onClick={() => rotateViewer('main')} title="Rotar 90°">↻</button>}
-                <button className="dnd-btn-sm" onClick={() => clearViewer('main')}>🚫</button>
-              </div>
+              {expanded.visores && <div className="dnd-header-actions">{channelCards}</div>}
             </div>
-            <div className="dnd-channel-card" title="Canal secundario (tablet u otra pantalla)">
-              <div className="dnd-channel-head">
-                <span className="dnd-channel-icon">📱</span>
-                <span className="dnd-channel-label">{channelLabel('tablet')}</span>
-              </div>
-              <div className="dnd-channel-btns">
-                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/tablet','_blank')}>🖥</button>
-                {(viewerState?.tablet?.mode === 'image' || viewerState?.tablet?.mode === 'map') && <button className="dnd-btn-sm" onClick={() => rotateViewer('tablet')} title="Rotar 90°">↻</button>}
-                <button className="dnd-btn-sm" onClick={() => clearViewer('tablet')}>🚫</button>
-              </div>
-            </div>
-            <div className="dnd-channel-card" title="Vista multijugador — mapa con tokens en tiempo real (canal principal)">
-              <div className="dnd-channel-head">
-                <span className="dnd-channel-icon">🎮</span>
-                <span className="dnd-channel-label">Multijugador</span>
-              </div>
-              <div className="dnd-channel-btns">
-                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/main/multi','_blank')} title="Abrir vista multijugador (canal principal)">🖥</button>
-                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/viewer/tablet/multi','_blank')} title="Abrir vista multijugador (canal secundario)">📱</button>
-              </div>
-            </div>
-            <div className="dnd-channel-card" title="Vista de la party para los jugadores">
-              <div className="dnd-channel-head">
-                <span className="dnd-channel-icon">⚔️</span>
-                <span className="dnd-channel-label">Party</span>
-              </div>
-              <div className="dnd-channel-btns">
-                <button className="dnd-btn-sm" onClick={() => window.open('/dnd/party','_blank')} title="Abrir vista de party">🖥</button>
-              </div>
-            </div>
-          </div>}
+          ) : (
+            <div className="dnd-header-actions">{channelCards}</div>
+          ))}
         </div>
 
         {isMaster && <div className="dnd-campaigns-section">
@@ -909,6 +927,13 @@ export default function DnD() {
                 </div>
               </div>
               {expanded[`c-${campaign.id}`] && (
+                <>
+                <CampaignDocumentation
+                  key={`docs-${campaign.id}`}
+                  saveUrl={`/api/dnd/campaigns/${campaign.id}/documentation`}
+                  initialPages={campaign.documentationPages || campaign.documentation}
+                  headers={headers}
+                />
                 <div className="dnd-chapters">
                   {campaign.chapters.map(chapter => (
                     <div key={chapter.id} className="dnd-chapter">
@@ -923,33 +948,43 @@ export default function DnD() {
                       </div>
 
                       {expanded[`ch-${chapter.id}`] && (
+                        <>
+                        <CampaignDocumentation
+                          key={`docs-ch-${chapter.id}`}
+                          saveUrl={`/api/dnd/campaigns/${campaign.id}/chapters/${chapter.id}/documentation`}
+                          initialPages={chapter.documentationPages || chapter.documentation}
+                          headers={headers}
+                        />
                         <div className="dnd-maps">
                           {chapter.maps.map((map, mapIdx) => (
                             <div key={map.id} className="dnd-map-block"
-                              draggable onDragStart={e => { e.dataTransfer.setData('text/plain', String(map.id)); e.dataTransfer.effectAllowed = 'move' }}
-                              onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('dnd-map-dragover') }}
-                              onDragLeave={e => e.currentTarget.classList.remove('dnd-map-dragover')}
-                              onDrop={e => {
-                                e.preventDefault(); e.currentTarget.classList.remove('dnd-map-dragover')
-                                const fromId = parseInt(e.dataTransfer.getData('text/plain'))
-                                if (fromId === map.id) return
-                                const ids = chapter.maps.map(m => m.id)
-                                const fromIdx = ids.indexOf(fromId)
-                                const toIdx = ids.indexOf(map.id)
-                                if (fromIdx === -1 || toIdx === -1) return
-                                ids.splice(fromIdx, 1)
-                                ids.splice(toIdx, 0, fromId)
-                                reorderMaps(campaign.id, chapter.id, ids)
-                              }}>
+                              {...(!isMobile ? {
+                                draggable: true,
+                                onDragStart: e => { e.dataTransfer.setData('text/plain', String(map.id)); e.dataTransfer.effectAllowed = 'move' },
+                                onDragOver: e => { e.preventDefault(); e.currentTarget.classList.add('dnd-map-dragover') },
+                                onDragLeave: e => e.currentTarget.classList.remove('dnd-map-dragover'),
+                                onDrop: e => {
+                                  e.preventDefault(); e.currentTarget.classList.remove('dnd-map-dragover')
+                                  const fromId = parseInt(e.dataTransfer.getData('text/plain'))
+                                  if (fromId === map.id) return
+                                  const ids = chapter.maps.map(m => m.id)
+                                  const fromIdx = ids.indexOf(fromId)
+                                  const toIdx = ids.indexOf(map.id)
+                                  if (fromIdx === -1 || toIdx === -1) return
+                                  ids.splice(fromIdx, 1)
+                                  ids.splice(toIdx, 0, fromId)
+                                  reorderMaps(campaign.id, chapter.id, ids)
+                                }
+                              } : {})}>
                               <div className="dnd-map-row">
-                                <span className="dnd-map-drag-handle" title="Arrastrar para reordenar">⠿</span>
-                                <span className="dnd-map-icon">🗺️</span>
+                                {!isMobile && <span className="dnd-map-drag-handle" title="Arrastrar para reordenar">⠿</span>}
+                                {!isMobile && <span className="dnd-map-icon">🗺️</span>}
                                 <span className="dnd-map-name">{map.name}</span>
                                 <div className="dnd-map-actions">
-                                  <button className="dnd-btn-sm" onClick={() => window.open(`/dnd/editor/${map.id}`, '_blank')}>Editar</button>
+                                  {!isMobile && <button className="dnd-btn-sm" onClick={() => window.open(`/dnd/editor/${map.id}`, '_blank')}>Editar</button>}
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Main" onClick={() => sendMapToViewer(map.id, map.name, 'main')}>📺</button>
                                   <button className="dnd-btn-sm dnd-btn-viewer" title="Enviar a Secundaria" onClick={() => sendMapToViewer(map.id, map.name, 'tablet')}>📱</button>
-                                  <button className="dnd-btn-sm dnd-btn-danger" title="Borrar mapa" onClick={() => deleteMap(campaign.id, chapter.id, map.id)}>✕</button>
+                                  {!isMobile && <button className="dnd-btn-sm dnd-btn-danger" title="Borrar mapa" onClick={() => deleteMap(campaign.id, chapter.id, map.id)}>✕</button>}
                                 </div>
                               </div>
                             </div>
@@ -1068,11 +1103,13 @@ export default function DnD() {
                             })()}
                           </div>
                         </div>
+                        </>
                       )}
                     </div>
                   ))}
                   {campaign.chapters.length === 0 && <div className="dnd-empty-sm">Sin capítulos</div>}
                 </div>
+                </>
               )}
             </div>
           ))}
