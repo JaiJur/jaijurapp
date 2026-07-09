@@ -341,7 +341,8 @@ app.post('/api/dnd/campaigns', requireUser, requireDnDMaster, (req, res) => {
     if (!name) return res.status(400).json({ error: 'Nombre requerido' })
     const db = getDB()
     const dnd = getDnDData(db)
-    const campaign = { id: Date.now(), name, chapters: [] }
+    const slug = makeUniqueSlug(name, collectAllSlugs(dnd))
+    const campaign = { id: Date.now(), name, slug, chapters: [] }
     dnd.campaigns.push(campaign)
     saveDB(db)
     res.json(campaign)
@@ -375,7 +376,7 @@ app.put('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) => {
 
 // Guardar documentación de campaña (autoguardado desde el editor enriquecido)
 app.put('/api/dnd/campaigns/:id/documentation', requireUser, requireDnDMaster, (req, res) => {
-  const { pages } = req.body
+  const { pages, folders } = req.body
   if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages debe ser un array' })
   const db = getDB()
   const dnd = getDnDData(db)
@@ -384,8 +385,12 @@ app.put('/api/dnd/campaigns/:id/documentation', requireUser, requireDnDMaster, (
   campaign.documentationPages = pages.map(p => ({
     id: p.id,
     html: typeof p.html === 'string' ? p.html : '',
-    name: (typeof p.name === 'string' && p.name.trim()) ? p.name.trim() : null
+    name: (typeof p.name === 'string' && p.name.trim()) ? p.name.trim() : null,
+    folderId: (typeof p.folderId === 'number') ? p.folderId : null
   }))
+  campaign.documentationFolders = Array.isArray(folders)
+    ? folders.map(f => ({ id: f.id, name: typeof f.name === 'string' ? f.name.trim() : 'Carpeta' }))
+    : (campaign.documentationFolders || [])
   delete campaign.documentation
   saveDB(db)
   res.json({ ok: true })
@@ -398,7 +403,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaste
   const dnd = getDnDData(db)
   const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
   if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
-  const chapter = { id: Date.now(), name, maps: [] }
+  const chapter = { id: Date.now(), name, slug: makeUniqueSlug(name, collectAllSlugs(dnd)), maps: [] }
   campaign.chapters.push(chapter)
   saveDB(db)
   res.json(chapter)
@@ -406,7 +411,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaste
 
 // Guardar documentación de capítulo/acto (autoguardado desde el editor enriquecido)
 app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/documentation', requireUser, requireDnDMaster, (req, res) => {
-  const { pages } = req.body
+  const { pages, folders } = req.body
   if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages debe ser un array' })
   const db = getDB()
   const dnd = getDnDData(db)
@@ -417,11 +422,49 @@ app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/documentation', requ
   chapter.documentationPages = pages.map(p => ({
     id: p.id,
     html: typeof p.html === 'string' ? p.html : '',
-    name: (typeof p.name === 'string' && p.name.trim()) ? p.name.trim() : null
+    name: (typeof p.name === 'string' && p.name.trim()) ? p.name.trim() : null,
+    folderId: (typeof p.folderId === 'number') ? p.folderId : null
   }))
+  chapter.documentationFolders = Array.isArray(folders)
+    ? folders.map(f => ({ id: f.id, name: typeof f.name === 'string' ? f.name.trim() : 'Carpeta' }))
+    : (chapter.documentationFolders || [])
   delete chapter.documentation
   saveDB(db)
   res.json({ ok: true })
+})
+
+// Resolver /dnd/docs/:slug — busca primero en campañas, luego en capítulos.
+app.get('/api/dnd/docs/:slug', requireUser, requireDnDMaster, (req, res) => {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const slug = req.params.slug
+
+  const campaign = dnd.campaigns.find(c => c.slug === slug)
+  if (campaign) {
+    return res.json({
+      type: 'campaign',
+      name: campaign.name,
+      pages: campaign.documentationPages || campaign.documentation || null,
+      folders: campaign.documentationFolders || [],
+      saveUrl: `/api/dnd/campaigns/${campaign.id}/documentation`
+    })
+  }
+
+  for (const c of dnd.campaigns) {
+    const chapter = (c.chapters || []).find(ch => ch.slug === slug)
+    if (chapter) {
+      return res.json({
+        type: 'chapter',
+        name: chapter.name,
+        campaignName: c.name,
+        pages: chapter.documentationPages || chapter.documentation || null,
+        folders: chapter.documentationFolders || [],
+        saveUrl: `/api/dnd/campaigns/${c.id}/chapters/${chapter.id}/documentation`
+      })
+    }
+  }
+
+  res.status(404).json({ error: 'Documentación no encontrada' })
 })
 
 // Renombrar capítulo
@@ -1078,6 +1121,40 @@ function requireDnDMaster(req, res, next) {
   const db = getDB()
   if (!isDnDMaster(db, req.userId)) return res.status(403).json({ error: 'Solo el DM puede hacer esto' })
   next()
+}
+
+// ── Slugs para /dnd/docs/:slug (campañas y capítulos comparten el mismo espacio de nombres) ──
+function slugify(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'pagina'
+}
+
+function collectAllSlugs(dnd) {
+  const slugs = new Set()
+  for (const c of dnd.campaigns || []) {
+    if (c.slug) slugs.add(c.slug)
+    for (const ch of c.chapters || []) {
+      if (ch.slug) slugs.add(ch.slug)
+    }
+  }
+  return slugs
+}
+
+function makeUniqueSlug(name, existingSlugs) {
+  const base = slugify(name)
+  let slug = base
+  let n = 2
+  while (existingSlugs.has(slug)) {
+    slug = `${base}-${n}`
+    n++
+  }
+  existingSlugs.add(slug)
+  return slug
 }
 
 // ── Parties (multi-party system) ──────────────────────

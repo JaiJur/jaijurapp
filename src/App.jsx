@@ -9,6 +9,7 @@ import Home from './pages/Home'
 const MealPlanner = lazy(() => import('./pages/MealPlanner/MealPlanner'))
 
 const DnD = lazy(() => import('./pages/DnD/DnD'))
+const DocsPage = lazy(() => import('./pages/DnD/DocsPage'))
 const MapEditor = lazy(() => import('./pages/DnD/MapEditor'))
 const MapViewer = lazy(() => import('./pages/DnD/MapViewer'))
 const MapViewerMulti = lazy(() => import('./pages/DnD/MapViewerMulti'))
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute roles={['master']}><UsersPage /></ProtectedRoute>} />
           <Route path="/dnd" element={<DnD />} />
+          <Route path="/dnd/docs/:slug" element={<ProtectedRoute roles={['master','dndMaster']}><DocsPage /></ProtectedRoute>} />
           <Route path="/dnd/editor/:mapId" element={<ProtectedRoute roles={['master','dndMaster']}><MapEditor /></ProtectedRoute>} />
           <Route path="/dnd/viewer" element={<MapViewer />} />
           <Route path="/dnd/viewer/:channel" element={<MapViewer />} />

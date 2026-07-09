@@ -18,7 +18,6 @@ import PartyAddModal from './components/PartyAddModal'
 import PlayerView from './components/PlayerView'
 import { useTokenSocket } from '../../hooks/useTokenSocket'
 import TokenManager from './components/TokenManager'
-import CampaignDocumentation from './components/CampaignDocumentation'
 import useIsMobile from './components/useIsMobile'
 import './DnD.css'
 
@@ -921,19 +920,13 @@ export default function DnD() {
                 <span className="dnd-chevron">{expanded[`c-${campaign.id}`] ? '▾' : '▸'}</span>
                 <span className="dnd-campaign-name">{campaign.name}</span>
                 <div className="dnd-campaign-actions">
+                  <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); window.open(`/dnd/docs/${campaign.slug}`, '_blank') }} title="Documentación de la campaña">📄 Docs</button>
                   <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openModal('chapter', campaign.id) }}>+ Capítulo</button>
                   <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); renameCampaign(campaign.id, campaign.name) }} title="Renombrar">✏️</button>
                   <button className="dnd-btn-danger" onClick={e => deleteCampaign(e, campaign.id)}>✕</button>
                 </div>
               </div>
               {expanded[`c-${campaign.id}`] && (
-                <>
-                <CampaignDocumentation
-                  key={`docs-${campaign.id}`}
-                  saveUrl={`/api/dnd/campaigns/${campaign.id}/documentation`}
-                  initialPages={campaign.documentationPages || campaign.documentation}
-                  headers={headers}
-                />
                 <div className="dnd-chapters">
                   {campaign.chapters.map(chapter => (
                     <div key={chapter.id} className="dnd-chapter">
@@ -941,6 +934,7 @@ export default function DnD() {
                         <span className="dnd-chevron">{expanded[`ch-${chapter.id}`] ? '▾' : '▸'}</span>
                         <span className="dnd-chapter-name">{chapter.name}</span>
                         <div className="dnd-chapter-actions">
+                          <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); window.open(`/dnd/docs/${chapter.slug}`, '_blank') }} title="Documentación del acto">📄 Docs</button>
                           <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openModal('map', campaign.id, chapter.id) }}>+ Mapa</button>
                           <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); renameChapter(campaign.id, chapter.id, chapter.name) }} title="Renombrar">✏️</button>
                           <button className="dnd-btn-danger" onClick={e => deleteChapter(e, campaign.id, chapter.id)} title="Borrar capítulo">✕</button>
@@ -948,13 +942,6 @@ export default function DnD() {
                       </div>
 
                       {expanded[`ch-${chapter.id}`] && (
-                        <>
-                        <CampaignDocumentation
-                          key={`docs-ch-${chapter.id}`}
-                          saveUrl={`/api/dnd/campaigns/${campaign.id}/chapters/${chapter.id}/documentation`}
-                          initialPages={chapter.documentationPages || chapter.documentation}
-                          headers={headers}
-                        />
                         <div className="dnd-maps">
                           {chapter.maps.map((map, mapIdx) => (
                             <div key={map.id} className="dnd-map-block"
@@ -1103,13 +1090,11 @@ export default function DnD() {
                             })()}
                           </div>
                         </div>
-                        </>
                       )}
                     </div>
                   ))}
                   {campaign.chapters.length === 0 && <div className="dnd-empty-sm">Sin capítulos</div>}
                 </div>
-                </>
               )}
             </div>
           ))}
