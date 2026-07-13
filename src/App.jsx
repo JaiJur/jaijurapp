@@ -17,6 +17,11 @@ const PartyViewer = lazy(() => import('./pages/DnD/PartyViewer'))
 const Salud = lazy(() => import('./pages/Salud/Salud'))
 const Notes = lazy(() => import('./pages/Notes/Notes'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
+const Minis = lazy(() => import('./pages/Minis/Minis'))
+const MiniDetail = lazy(() => import('./pages/Minis/MiniDetail'))
+const MinisAdmin = lazy(() => import('./pages/Minis/MinisAdmin'))
+const MinisLegal = lazy(() => import('./pages/Minis/MinisLegal'))
+const MinisServicios = lazy(() => import('./pages/Minis/MinisServicios'))
 
 const Loading = () => <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'#888',fontFamily:'sans-serif'}}>Cargando…</div>
 
@@ -33,6 +38,11 @@ export default function App() {
           <Route path="/salud" element={<ProtectedRoute><Salud /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute roles={['master']}><UsersPage /></ProtectedRoute>} />
+          <Route path="/minis" element={<Minis />} />
+          <Route path="/minis/gestion" element={<ProtectedRoute roles={['master']}><MinisAdmin /></ProtectedRoute>} />
+          <Route path="/minis/legal" element={<MinisLegal />} />
+          <Route path="/minis/servicios" element={<MinisServicios />} />
+          <Route path="/minis/:id" element={<MiniDetail />} />
           <Route path="/dnd" element={<DnD />} />
           <Route path="/dnd/docs/:slug" element={<ProtectedRoute roles={['master','dndMaster']}><DocsPage /></ProtectedRoute>} />
           <Route path="/dnd/editor/:mapId" element={<ProtectedRoute roles={['master','dndMaster']}><MapEditor /></ProtectedRoute>} />

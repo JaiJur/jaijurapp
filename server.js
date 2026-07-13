@@ -2139,6 +2139,161 @@ app.delete('/api/notes/:id', requireUser, (req, res) => {
   res.json({ ok: true })
 })
 
+// ── API: Tienda de Miniaturas ─────────────────────────────
+function getMinisData(db) {
+  if (!db.minis) db.minis = { productos: [], whatsapp: '', email: '', trabajos: [] }
+  if (!db.minis.productos) db.minis.productos = []
+  if (db.minis.whatsapp === undefined) db.minis.whatsapp = ''
+  if (db.minis.email === undefined) db.minis.email = ''
+  if (!db.minis.trabajos) db.minis.trabajos = []
+  return db.minis
+}
+
+// Galería de trabajos realizados (página de servicios) — pública
+app.get('/api/minis/trabajos', (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  res.json([...minis.trabajos].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)))
+})
+
+// Añadir trabajo a la galería (solo master)
+app.post('/api/minis/trabajos', requireUser, requireMaster, (req, res) => {
+  const { url, titulo } = req.body
+  if (!url) return res.status(400).json({ error: 'Foto requerida' })
+  const db = getDB()
+  const minis = getMinisData(db)
+  const trabajo = { id: Date.now(), url, titulo: (titulo || '').trim(), createdAt: Date.now() }
+  minis.trabajos.push(trabajo)
+  saveDB(db)
+  res.json(trabajo)
+})
+
+// Editar trabajo (título) — solo master
+app.put('/api/minis/trabajos/:id', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  const t = minis.trabajos.find(t => t.id === parseInt(req.params.id))
+  if (!t) return res.status(404).json({ error: 'Trabajo no encontrado' })
+  if (req.body.titulo !== undefined) t.titulo = (req.body.titulo || '').trim()
+  saveDB(db)
+  res.json(t)
+})
+
+// Borrar trabajo de la galería (solo master)
+app.delete('/api/minis/trabajos/:id', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  minis.trabajos = minis.trabajos.filter(t => t.id !== parseInt(req.params.id))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Configuración pública (contacto: WhatsApp y email)
+app.get('/api/minis/config', (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  res.json({ whatsapp: minis.whatsapp || '', email: minis.email || '' })
+})
+
+// Guardar configuración (solo master)
+app.put('/api/minis/config', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  if (req.body.whatsapp !== undefined) minis.whatsapp = (req.body.whatsapp || '').trim()
+  if (req.body.email !== undefined) minis.email = (req.body.email || '').trim()
+  saveDB(db)
+  res.json({ whatsapp: minis.whatsapp, email: minis.email })
+})
+
+// Listar productos (público)
+app.get('/api/minis', (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  const ordenados = [...minis.productos].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+  res.json(ordenados)
+})
+
+// Ficha de un producto (público)
+app.get('/api/minis/:id', (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  const producto = minis.productos.find(p => p.id === parseInt(req.params.id))
+  if (!producto) return res.status(404).json({ error: 'Miniatura no encontrada' })
+  res.json(producto)
+})
+
+// Crear producto (solo master)
+app.post('/api/minis', requireUser, requireMaster, (req, res) => {
+  const { nombre, juego, descripcion, precio, estado, fotos, enlaces } = req.body
+  if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'Nombre requerido' })
+  const db = getDB()
+  const minis = getMinisData(db)
+  const producto = {
+    id: Date.now(),
+    nombre: nombre.trim(),
+    juego: (juego || '').trim(),
+    descripcion: (descripcion || '').trim(),
+    precio: Number(precio) || 0,
+    estado: estado || 'disponible',
+    fotos: Array.isArray(fotos) ? fotos : [],
+    enlaces: Array.isArray(enlaces) ? enlaces : [],
+    createdAt: Date.now()
+  }
+  minis.productos.push(producto)
+  saveDB(db)
+  res.json(producto)
+})
+
+// Editar producto (solo master)
+app.put('/api/minis/:id', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  const idx = minis.productos.findIndex(p => p.id === parseInt(req.params.id))
+  if (idx === -1) return res.status(404).json({ error: 'Miniatura no encontrada' })
+  const { nombre, juego, descripcion, precio, estado, fotos, enlaces } = req.body
+  const actual = minis.productos[idx]
+  minis.productos[idx] = {
+    ...actual,
+    nombre: nombre !== undefined ? nombre.trim() : actual.nombre,
+    juego: juego !== undefined ? juego.trim() : actual.juego,
+    descripcion: descripcion !== undefined ? descripcion.trim() : actual.descripcion,
+    precio: precio !== undefined ? (Number(precio) || 0) : actual.precio,
+    estado: estado !== undefined ? estado : actual.estado,
+    fotos: Array.isArray(fotos) ? fotos : actual.fotos,
+    enlaces: Array.isArray(enlaces) ? enlaces : actual.enlaces
+  }
+  saveDB(db)
+  res.json(minis.productos[idx])
+})
+
+// Borrar producto (solo master)
+app.delete('/api/minis/:id', requireUser, requireMaster, (req, res) => {
+  const db = getDB()
+  const minis = getMinisData(db)
+  minis.productos = minis.productos.filter(p => p.id !== parseInt(req.params.id))
+  saveDB(db)
+  res.json({ ok: true })
+})
+
+// Subir foto de miniatura (solo master)
+const MINIS_IMAGES_ROOT = resolve('./public/minisImages')
+app.post('/api/minis/upload', requireUser, requireMaster, (req, res) => {
+  try {
+    const { data, filename } = req.body
+    if (!data || !filename) return res.status(400).json({ error: 'Datos requeridos' })
+    mkdirSync(MINIS_IMAGES_ROOT, { recursive: true })
+    const ext = filename.split('.').pop().toLowerCase()
+    if (!/^(png|jpg|jpeg|webp)$/.test(ext)) return res.status(400).json({ error: 'Formato no soportado (png/jpg/webp)' })
+    const finalName = `${Date.now()}_${Math.round(Math.random() * 1e6)}.${ext}`
+    const buf = Buffer.from(data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+    writeFileSync(join(MINIS_IMAGES_ROOT, finalName), buf)
+    res.json({ url: `/minisImages/${finalName}` })
+  } catch (e) {
+    console.error('Minis upload error:', e)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Serve React build ────────────────────────────────────
 // Servir imágenes de texturas directamente desde public/ (no depende del build)
 const PUBLIC_TEXTURES = resolve('./public/textures')
@@ -2154,6 +2309,13 @@ app.use('/dndImages', (req, res, next) => {
   res.setHeader('Vary', 'Accept-Encoding')
   next()
 }, express.static(DND_IMAGES_ROOT))
+
+// Servir fotos de la tienda de miniaturas
+app.use('/minisImages', (req, res, next) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400, no-transform')
+  res.setHeader('Vary', 'Accept-Encoding')
+  next()
+}, express.static(MINIS_IMAGES_ROOT))
 
 // Servir archivos de audio para el soundboard
 app.use('/sounds', (req, res, next) => {

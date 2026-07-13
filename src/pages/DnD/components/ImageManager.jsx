@@ -1,6 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 
+const ABILITY_LIST = ['FUE', 'DES', 'CON', 'INT', 'SAB', 'CAR']
+const SKILL_LIST = ['Acrobacia','Arcanos','Atletismo','Engaño','Historia','Intimidación','Investigación',
+  'Juego de manos','Medicina','Naturaleza','Percepción','Perspicacia','Persuasión',
+  'Religión','Sigilo','Supervivencia','Trato con animales']
+const ARMOR_PROF_LIST = ['Ligera', 'Media', 'Pesada', 'Escudos']
+const WEAPON_PROF_LIST = ['Armas sencillas', 'Armas marciales', 'Armas exóticas']
+
 // ── Componente de Datos de Referencia (SRD) ──
 function RefDataSection() {
   const { user } = useAuth()
@@ -59,7 +66,7 @@ function RefDataSection() {
       : tab === 'armor'
       ? { name:'',ac:'',acBase:10,category:'Ligera',stealthDisadv:false,strReq:null }
       : tab === 'classes'
-      ? { name:'',nameEn:'',hitDie:8,primaryAbility:'',savingThrows:'',armorProficiencies:'',weaponProficiencies:'',toolProficiencies:'',skillChoices:2,skillOptions:'',startingEquipment:'',spellcaster:false,spellcastingAbility:'',subclassLevel:3,subclassName:'',source:'Homebrew',levels:{},subclasses:[] }
+      ? { name:'',hitDie:8,primaryAbility:'FUE',savingThrows:[],armorProficiencies:[],weaponProficiencies:[],toolProficiencies:'',skillChoices:2,skillOptions:[],startingEquipment:'',spellcaster:false,spellcastingAbility:'INT',subclassLevel:3,subclassName:'',levels:{},subclasses:[] }
       : { name:'',desc:'',skillProficiencies:[],toolProficiencies:[],languages:0,equipment:'',feat:'',featDesc:'',abilityScores:'+2/+1',source:'Homebrew' }
     setEditDraft(defaults)
     setEditItem('new')
@@ -82,6 +89,21 @@ function RefDataSection() {
     if (opts.type === 'bool') return <label style={{display:'flex',gap:6,alignItems:'center',fontSize:'.8rem',color:'#a09880'}}><input type="checkbox" checked={!!val} onChange={inputProps.onChange} />{label}</label>
     if (opts.type === 'textarea') return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><textarea {...inputProps} rows={3} style={{...inputProps.style,width:'100%',resize:'vertical'}} /></div>
     if (opts.type === 'select') return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><select {...inputProps} style={{...inputProps.style,width:'100%'}}>{opts.options.map(o => <option key={o} value={o}>{o}</option>)}</select></div>
+    if (opts.type === 'checkboxGroup') {
+      const arr = Array.isArray(val) ? val : (typeof val === 'string' && val ? val.split(',').map(s => s.trim()).filter(Boolean) : [])
+      return <div style={{marginBottom:4}}>
+        <span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'4px 10px',marginTop:3}}>
+          {opts.options.map(o => (
+            <label key={o} style={{display:'flex',gap:4,alignItems:'center',fontSize:'.75rem',color:'#a09880',cursor:'pointer'}}>
+              <input type="checkbox" checked={arr.includes(o)}
+                onChange={e => setEditDraft(d => ({...d, [key]: e.target.checked ? [...arr, o] : arr.filter(x => x !== o)}))} />
+              {o}
+            </label>
+          ))}
+        </div>
+      </div>
+    }
     return <div style={{marginBottom:4}}><span style={{fontSize:'.72rem',color:'#8b7d5c'}}>{label}</span><input {...inputProps} type={opts.type === 'number' ? 'number' : 'text'} style={{...inputProps.style,width:'100%'}} /></div>
   }
 
@@ -304,30 +326,26 @@ function RefDataSection() {
                 {field('abilityScores','Características')}
               </>}
               {tab === 'classes' && <>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
-                  {field('name','Nombre (ES)')}
-                  {field('nameEn','Nombre (EN)')}
-                </div>
+                {field('name','Nombre')}
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
                   {field('hitDie','Dado de golpe',{type:'select',options:[4,6,8,10,12]})}
-                  {field('primaryAbility','Caract. principal')}
+                  {field('primaryAbility','Caract. principal',{type:'select',options:ABILITY_LIST})}
                   {field('skillChoices','Habilidades a elegir',{type:'number'})}
                 </div>
-                {field('savingThrows','Tiradas de salvación (separadas por coma, ej: FUE, CON)')}
-                {field('armorProficiencies','Competencias en armaduras (coma)')}
-                {field('weaponProficiencies','Competencias en armas (coma)')}
+                {field('savingThrows','Tiradas de salvación',{type:'checkboxGroup',options:ABILITY_LIST})}
+                {field('skillOptions','Habilidades disponibles',{type:'checkboxGroup',options:SKILL_LIST})}
+                {field('armorProficiencies','Competencias en armaduras',{type:'checkboxGroup',options:ARMOR_PROF_LIST})}
+                {field('weaponProficiencies','Competencias en armas',{type:'checkboxGroup',options:WEAPON_PROF_LIST})}
                 {field('toolProficiencies','Competencias en herramientas (coma)')}
-                {field('skillOptions','Opciones de habilidad (coma, o "todas")')}
                 {field('startingEquipment','Equipo inicial',{type:'textarea'})}
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
                   {field('spellcaster','Es lanzador',{type:'bool'})}
-                  {editDraft.spellcaster && field('spellcastingAbility','Caract. de lanzamiento')}
+                  {editDraft.spellcaster && field('spellcastingAbility','Caract. de lanzamiento',{type:'select',options:ABILITY_LIST})}
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
                   {field('subclassLevel','Nivel de subclase',{type:'number'})}
                   {field('subclassName','Nombre de subclase')}
                 </div>
-                {field('source','Fuente')}
                 <div style={{fontSize:'.72rem',color:'#6b7280',marginTop:4}}>Los niveles y rasgos se rellenan después desde el editor ✏️</div>
               </>}
               <div style={{display:'flex',gap:6,marginTop:8}}>

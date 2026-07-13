@@ -54,6 +54,19 @@ const APPS = [
     href: '/notes',
   },
   {
+    id: 'minis',
+    label: 'Miniaturas',
+    public: true,
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M24 6c-5 0-8 4-8 8 0 3 1.5 5 3 6.5V30h10v-9.5c1.5-1.5 3-3.5 3-6.5 0-4-3-8-8-8z" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinejoin="round"/>
+        <rect x="14" y="34" width="20" height="8" rx="2" stroke="currentColor" strokeWidth="2.2" fill="none"/>
+        <circle cx="24" cy="15" r="2.4" fill="#ff6a00"/>
+      </svg>
+    ),
+    href: '/minis',
+  },
+  {
     id: 'users',
     label: 'Usuarios',
     masterOnly: true,
@@ -76,7 +89,7 @@ export default function Home() {
   const APP_ID_MAP = { mealplanner: 'planner', dnd: 'dnd', salud: 'salud', notes: 'notes' }
   const visibleApps = (user?.role === 'master' || user?.role === 'premium')
     ? APPS.filter(app => !app.masterOnly || user?.role === 'master')
-    : APPS.filter(app => !app.masterOnly && (user?.apps || []).includes(APP_ID_MAP[app.id] || app.id))
+    : APPS.filter(app => !app.masterOnly && (app.public || (user?.apps || []).includes(APP_ID_MAP[app.id] || app.id)))
 
   return (
     <div className="home-root">
