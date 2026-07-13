@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import MinisHeader from './MinisHeader'
 import MinisFooter from './MinisFooter'
+import MinisLightbox from './MinisLightbox'
 import './Minis.css'
 
 function PhotoIcon() {
@@ -22,26 +23,12 @@ export default function MinisServicios() {
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
   const [lightboxIndex, setLightboxIndex] = useState(null)
-  const touchX = useRef(null)
 
   useEffect(() => {
     fetch('/api/minis/trabajos').then(r => r.json()).then(d => setTrabajos(Array.isArray(d) ? d : []))
     fetch('/api/minis/config').then(r => r.json()).then(d => { setWhatsapp(d.whatsapp || ''); setEmail(d.email || '') })
   }, [])
 
-  const siguiente = () => setLightboxIndex(i => (i + 1) % trabajos.length)
-  const anterior = () => setLightboxIndex(i => (i - 1 + trabajos.length) % trabajos.length)
-
-  const onTouchStart = (e) => { touchX.current = e.touches[0].clientX }
-  const onTouchEnd = (e) => {
-    if (touchX.current == null) return
-    const delta = e.changedTouches[0].clientX - touchX.current
-    if (Math.abs(delta) > 40 && trabajos.length > 1) {
-      if (delta < 0) siguiente()
-      else anterior()
-    }
-    touchX.current = null
-  }
 
   return (
     <div className="minis-root">
@@ -107,32 +94,12 @@ export default function MinisServicios() {
       <MinisFooter navigate={navigate} />
 
       {lightboxIndex !== null && trabajos[lightboxIndex] && (
-        <div className="minis-lightbox" onClick={() => setLightboxIndex(null)}>
-          <button className="minis-lightbox-close" onClick={() => setLightboxIndex(null)} aria-label="Cerrar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-
-          <img
-            src={trabajos[lightboxIndex].url}
-            alt={trabajos[lightboxIndex].titulo || 'Trabajo realizado'}
-            className="minis-lightbox-img"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          />
-
-          {trabajos.length > 1 && (
-            <>
-              <button className="minis-lightbox-arrow left" onClick={(e) => { e.stopPropagation(); anterior() }} aria-label="Anterior">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-              </button>
-              <button className="minis-lightbox-arrow right" onClick={(e) => { e.stopPropagation(); siguiente() }} aria-label="Siguiente">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-              </button>
-              <div className="minis-lightbox-count">{lightboxIndex + 1} / {trabajos.length}</div>
-            </>
-          )}
-        </div>
+        <MinisLightbox
+          items={trabajos.map(t => ({ url: t.url, alt: t.titulo || 'Trabajo realizado' }))}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
     </div>
   )
