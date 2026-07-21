@@ -353,37 +353,60 @@
   background: #1a2540;
 }
 
-/* Strength group buttons */
+/* Strength weight input */
+.salud-strength-weight-field {
+  margin: .6rem 0 .8rem;
+}
+
+/* Strength group buttons — lista vertical con semáforo por grupo */
 .salud-strength-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 .salud-strength-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 3px;
-  padding: .6rem .3rem;
+  gap: .6rem;
+  padding: .7rem .9rem;
   background: #1c1c28;
   border: 2px solid transparent;
+  border-left: 5px solid #444;
   border-radius: 10px;
   cursor: pointer;
   transition: all .15s;
   color: #999;
+  width: 100%;
+  text-align: left;
 }
 .salud-strength-icon {
   font-size: 1.3rem;
 }
 .salud-strength-label {
-  font-size: .72rem;
+  font-size: .85rem;
   font-weight: 500;
+  flex: 1;
 }
 .salud-strength-btn.active {
   border-color: #4b90ff;
   background: #1a2540;
   color: #e0e0e0;
 }
+
+.salud-strength-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-red { background: #ff4d4d; }
+.dot-yellow { background: #ffc94d; }
+.dot-green { background: #4dd47a; }
+
+.salud-strength-btn.status-red { border-left-color: #ff4d4d; }
+.salud-strength-btn.status-yellow { border-left-color: #ffc94d; }
+.salud-strength-btn.status-green { border-left-color: #4dd47a; }
 
 /* Form actions */
 .salud-form-actions {

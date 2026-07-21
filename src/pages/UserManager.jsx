@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 
 const ROLES = [
   { id: 'master', label: '👑 Master', desc: 'Acceso total' },
+  { id: 'dndMaster', label: '🎭 DnD Master', desc: 'Crea y gestiona sus propias campañas D&D (sin editar el glosario)' },
   { id: 'premium', label: '⭐ Premium', desc: 'Todas las apps' },
   { id: 'dnd', label: '🎲 D&D', desc: 'Jugador D&D + apps asignadas' },
   { id: 'dndPlayer', label: '⚔️ DnD Player', desc: 'Solo D&D' },

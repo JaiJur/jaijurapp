@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import MealEntries from './MealEntries'
 
 const MEALS = [
@@ -26,7 +26,13 @@ function migrateEntries(existing, key) {
   return [{ kcal: Number(raw) || 0, items: [] }]
 }
 
-export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelete }) {
+function daysBetween(fromDate, toDate) {
+  const a = new Date(fromDate + 'T00:00:00')
+  const b = new Date(toDate + 'T00:00:00')
+  return Math.round((b - a) / 86400000)
+}
+
+export default function DayForm({ date, existing, bmr, allEntries, onSave, onCancel, onDelete, hideNotes, hideCancel, hideDelete }) {
   const [meals, setMeals] = useState(() =>
     Object.fromEntries(MEALS.map(m => [m.key, migrateEntries(existing, m.key)]))
   )
@@ -35,6 +41,7 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
     Array.isArray(existing?.strength) ? existing.strength : []
   )
   const [weight, setWeight] = useState(existing?.weight ?? '')
+  const [strengthWeight, setStrengthWeight] = useState(existing?.strengthWeight ?? '')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [openMealKey, setOpenMealKey] = useState(null)
@@ -50,6 +57,28 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
     setStrength(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
   }
 
+  // Última fecha (anterior a `date`) en la que se entrenó cada grupo muscular
+  const lastTrained = useMemo(() => {
+    const map = {}
+    for (const e of allEntries || []) {
+      if (e.date === date || e.date > date) continue
+      const groups = Array.isArray(e.strength) ? e.strength : []
+      for (const g of groups) {
+        if (!map[g] || e.date > map[g]) map[g] = e.date
+      }
+    }
+    return map
+  }, [allEntries, date])
+
+  const groupStatus = (key) => {
+    if (strength.includes(key)) return 'red'
+    const last = lastTrained[key]
+    if (!last) return 'green'
+    const diff = daysBetween(last, date)
+    if (diff === 1) return 'yellow'
+    return 'green'
+  }
+
   const buildData = useCallback(() => {
     const mealsData = {}
     MEALS.forEach(m => {
@@ -60,10 +89,11 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
       calories: hasCals ? totalCal : null,
       steps: steps !== '' ? Number(steps) : null,
       strength: strength.length > 0 ? strength : null,
+      strengthWeight: strengthWeight !== '' ? Number(strengthWeight) : null,
       weight: weight !== '' ? Number(weight) : null,
       notes: notes.trim() || null,
     }
-  }, [meals, steps, strength, weight, notes, hasCals, totalCal])
+  }, [meals, steps, strength, strengthWeight, weight, notes, hasCals, totalCal])
 
   // Autosave con debounce de 800ms
   useEffect(() => {
@@ -75,7 +105,7 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
       setSaving(false)
     }, 800)
     return () => clearTimeout(debounceRef.current)
-  }, [meals, steps, strength, weight, notes])
+  }, [meals, steps, strength, strengthWeight, weight, notes])
 
   const dateLabel = new Date(date + 'T12:00:00').toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -84,6 +114,20 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
   return (
     <div className="salud-form">
       <h2 className="salud-form-date">{dateLabel}</h2>
+
+      <div className="salud-row">
+        <label className="salud-field">
+          <span className="salud-label">⚖️ Peso (kg)</span>
+          <input type="number" className="salud-input" placeholder="ej: 75.2" step="0.1"
+            value={weight} onChange={e => setWeight(e.target.value)} inputMode="decimal" />
+        </label>
+
+        <label className="salud-field">
+          <span className="salud-label">🚶 Pasos</span>
+          <input type="number" className="salud-input" placeholder="ej: 8000"
+            value={steps} onChange={e => setSteps(e.target.value)} inputMode="numeric" />
+        </label>
+      </div>
 
       {/* ── Ingestas ── */}
       <div className="salud-meals">
@@ -125,49 +169,50 @@ export default function DayForm({ date, existing, bmr, onSave, onCancel, onDelet
         )}
       </div>
 
-      <div className="salud-row">
-        <label className="salud-field">
-          <span className="salud-label">⚖️ Peso (kg)</span>
-          <input type="number" className="salud-input" placeholder="ej: 75.2" step="0.1"
-            value={weight} onChange={e => setWeight(e.target.value)} inputMode="decimal" />
-        </label>
-
-        <label className="salud-field">
-          <span className="salud-label">🚶 Pasos</span>
-          <input type="number" className="salud-input" placeholder="ej: 8000"
-            value={steps} onChange={e => setSteps(e.target.value)} inputMode="numeric" />
-        </label>
-      </div>
-
       <div className="salud-field">
         <span className="salud-label">🏋️ Ejercicio de fuerza</span>
+
+        <label className="salud-field salud-strength-weight-field">
+          <span className="salud-label">🏋️‍♂️ Peso que manejas (kg)</span>
+          <input type="number" className="salud-input" placeholder="ej: 8.5" step="0.5"
+            value={strengthWeight} onChange={e => setStrengthWeight(e.target.value)} inputMode="decimal" />
+        </label>
+
         <div className="salud-strength-grid">
-          {STRENGTH_GROUPS.map(g => (
-            <button
-              key={g.key}
-              type="button"
-              className={`salud-strength-btn ${strength.includes(g.key) ? 'active' : ''}`}
-              onClick={() => toggleStrength(g.key)}
-            >
-              <span className="salud-strength-icon">{g.icon}</span>
-              <span className="salud-strength-label">{g.label}</span>
-            </button>
-          ))}
+          {STRENGTH_GROUPS.map(g => {
+            const status = groupStatus(g.key)
+            return (
+              <button
+                key={g.key}
+                type="button"
+                className={`salud-strength-btn status-${status} ${strength.includes(g.key) ? 'active' : ''}`}
+                onClick={() => toggleStrength(g.key)}
+              >
+                <span className="salud-strength-icon">{g.icon}</span>
+                <span className="salud-strength-label">{g.label}</span>
+                <span className={`salud-strength-dot dot-${status}`} />
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      <label className="salud-field">
-        <span className="salud-label">📝 Notas</span>
-        <textarea className="salud-input salud-textarea" placeholder="Opcional…"
-          value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
-      </label>
+      {!hideNotes && (
+        <label className="salud-field">
+          <span className="salud-label">📝 Notas</span>
+          <textarea className="salud-input salud-textarea" placeholder="Opcional…"
+            value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+        </label>
+      )}
 
       <div className="salud-form-actions">
         <span className="salud-autosave-indicator">{saving ? '💾 Guardando…' : '✓ Guardado automáticamente'}</span>
-        <button className="salud-btn salud-btn-cancel" onClick={onCancel}>Cerrar</button>
+        {!hideCancel && (
+          <button className="salud-btn salud-btn-cancel" onClick={onCancel}>Cerrar</button>
+        )}
       </div>
 
-      {existing && onDelete && (
+      {!hideDelete && existing && onDelete && (
         <div className="salud-form-delete">
           {!confirmDelete ? (
             <button className="salud-btn-delete" onClick={() => setConfirmDelete(true)}>

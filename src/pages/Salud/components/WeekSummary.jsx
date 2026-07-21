@@ -4,6 +4,7 @@ const METRICS = [
   { key: 'cal', label: 'Calorías' },
   { key: 'steps', label: 'Pasos' },
   { key: 'weight', label: 'Peso' },
+  { key: 'strength', label: 'Fuerza' },
 ]
 
 const H = 360
@@ -13,7 +14,7 @@ const CHART_H = H - PAD_T - PAD_B
 const BASE_W = 700
 
 export default function WeekSummary({ entries, config, days: daysProp }) {
-  const [visible, setVisible] = useState({ cal: true, steps: true, weight: true })
+  const [visible, setVisible] = useState({ cal: true, steps: true, weight: true, strength: false })
   const bmr = config?.bmr
   const minCalories = config?.minCalories
   const goalWeight = config?.goalWeight
@@ -23,7 +24,7 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
     setVisible(prev => {
       const next = { ...prev, [key]: !prev[key] }
       // Evitar quedarse sin ninguna métrica activa
-      if (!next.cal && !next.steps && !next.weight) return prev
+      if (!next.cal && !next.steps && !next.weight && !next.strength) return prev
       return next
     })
   }
@@ -62,7 +63,8 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
   const showCal = visible.cal
   const showSteps = visible.steps
   const showWeight = visible.weight
-  const activeCount = [visible.cal, visible.steps, visible.weight].filter(Boolean).length
+  const showStrength = visible.strength
+  const activeCount = [visible.cal, visible.steps, visible.weight, visible.strength].filter(Boolean).length
   const dense = days.length > 31
   const showPoints = days.length <= 60
   const showPointLabels = days.length <= 21
@@ -71,6 +73,7 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
   const calData = days.map(d => entryMap[d]?.calories ?? null)
   const stepsData = days.map(d => entryMap[d]?.steps ?? null)
   const weightData = days.map(d => entryMap[d]?.weight ?? null)
+  const strengthWeightData = days.map(d => entryMap[d]?.strengthWeight ?? null)
   const strengthDays = days.map(d => !!entryMap[d]?.strength)
 
   // Helpers de escala
@@ -89,6 +92,7 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
   const calScale = showCal ? buildScale(calData, bmr, 0.15, minCalories) : null
   const stepsScale = showSteps ? buildScale(stepsData, goalSteps, 0.1) : null
   const weightScale = showWeight ? buildScale(weightData, goalWeight, 0.2) : null
+  const strengthScale = showStrength ? buildScale(strengthWeightData, null, 0.2) : null
 
   function xPos(i) { return i * dayW + dayW / 2 }
 
@@ -105,6 +109,7 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
   const cal = buildPoints(calData, calScale)
   const steps = buildPoints(stepsData, stepsScale)
   const weight = buildPoints(weightData, weightScale)
+  const strengthW = buildPoints(strengthWeightData, strengthScale)
 
   // Medias (solo visibles en pestañas individuales)
   function calcAvg(data) {
@@ -242,6 +247,19 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
               )}
             </g>
           ))}
+
+          {/* ── Strength weight line ── */}
+          {showStrength && strengthW.points.length > 1 && (
+            <path d={strengthW.line} fill="none" stroke="#c65dff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+          {showStrength && showPoints && strengthW.points.map((p, i) => (
+            <g key={`sw${i}`}>
+              <circle cx={p.x} cy={p.y} r={dense ? '2' : '3.5'} fill="#c65dff" />
+              {showPointLabels && (
+                <text x={p.x} y={p.y - 7} textAnchor="middle" fill="#dd9bff" fontSize="7" fontWeight="600">{Number(p.v).toFixed(1)}</text>
+              )}
+            </g>
+          ))}
         </svg>
       </div>
 
@@ -250,6 +268,7 @@ export default function WeekSummary({ entries, config, days: daysProp }) {
         {showCal && <span className="salud-legend-item"><span className="salud-legend-dot" style={{ background: '#ff5050' }} />Calorías</span>}
         {showSteps && <span className="salud-legend-item"><span className="salud-legend-dot" style={{ background: '#50bbff' }} />Pasos</span>}
         {showWeight && <span className="salud-legend-item"><span className="salud-legend-dot" style={{ background: '#ffaa30' }} />Peso</span>}
+        {showStrength && <span className="salud-legend-item"><span className="salud-legend-dot" style={{ background: '#c65dff' }} />Peso ejercicios</span>}
         {showSteps && activeCount === 1 && strengthDays.some(Boolean) && <span className="salud-legend-item">🏋️ Fuerza</span>}
         {showCal && activeCount === 1 && bmr && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#4dff88' }} />TDEE {bmr}</span>}
         {showCal && activeCount === 1 && minCalories && <span className="salud-legend-item"><span className="salud-legend-line" style={{ background: '#ffc83e' }} />Mín {minCalories}</span>}

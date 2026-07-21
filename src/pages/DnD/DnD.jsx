@@ -919,6 +919,9 @@ export default function DnD() {
               <div className="dnd-campaign-header" onClick={() => toggleExpand(`c-${campaign.id}`)}>
                 <span className="dnd-chevron">{expanded[`c-${campaign.id}`] ? '▾' : '▸'}</span>
                 <span className="dnd-campaign-name">{campaign.name}</span>
+                {user?.role === 'master' && campaign.ownerName && (
+                  <span className="dnd-campaign-owner" title="Master de esta campaña" style={{marginLeft:8, fontSize:'0.75em', opacity:0.6}}>👤 {campaign.ownerName}</span>
+                )}
                 <div className="dnd-campaign-actions">
                   <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); window.open(`/dnd/docs/${campaign.slug}`, '_blank') }} title="Documentación de la campaña">📄 Docs</button>
                   <button className="dnd-btn-sm" onClick={e => { e.stopPropagation(); openModal('chapter', campaign.id) }}>+ Capítulo</button>
@@ -1403,7 +1406,7 @@ export default function DnD() {
             <span className="dnd-chevron">{expanded.characters ? '▾' : '▸'}</span>
             <span className="dnd-glossary-title">🛡️ Personajes</span>
             {isMaster && <button className="dnd-btn-primary" style={{marginLeft:'auto'}} onClick={e => { e.stopPropagation(); setCharacterModal({ mode: 'create', character: null }) }}>+ Personaje</button>}
-            {isMaster && <button className="dnd-btn-sm" style={{marginLeft:4, background:'#c8a96e22', borderColor:'#c8a96e44', color:'#c8a96e'}} onClick={e => { e.stopPropagation(); setShowWizardV2(true) }}>✦ Nuevo v2</button>}
+            {user?.id === 1 && <button className="dnd-btn-sm" style={{marginLeft:4, background:'#c8a96e22', borderColor:'#c8a96e44', color:'#c8a96e'}} onClick={e => { e.stopPropagation(); setShowWizardV2(true) }}>✦ Nuevo v2</button>}
           </div>
           {expanded.characters && <>
             <input className="dnd-glossary-search" placeholder="Buscar por nombre, clase, nivel o jugador..." value={charSearch} onChange={e => { setCharSearch(e.target.value); setCharPage(0) }} style={{marginBottom:8}} />
@@ -1603,7 +1606,7 @@ export default function DnD() {
         />
       )}
 
-      {showWizardV2 && (
+      {showWizardV2 && user?.id === 1 && (
         <CharacterWizardV2
           onSave={saveCharacter}
           onClose={() => setShowWizardV2(false)}

@@ -2,11 +2,9 @@ import { useState, useMemo } from 'react'
 import AppHeader from '../../components/AppHeader'
 import useSalud from '../../hooks/useSalud'
 import DayForm from './components/DayForm'
-import HistoryList from './components/HistoryList'
 import DayProgress from './components/DayProgress'
 import HistoryView from './components/HistoryView'
 import BmrConfig from './components/BmrConfig'
-import { lastNDays } from './dateUtils'
 import './Salud.css'
 
 const VIEW_TABS = [
@@ -20,23 +18,13 @@ export default function Salud() {
   const [view, setView] = useState('home')
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const last10Days = useMemo(() => lastNDays(10), [])
-  const historyCardEntries = useMemo(
-    () => entries
-      .filter(e => last10Days.includes(e.date))
-      .sort((a, b) => b.date.localeCompare(a.date)),
-    [entries, last10Days]
-  )
-
   if (loading) {
     return <div className="salud-loading">Cargando…</div>
   }
 
   const today = todayStr()
   const todayEntry = getToday()
-  const isEditingToday = editingDate === today
-  const showTodayForm = isEditingToday
-  const showModal = editingDate !== null && !isEditingToday
+  const showModal = editingDate !== null && editingDate !== today
 
   const closeEditor = () => setEditingDate(null)
 
@@ -65,37 +53,17 @@ export default function Salud() {
           <>
             <DayProgress entry={todayEntry} config={config} />
 
-            {!showTodayForm && (
-              <div className="salud-action-row">
-                <button
-                  className="salud-btn-today"
-                  onClick={() => setEditingDate(today)}
-                >
-                  {todayEntry ? '✏️ Editar hoy' : '➕ Registrar hoy'}
-                </button>
-              </div>
-            )}
-
-            {showTodayForm && (
-              <DayForm
-                date={editingDate}
-                existing={entries.find(e => e.date === editingDate)}
-                bmr={config.bmr}
-                onSave={async (data) => {
-                  await saveEntry(editingDate, data)
-                }}
-                onCancel={closeEditor}
-                onDelete={async (date) => {
-                  await deleteEntry(date)
-                  closeEditor()
-                }}
-              />
-            )}
-
-            <HistoryList
-              entries={historyCardEntries}
+            <DayForm
+              date={today}
+              existing={todayEntry}
+              allEntries={entries}
               bmr={config.bmr}
-              onEdit={(date) => setEditingDate(date)}
+              onSave={async (data) => {
+                await saveEntry(today, data)
+              }}
+              hideNotes
+              hideCancel
+              hideDelete
             />
           </>
         )}
@@ -115,6 +83,7 @@ export default function Salud() {
             <DayForm
               date={editingDate}
               existing={entries.find(e => e.date === editingDate)}
+              allEntries={entries}
               bmr={config.bmr}
               onSave={async (data) => {
                 await saveEntry(editingDate, data)

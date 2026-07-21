@@ -325,13 +325,24 @@ function getDnDData(db) {
   if (!db.dnd.characters) db.dnd.characters = []
   // Migración: asignar player a personajes existentes
   db.dnd.characters.forEach(ch => { if (!ch.player) ch.player = 'Jai' })
+  // Migración: asignar owner (master) a campañas existentes sin dueño
+  db.dnd.campaigns.forEach(c => { if (c.ownerId == null) c.ownerId = 1 })
   return db.dnd
 }
 
 // Listar campañas
 app.get('/api/dnd/campaigns', requireUser, (req, res) => {
   const db = getDB()
-  res.json(getDnDData(db).campaigns)
+  const dnd = getDnDData(db)
+  const user = db.users.find(u => u.id === req.userId)
+  if (user?.role === 'master') {
+    const withOwner = dnd.campaigns.map(c => ({
+      ...c,
+      ownerName: db.users.find(u => u.id === c.ownerId)?.username || null
+    }))
+    return res.json(withOwner)
+  }
+  res.json(dnd.campaigns.filter(c => c.ownerId === req.userId))
 })
 
 // Crear campaña
@@ -342,7 +353,7 @@ app.post('/api/dnd/campaigns', requireUser, requireDnDMaster, (req, res) => {
     const db = getDB()
     const dnd = getDnDData(db)
     const slug = makeUniqueSlug(name, collectAllSlugs(dnd))
-    const campaign = { id: Date.now(), name, slug, chapters: [] }
+    const campaign = { id: Date.now(), name, slug, chapters: [], ownerId: req.userId }
     dnd.campaigns.push(campaign)
     saveDB(db)
     res.json(campaign)
@@ -353,7 +364,7 @@ app.post('/api/dnd/campaigns', requireUser, requireDnDMaster, (req, res) => {
 })
 
 // Borrar campaña
-app.delete('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   dnd.campaigns = dnd.campaigns.filter(c => c.id !== parseInt(req.params.id))
@@ -362,7 +373,7 @@ app.delete('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) =
 })
 
 // Renombrar campaña
-app.put('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { name } = req.body
   if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
   const db = getDB()
@@ -375,7 +386,7 @@ app.put('/api/dnd/campaigns/:id', requireUser, requireDnDMaster, (req, res) => {
 })
 
 // Guardar documentación de campaña (autoguardado desde el editor enriquecido)
-app.put('/api/dnd/campaigns/:id/documentation', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:id/documentation', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { pages, folders } = req.body
   if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages debe ser un array' })
   const db = getDB()
@@ -397,7 +408,7 @@ app.put('/api/dnd/campaigns/:id/documentation', requireUser, requireDnDMaster, (
 })
 
 // Crear capítulo
-app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { name } = req.body
   const db = getDB()
   const dnd = getDnDData(db)
@@ -410,7 +421,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters', requireUser, requireDnDMaste
 })
 
 // Guardar documentación de capítulo/acto (autoguardado desde el editor enriquecido)
-app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/documentation', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/documentation', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { pages, folders } = req.body
   if (!Array.isArray(pages)) return res.status(400).json({ error: 'pages debe ser un array' })
   const db = getDB()
@@ -468,7 +479,7 @@ app.get('/api/dnd/docs/:slug', requireUser, requireDnDMaster, (req, res) => {
 })
 
 // Renombrar capítulo
-app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { name } = req.body
   if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
   const db = getDB()
@@ -483,7 +494,7 @@ app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requi
 })
 
 // Asociar imagen a capítulo
-app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { url, name } = req.body
   if (!url) return res.status(400).json({ error: 'URL requerida' })
   const db = getDB()
@@ -501,7 +512,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUse
 })
 
 // Desasociar imagen de capítulo
-app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { url } = req.body
   const db = getDB()
   const dnd = getDnDData(db)
@@ -517,7 +528,7 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/images', requireU
 
 // ── Notas del Master (por capítulo) ──────────────────────────
 // Obtener notas de un capítulo
-app.get('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser, requireDnDMaster, (req, res) => {
+app.get('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
@@ -528,7 +539,7 @@ app.get('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser,
 })
 
 // Crear nota
-app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { title, subtitle, body } = req.body
   if (!title || !title.trim()) return res.status(400).json({ error: 'Título requerido' })
   const db = getDB()
@@ -546,7 +557,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes', requireUser
 })
 
 // Actualizar nota
-app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { title, subtitle, body } = req.body
   if (!title || !title.trim()) return res.status(400).json({ error: 'Título requerido' })
   const db = getDB()
@@ -568,7 +579,7 @@ app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requ
 })
 
 // Borrar nota
-app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
@@ -581,7 +592,7 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId', r
 })
 
 // Mover nota a carpeta (o a raíz con folderId=null)
-app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId/move', requireUser, requireDnDMaster, (req, res) => {
+app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId/move', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { folderId } = req.body
   const db = getDB()
   const dnd = getDnDData(db)
@@ -599,7 +610,7 @@ app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/notes/:noteId/move
 
 // ── Note Folders ──
 // Crear carpeta de notas
-app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { name } = req.body
   if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
   const db = getDB()
@@ -616,7 +627,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders', requi
 })
 
 // Renombrar carpeta
-app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { name } = req.body
   if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' })
   const db = getDB()
@@ -633,7 +644,7 @@ app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderI
 })
 
 // Mover carpeta (cambiar parentId)
-app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId/move', requireUser, requireDnDMaster, (req, res) => {
+app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId/move', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { parentId } = req.body
   const db = getDB()
   const dnd = getDnDData(db)
@@ -655,7 +666,7 @@ app.patch('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folde
 })
 
 // Borrar carpeta (notas vuelven a raíz)
-app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:folderId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
@@ -679,7 +690,7 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/noteFolders/:fold
 })
 
 // Borrar capítulo
-app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
@@ -690,7 +701,7 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId', requireUser, re
 })
 
 // Crear mapa
-app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { name } = req.body
   const db = getDB()
   const dnd = getDnDData(db)
@@ -713,7 +724,7 @@ app.post('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps', requireUser,
 })
 
 // Borrar mapa
-app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/:mapId', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/:mapId', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const campaign = dnd.campaigns.find(c => c.id === parseInt(req.params.campaignId))
@@ -726,7 +737,7 @@ app.delete('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/:mapId', req
 })
 
 // Reordenar mapas de un capítulo
-app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/order', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/campaigns/:campaignId/chapters/:chapterId/maps/order', requireUser, requireDnDMaster, requireCampaignAccess, (req, res) => {
   const { order } = req.body // array de map ids
   const db = getDB()
   const dnd = getDnDData(db)
@@ -966,7 +977,7 @@ app.get('/api/dnd/glossary', requireUser, (req, res) => {
   res.json(getGlossary(db))
 })
 
-app.post('/api/dnd/glossary', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/glossary', requireUser, requireMaster, (req, res) => {
   const db = getDB()
   const g = getGlossary(db)
   const entry = { id: Date.now(), ...req.body }
@@ -975,7 +986,7 @@ app.post('/api/dnd/glossary', requireUser, requireDnDMaster, (req, res) => {
   res.json(entry)
 })
 
-app.put('/api/dnd/glossary/:id', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/glossary/:id', requireUser, requireMaster, (req, res) => {
   const db = getDB()
   const g = getGlossary(db)
   const idx = g.entries.findIndex(e => e.id === parseInt(req.params.id))
@@ -985,7 +996,7 @@ app.put('/api/dnd/glossary/:id', requireUser, requireDnDMaster, (req, res) => {
   res.json(g.entries[idx])
 })
 
-app.delete('/api/dnd/glossary/:id', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/glossary/:id', requireUser, requireMaster, (req, res) => {
   const db = getDB()
   const g = getGlossary(db)
   g.entries = g.entries.filter(e => e.id !== parseInt(req.params.id))
@@ -1123,6 +1134,33 @@ function requireDnDMaster(req, res, next) {
   next()
 }
 
+// Comprueba que la campaña (por :id o :campaignId) pertenece al usuario, o que es 'master' (que gestiona todas)
+function requireCampaignAccess(req, res, next) {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const campaignId = parseInt(req.params.campaignId || req.params.id)
+  const campaign = dnd.campaigns.find(c => c.id === campaignId)
+  if (!campaign) return res.status(404).json({ error: 'Campaña no encontrada' })
+  const user = db.users.find(u => u.id === req.userId)
+  if (user?.role !== 'master' && campaign.ownerId !== req.userId) {
+    return res.status(403).json({ error: 'No tienes permiso sobre esta campaña' })
+  }
+  next()
+}
+
+// Comprueba que la party (:partyId) pertenece al usuario, o que es 'master' (que gestiona todas)
+function requirePartyAccess(req, res, next) {
+  const db = getDB()
+  const dnd = getDnDData(db)
+  const party = findParty(dnd, req.params.partyId)
+  if (!party) return res.status(404).json({ error: 'Party no encontrada' })
+  const user = db.users.find(u => u.id === req.userId)
+  if (user?.role !== 'master' && party.masterId !== req.userId) {
+    return res.status(403).json({ error: 'No tienes permiso sobre este grupo' })
+  }
+  next()
+}
+
 // ── Slugs para /dnd/docs/:slug (campañas y capítulos comparten el mismo espacio de nombres) ──
 function slugify(str) {
   return (str || '')
@@ -1168,6 +1206,8 @@ function getParties(dnd) {
       dnd.parties = []
     }
   }
+  // Migración: asignar master a parties existentes sin dueño
+  dnd.parties.forEach(p => { if (p.masterId == null) p.masterId = 1 })
   return dnd.parties
 }
 function findParty(dnd, partyId) {
@@ -1215,8 +1255,12 @@ app.get('/api/dnd/parties', requireUser, (req, res) => {
   const dnd = getDnDData(db)
   const parties = getParties(dnd)
   saveDB(db) // guardar posible migración
-  if (isDnDMaster(db, req.userId)) {
+  const user = db.users.find(u => u.id === req.userId)
+  if (user?.role === 'master') {
     res.json(parties.map(p => enrichParty(dnd, p)))
+  } else if (user?.role === 'dndMaster') {
+    const myParties = parties.filter(p => p.masterId === req.userId)
+    res.json(myParties.map(p => enrichParty(dnd, p)))
   } else {
     // Jugadores solo ven parties donde tienen un personaje asignado
     const myCharIds = dnd.characters
@@ -1234,14 +1278,14 @@ app.post('/api/dnd/parties', requireUser, requireDnDMaster, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const parties = getParties(dnd)
-  const party = { id: Date.now(), name: name.trim(), members: [], initiative: [], usedSlots: {}, usedAbilities: {}, usedClassResources: {}, currentHp: {}, enemies: [], conditions: {} }
+  const party = { id: Date.now(), name: name.trim(), masterId: req.userId, members: [], initiative: [], usedSlots: {}, usedAbilities: {}, usedClassResources: {}, currentHp: {}, enemies: [], conditions: {} }
   parties.push(party)
   saveDB(db)
   res.json(enrichParty(dnd, party))
 })
 
 // Renombrar party
-app.put('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const { name } = req.body
   if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' })
   const db = getDB()
@@ -1254,7 +1298,7 @@ app.put('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, (req, res) =
 })
 
 // Borrar party
-app.delete('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   dnd.parties = getParties(dnd).filter(p => p.id !== parseInt(req.params.partyId))
@@ -1263,7 +1307,7 @@ app.delete('/api/dnd/parties/:partyId', requireUser, requireDnDMaster, (req, res
 })
 
 // Añadir miembro a party
-app.post('/api/dnd/parties/:partyId/members', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/parties/:partyId/members', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const { charId } = req.body
   const db = getDB()
   const dnd = getDnDData(db)
@@ -1276,7 +1320,7 @@ app.post('/api/dnd/parties/:partyId/members', requireUser, requireDnDMaster, (re
 })
 
 // Quitar miembro de party
-app.delete('/api/dnd/parties/:partyId/members/:charId', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/parties/:partyId/members/:charId', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1296,7 +1340,7 @@ app.delete('/api/dnd/parties/:partyId/members/:charId', requireUser, requireDnDM
 })
 
 // Reordenar initiative
-app.put('/api/dnd/parties/:partyId/initiative', requireUser, requireDnDMaster, (req, res) => {
+app.put('/api/dnd/parties/:partyId/initiative', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1307,7 +1351,7 @@ app.put('/api/dnd/parties/:partyId/initiative', requireUser, requireDnDMaster, (
 })
 
 // Cambiar valor de iniciativa de un miembro y reordenar
-app.patch('/api/dnd/parties/:partyId/initiative-value', requireUser, requireDnDMaster, (req, res) => {
+app.patch('/api/dnd/parties/:partyId/initiative-value', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1325,7 +1369,7 @@ app.patch('/api/dnd/parties/:partyId/initiative-value', requireUser, requireDnDM
 })
 
 // Resetear iniciativa de toda la party
-app.post('/api/dnd/parties/:partyId/reset-initiative', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/parties/:partyId/reset-initiative', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1400,7 +1444,7 @@ app.patch('/api/dnd/parties/:partyId/conditions/:key', requireUser, (req, res) =
 })
 
 // Añadir enemigo a party
-app.post('/api/dnd/parties/:partyId/enemy', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/parties/:partyId/enemy', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1440,7 +1484,7 @@ app.post('/api/dnd/parties/:partyId/enemy', requireUser, requireDnDMaster, (req,
 })
 
 // Quitar enemigo de party
-app.delete('/api/dnd/parties/:partyId/enemy/:id', requireUser, requireDnDMaster, (req, res) => {
+app.delete('/api/dnd/parties/:partyId/enemy/:id', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1474,7 +1518,7 @@ app.patch('/api/dnd/parties/:partyId/enemy/:id/hp', requireUser, (req, res) => {
 })
 
 // Estado del enemigo: enemy | npc | ally (afecta color de borde del token en el mapa)
-app.patch('/api/dnd/parties/:partyId/enemy/:id/disposition', requireUser, requireDnDMaster, (req, res) => {
+app.patch('/api/dnd/parties/:partyId/enemy/:id/disposition', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1497,7 +1541,7 @@ app.patch('/api/dnd/parties/:partyId/enemy/:id/disposition', requireUser, requir
 })
 
 // Descanso en party
-app.post('/api/dnd/parties/:partyId/rest', requireUser, requireDnDMaster, (req, res) => {
+app.post('/api/dnd/parties/:partyId/rest', requireUser, requireDnDMaster, requirePartyAccess, (req, res) => {
   const db = getDB()
   const dnd = getDnDData(db)
   const party = findParty(dnd, req.params.partyId)
@@ -1666,7 +1710,7 @@ function requireMaster(req, res, next) {
   next()
 }
 
-const AVAILABLE_ROLES = ['master', 'premium', 'dnd', 'dndPlayer', 'user']
+const AVAILABLE_ROLES = ['master', 'dndMaster', 'premium', 'dnd', 'dndPlayer', 'user']
 const AVAILABLE_APPS = ['dnd', 'planner', 'salud', 'notes']
 
 app.get('/api/admin/users', requireUser, requireMaster, (req, res) => {

@@ -187,6 +187,11 @@ export default function MinisAdmin() {
     <div className="ma-root">
       <AppHeader appName="Miniaturas · Gestión" />
       <main className="ma-main">
+        <button className="ma-back" onClick={() => navigate('/minis')}>
+          <Icon path="M19 12H5M12 19l-7-7 7-7" />
+          Volver al catálogo
+        </button>
+
         {vista === 'lista' && (
           <>
             <div className="ma-field ma-whatsapp-config">
