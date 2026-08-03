@@ -403,10 +403,12 @@
 .dot-red { background: #ff4d4d; }
 .dot-yellow { background: #ffc94d; }
 .dot-green { background: #4dd47a; }
+.dot-gray { background: #666; }
 
 .salud-strength-btn.status-red { border-left-color: #ff4d4d; }
 .salud-strength-btn.status-yellow { border-left-color: #ffc94d; }
 .salud-strength-btn.status-green { border-left-color: #4dd47a; }
+.salud-strength-btn.status-gray { border-left-color: #666; }
 
 /* Form actions */
 .salud-form-actions {

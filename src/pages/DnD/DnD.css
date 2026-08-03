@@ -540,6 +540,14 @@
   background: rgba(200,169,110,0.15);
   border-color: rgba(200,169,110,0.35);
 }
+.dnd-folder.drag-over {
+  background: rgba(124,58,237,0.25);
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124,58,237,0.3);
+}
+.dnd-crumb.drag-over {
+  color: #a78bfa; text-decoration: underline;
+}
 
 /* ── Grid de thumbnails de imágenes ──────────────── */
 .dnd-image-grid {
@@ -559,6 +567,9 @@
 .dnd-image-thumb:hover {
   border-color: rgba(200,169,110,0.45);
   transform: translateY(-1px);
+}
+.dnd-image-thumb.dragging {
+  opacity: 0.4;
 }
 .dnd-image-thumb img {
   width: 100%; height: 100%;

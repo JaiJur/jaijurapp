@@ -32,6 +32,15 @@ function daysBetween(fromDate, toDate) {
   return Math.round((b - a) / 86400000)
 }
 
+// Lunes (YYYY-MM-DD) de la semana que contiene dateStr
+function getMonday(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.getDay() // 0=domingo, 1=lunes, ... 6=sábado
+  const diff = (day === 0 ? -6 : 1) - day
+  d.setDate(d.getDate() + diff)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function DayForm({ date, existing, bmr, allEntries, onSave, onCancel, onDelete, hideNotes, hideCancel, hideDelete }) {
   const [meals, setMeals] = useState(() =>
     Object.fromEntries(MEALS.map(m => [m.key, migrateEntries(existing, m.key)]))
@@ -73,10 +82,12 @@ export default function DayForm({ date, existing, bmr, allEntries, onSave, onCan
   const groupStatus = (key) => {
     if (strength.includes(key)) return 'red'
     const last = lastTrained[key]
-    if (!last) return 'green'
+    if (!last) return 'gray'
     const diff = daysBetween(last, date)
     if (diff === 1) return 'yellow'
-    return 'green'
+    const monday = getMonday(date)
+    if (last >= monday) return 'green'
+    return 'gray'
   }
 
   const buildData = useCallback(() => {

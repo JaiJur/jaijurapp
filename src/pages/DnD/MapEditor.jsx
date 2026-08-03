@@ -108,6 +108,8 @@ export default function MapEditor() {
   const [propRootFolders, setPropRootFolders] = useState([]) // carpetas raíz siempre visibles
   const [activePropFolder, setActivePropFolder] = useState(null) // carpeta seleccionada
   const [floorAssets, setFloorAssets] = useState([])
+  const [bgAssets, setBgAssets] = useState({ folders: [], images: [] })
+  const [bgPath, setBgPath] = useState('')
   const [selectedTexture, setSelectedTexture] = useState(null)
   const [texMode, setTexMode] = useState('polygon') // 'polygon' | 'brush'
   const [brushSize, setBrushSize] = useState(40)
@@ -118,7 +120,7 @@ export default function MapEditor() {
   const [drawingTex, setDrawingTex] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
-  const [collapsed, setCollapsed] = useState({ fog: true, scene: true, inspector: true, textures: true, groups: true, tools: true, grid: true, props: true, leftTex: true, particles: true })
+  const [collapsed, setCollapsed] = useState({ fog: true, scene: true, inspector: true, textures: true, groups: true, tools: true, grid: true, props: true, leftTex: true, particles: true, background: true })
   const [expandedGroups, setExpandedGroups] = useState({})
   const [selectedParticle, setSelectedParticle] = useState(null)
   const [zoom, setZoom] = useState(1)
@@ -231,6 +233,19 @@ export default function MapEditor() {
     })
   }, [])
   useEffect(() => { fetch('/api/assets/floors').then(r => r.json()).then(setFloorAssets) }, [])
+  useEffect(() => { loadBgFolder('') }, [])
+
+  async function loadBgFolder(path) {
+    try {
+      const q = path ? `?path=${encodeURIComponent(path)}` : ''
+      const r = await fetch(`/api/dnd/images${q}`)
+      if (r.ok) {
+        const data = await r.json()
+        setBgAssets({ folders: data.folders || [], images: data.images || [] })
+        setBgPath(path)
+      }
+    } catch {}
+  }
 
   async function loadPropAssets(path) {
     try {
@@ -395,6 +410,7 @@ export default function MapEditor() {
     const { hexSize } = m
     const bg = document.createElement('canvas')
     bg.width = canvasW; bg.height = canvasH
+    if (m.showFloorHex === false) { bgCanvas.current = bg; return bg } // sin suelo — canvas vacío/transparente
     const ctx = bg.getContext('2d')
     const cols = Math.ceil(canvasW / (hexSize * 1.5)) + 2
     const rows = Math.ceil(canvasH / (Math.sqrt(3) * hexSize)) + 2
@@ -432,9 +448,37 @@ export default function MapEditor() {
     ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, cw, ch)
 
+    // Imagen de fondo del mapa (si existe) — se dibuja antes del suelo
+    if (m.backgroundImage) {
+      if (!imgCache.current[m.backgroundImage]) {
+        const img = new Image(); img.src = m.backgroundImage
+        img.onload = () => { imgCache.current[m.backgroundImage] = img; dirtyRef.current = true }
+      } else {
+        const img = imgCache.current[m.backgroundImage]
+        ctx.save()
+        const rotDeg = m.backgroundRotation || 0
+        ctx.translate(cw / 2, ch / 2)
+        ctx.rotate(rotDeg * Math.PI / 180)
+        const swapped = rotDeg === 90 || rotDeg === 270
+        const effW = swapped ? ch : cw
+        const effH = swapped ? cw : ch
+        const baseScale = Math.max(effW / img.width, effH / img.height)
+        const scale = baseScale * (m.backgroundScale || 1)
+        const iw = img.width * scale, ih = img.height * scale
+        const ox = -iw / 2 + (m.backgroundOffsetX || 0)
+        const oy = -ih / 2 + (m.backgroundOffsetY || 0)
+        ctx.drawImage(img, ox, oy, iw, ih)
+        ctx.restore()
+      }
+    }
+
     // B: Suelo + grid desde offscreen cacheado
     const bg = getBgCanvas(m, cw, ch)
-    ctx.drawImage(bg, 0, 0)
+    if (m.backgroundImage) {
+      ctx.save(); ctx.globalAlpha = 0.35; ctx.drawImage(bg, 0, 0); ctx.restore()
+    } else {
+      ctx.drawImage(bg, 0, 0)
+    }
 
     // Capas de textura — separar en debajo/encima de props
     const hiddenTexIds = new Set(
@@ -1378,6 +1422,56 @@ export default function MapEditor() {
         {/* ── Panel izquierdo ── */}
         <div className="editor-panel">
 
+          {/* Imagen de Fondo */}
+          <section className="editor-section">
+            <div className="section-header" onClick={() => toggleCollapse('background')}>
+              <label className="editor-label" style={{cursor:'pointer',margin:0}}>🖼️ Imagen de Fondo</label>
+              <span className="section-chevron">{collapsed.background?'▸':'▾'}</span>
+            </div>
+            {!collapsed.background && <div className="editor-prop-browser">
+              {map.backgroundImage && (
+                <div className="editor-field-row" style={{marginBottom:8,alignItems:'center'}}>
+                  <img src={map.backgroundImage} alt="Fondo actual" style={{width:48,height:48,objectFit:'cover',borderRadius:4}} />
+                  <button style={{marginLeft:8,background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171',borderRadius:4,padding:'4px 8px',cursor:'pointer'}}
+                    onClick={() => { updateMap(m=>({...m,backgroundImage:null})); setTimeout(autoSave,50) }}>
+                    ✕ Quitar fondo
+                  </button>
+                </div>
+              )}
+              {bgPath && (
+                <div className="prop-breadcrumb">
+                  <button onClick={() => loadBgFolder('')}>🏠 Imágenes</button>
+                  {bgPath.split('/').map((seg, i, arr) => (
+                    <span key={i}>
+                      <span className="prop-crumb-sep"> / </span>
+                      <button onClick={() => loadBgFolder(arr.slice(0, i + 1).join('/'))}>{seg}</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="editor-prop-gallery">
+                {bgAssets.folders.map(f => (
+                  <button key={f.path} className="editor-prop-thumb prop-subfolder-thumb"
+                    onClick={() => loadBgFolder(f.path)}>
+                    <span className="prop-subfolder-icon">📁</span>
+                    <span>{f.name}</span>
+                  </button>
+                ))}
+                {bgAssets.images.map(asset => (
+                  <button key={asset.url} className="editor-prop-thumb"
+                    onClick={() => { updateMap(m=>({...m,backgroundImage:asset.url})); setTimeout(autoSave,50) }}
+                    title={asset.name}>
+                    <img src={asset.url} alt={asset.name} loading="lazy" />
+                    <span>{asset.name}</span>
+                  </button>
+                ))}
+                {bgAssets.folders.length === 0 && bgAssets.images.length === 0 && (
+                  <div className="editor-empty-scene">Carpeta vacía — sube imágenes desde /dnd</div>
+                )}
+              </div>
+            </div>}
+          </section>
+
           {/* Grid / Canvas */}
           <section className="editor-section">
             <div className="section-header" onClick={() => toggleCollapse('grid')}>
@@ -1391,6 +1485,10 @@ export default function MapEditor() {
               <label className="editor-checkbox-label">
                 <input type="checkbox" checked={map.showGrid}
                   onChange={e => { bgCanvas.current=null; updateMap(m=>({...m,showGrid:e.target.checked})) }} /> Mostrar grid
+              </label>
+              <label className="editor-checkbox-label">
+                <input type="checkbox" checked={map.showFloorHex !== false}
+                  onChange={e => { bgCanvas.current=null; updateMap(m=>({...m,showFloorHex:e.target.checked})); setTimeout(autoSave,50) }} /> Mostrar suelo hexagonal
               </label>
               <div className="editor-grid-color">
                 <span className="editor-field-label">Color grid</span>
@@ -1667,6 +1765,49 @@ export default function MapEditor() {
 
         {/* ── Panel derecho ── */}
         <div className="editor-panel editor-panel-right">
+
+          {map.backgroundImage && (
+            <section className="editor-section">
+              <div className="section-header" onClick={() => toggleCollapse('bgInspector')}>
+                <label className="editor-label" style={{cursor:'pointer',margin:0}}>🖼️ Fondo del Mapa</label>
+                <span className="section-chevron">{collapsed.bgInspector?'▸':'▾'}</span>
+              </div>
+              {!collapsed.bgInspector && <>
+                <div className="editor-inspector-field">
+                  <span className="editor-field-label">Escala: {Math.round((map.backgroundScale||1)*100)}%</span>
+                  <input type="range" min="0.2" max="4" step="0.05" value={map.backgroundScale||1} className="editor-range"
+                    onChange={e => updateMap(m=>({...m,backgroundScale:parseFloat(e.target.value)}))}
+                    onMouseUp={() => setTimeout(autoSave,50)} />
+                </div>
+                <div className="editor-inspector-field">
+                  <span className="editor-field-label">Posición</span>
+                  <div className="editor-field-row">
+                    <span className="editor-field-unit">X</span>
+                    <input type="number" className="editor-num-input" value={map.backgroundOffsetX||0}
+                      onChange={e => updateMap(m=>({...m,backgroundOffsetX:parseInt(e.target.value)||0}))}
+                      onBlur={() => setTimeout(autoSave,50)} />
+                    <span className="editor-field-unit">Y</span>
+                    <input type="number" className="editor-num-input" value={map.backgroundOffsetY||0}
+                      onChange={e => updateMap(m=>({...m,backgroundOffsetY:parseInt(e.target.value)||0}))}
+                      onBlur={() => setTimeout(autoSave,50)} />
+                  </div>
+                </div>
+                <div className="editor-inspector-field">
+                  <span className="editor-field-label">Rotación: {map.backgroundRotation||0}°</span>
+                  <div className="editor-presets">
+                    {[0,90,180,270].map(d => (
+                      <button key={d} className={`editor-preset-btn ${(map.backgroundRotation||0)===d?'active':''}`}
+                        onClick={() => { updateMap(m=>({...m,backgroundRotation:d})); setTimeout(autoSave,50) }}>{d}°</button>
+                    ))}
+                  </div>
+                </div>
+                <button className="editor-prop-action-btn" style={{marginTop:6}}
+                  onClick={() => { updateMap(m=>({...m,backgroundScale:1,backgroundOffsetX:0,backgroundOffsetY:0,backgroundRotation:0})); setTimeout(autoSave,50) }}>
+                  ↺ Restablecer
+                </button>
+              </>}
+            </section>
+          )}
 
           <section className="editor-section">
             <div className="section-header" onClick={() => toggleCollapse('fog')}>

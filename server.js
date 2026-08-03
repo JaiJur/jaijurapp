@@ -2,7 +2,7 @@ import express from 'express'
 import { createServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import bcrypt from 'bcrypt'
-import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, unlinkSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, unlinkSync, existsSync, renameSync } from 'fs'
 import { resolve, join, normalize } from 'path'
 import { randomBytes } from 'crypto'
 
@@ -874,7 +874,7 @@ app.get('/api/dnd/images', (req, res) => {
       } else if (/\.(png|jpg|jpeg|webp|gif)$/i.test(name)) {
         const relPath = sub ? `${sub}/${name}` : name
         const urlPath = relPath.split('/').map(encodeURIComponent).join('/')
-        images.push({ name, url: `/dndImages/${urlPath}` })
+        images.push({ name, url: `/dndImages/${urlPath}`, path: relPath })
       }
     }
     // Also scan sounds folder
@@ -939,6 +939,33 @@ app.post('/api/dnd/images/folder', requireUser, requireDnDMaster, (req, res) => 
     mkdirSync(targetDir, { recursive: true })
     res.json({ ok: true, path: clean ? `${clean}/${safeName}` : safeName })
   } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// Mover imagen a otra carpeta dentro de dndImages
+app.post('/api/dnd/images/move', requireUser, requireDnDMaster, (req, res) => {
+  try {
+    const { sourcePath, targetFolder } = req.body
+    if (!sourcePath) return res.status(400).json({ error: 'Ruta origen requerida' })
+    const srcFull = safeDndPath(sourcePath)
+    if (!srcFull) return res.status(400).json({ error: 'Ruta origen inválida' })
+    if (!existsSync(srcFull)) return res.status(404).json({ error: 'Archivo no encontrado' })
+    const targetDir = safeDndPath(targetFolder || '')
+    if (!targetDir) return res.status(400).json({ error: 'Carpeta destino inválida' })
+    mkdirSync(targetDir, { recursive: true })
+    const filename = sourcePath.split('/').pop()
+    let destFull = join(targetDir, filename)
+    if (destFull === srcFull) return res.json({ ok: true }) // ya está ahí
+    if (existsSync(destFull)) {
+      const ext = filename.includes('.') ? filename.split('.').pop() : ''
+      const base = ext ? filename.slice(0, -(ext.length + 1)) : filename
+      destFull = join(targetDir, `${base}_${Date.now()}${ext ? '.' + ext : ''}`)
+    }
+    renameSync(srcFull, destFull)
+    res.json({ ok: true })
+  } catch (e) {
+    console.error('Image move error:', e)
     res.status(500).json({ error: e.message })
   }
 })

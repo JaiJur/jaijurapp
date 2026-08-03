@@ -848,6 +848,19 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
   const [uploads, setUploads] = useState([])
   const [newFolderName, setNewFolderName] = useState('')
   const [showNewFolder, setShowNewFolder] = useState(false)
+  const [dragOverFolder, setDragOverFolder] = useState(null)
+  const [draggingPath, setDraggingPath] = useState(null)
+
+  async function moveImage(sourcePath, targetFolder) {
+    if (!sourcePath) return
+    try {
+      const res = await fetch('/api/dnd/images/move', {
+        method: 'POST', headers, body: JSON.stringify({ sourcePath, targetFolder: targetFolder || '' })
+      })
+      if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Error al mover la imagen') }
+    } catch (e) { alert('Error de conexión al mover la imagen') }
+    onNavigate(data.path || '')
+  }
 
   // ── Props state ──
   const [propsData, setPropsData] = useState(null)
@@ -1058,13 +1071,23 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
   return (
     <div className="dnd-image-browser">
       <div className="dnd-breadcrumb">
-        <button className="dnd-crumb" onClick={() => onNavigate('')}>🏠 Raíz</button>
-        {crumbs.map((c, i) => (
+        <button className={`dnd-crumb ${dragOverFolder===''?'drag-over':''}`} onClick={() => onNavigate('')}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+          onDragEnter={() => setDragOverFolder('')}
+          onDragLeave={() => setDragOverFolder(prev => prev===''?null:prev)}
+          onDrop={e => { e.preventDefault(); setDragOverFolder(null); moveImage(e.dataTransfer.getData('text/plain'), '') }}>🏠 Raíz</button>
+        {crumbs.map((c, i) => {
+          const crumbPath = crumbs.slice(0, i + 1).join('/')
+          return (
           <span key={i}>
             <span className="dnd-crumb-sep"> / </span>
-            <button className="dnd-crumb" onClick={() => onNavigate(crumbs.slice(0, i + 1).join('/'))}>{c}</button>
+            <button className={`dnd-crumb ${dragOverFolder===crumbPath?'drag-over':''}`} onClick={() => onNavigate(crumbPath)}
+              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+              onDragEnter={() => setDragOverFolder(crumbPath)}
+              onDragLeave={() => setDragOverFolder(prev => prev===crumbPath?null:prev)}
+              onDrop={e => { e.preventDefault(); setDragOverFolder(null); moveImage(e.dataTransfer.getData('text/plain'), crumbPath) }}>{c}</button>
           </span>
-        ))}
+        )})}
         <div style={{marginLeft:'auto',display:'flex',gap:4}}>
           <button className="dnd-btn-sm" onClick={() => setShowNewFolder(v => !v)} title="Nueva carpeta">+ 📁</button>
           <button className="dnd-btn-sm" onClick={() => fileInputRef.current?.click()}>+ 🖼</button>
@@ -1099,13 +1122,26 @@ export function ImageManager({ data, onNavigate, onSend, onImageClick, onSoundAd
       )}
       {data.folders.length > 0 && (
         <div className="dnd-folder-list">
-          {data.folders.map(f => <button key={f.path} className="dnd-folder" onClick={() => onNavigate(f.path)}>📁 {f.name}</button>)}
+          {data.folders.map(f => (
+            <button key={f.path} className={`dnd-folder ${dragOverFolder===f.path?'drag-over':''}`}
+              onClick={() => onNavigate(f.path)}
+              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+              onDragEnter={() => setDragOverFolder(f.path)}
+              onDragLeave={() => setDragOverFolder(prev => prev===f.path?null:prev)}
+              onDrop={e => { e.preventDefault(); setDragOverFolder(null); moveImage(e.dataTransfer.getData('text/plain'), f.path) }}>
+              📁 {f.name}
+            </button>
+          ))}
         </div>
       )}
       {data.images.length > 0 && (
         <div className="dnd-image-grid">
           {data.images.map(img => (
-            <div key={img.url} className="dnd-image-thumb" title={img.name} onClick={() => onImageClick(img)}>
+            <div key={img.url} className={`dnd-image-thumb ${draggingPath===img.path?'dragging':''}`} title={img.name}
+              draggable
+              onDragStart={e => { e.dataTransfer.setData('text/plain', img.path); e.dataTransfer.effectAllowed = 'move'; setDraggingPath(img.path) }}
+              onDragEnd={() => setDraggingPath(null)}
+              onClick={() => onImageClick(img)}>
               <img src={img.url} alt={img.name} loading="lazy" />
               <div className="dnd-image-overlay"><span className="dnd-image-name">{img.name}</span></div>
             </div>
