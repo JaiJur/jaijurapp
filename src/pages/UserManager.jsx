@@ -15,6 +15,7 @@ const APPS = [
   { id: 'planner', label: '🍽 Meal Planner' },
   { id: 'salud', label: '❤️ Salud' },
   { id: 'notes', label: '📝 Notes' },
+  { id: 'juegos', label: '🎮 Juegos' },
 ]
 
 export default function UserManager() {

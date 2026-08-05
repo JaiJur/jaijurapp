@@ -19,7 +19,47 @@ const DB_PATH = resolve('/home/jai/apps/db.json')
 // Tokens en memoria: { [partyId]: { [charId]: { x, y, userId, charName, color } } }
 const tokenState = {}
 
+// ── WebSocket: Star Control (Juegos) ─────────────────────
+// Estado en memoria: { [roomId]: { [userId]: { x, y, vx, vy, heading, color, name } } }
+// Scaffold multijugador: hoy solo se controla una nave, pero la sala ya
+// soporta varios jugadores para cuando se añada multijugador de verdad.
+const starControlState = {}
+
+function handleStarControlConnection(socket) {
+  const userId = parseInt(socket.handshake.query.userId)
+  const roomId = socket.handshake.query.roomId || 'main'
+  if (!userId) return socket.disconnect()
+
+  socket.join(`sc:${roomId}`)
+  console.log(`[SC] conectado userId:${userId} room:${roomId}`)
+
+  const current = starControlState[roomId] || {}
+  socket.emit('sc:sync', current)
+
+  socket.on('sc:state', (data) => {
+    const { x, y, vx, vy, heading, color, name } = data || {}
+    if (x == null || y == null) return
+    if (!starControlState[roomId]) starControlState[roomId] = {}
+    starControlState[roomId][userId] = {
+      x, y, vx: vx || 0, vy: vy || 0, heading: heading || 0,
+      color: color || '#4da3ff', name: name || `Nave ${userId}`
+    }
+    io.to(`sc:${roomId}`).emit('sc:update', starControlState[roomId])
+  })
+
+  socket.on('disconnect', () => {
+    if (starControlState[roomId]) {
+      delete starControlState[roomId][userId]
+      io.to(`sc:${roomId}`).emit('sc:update', starControlState[roomId])
+    }
+  })
+}
+
 io.on('connection', (socket) => {
+  if (socket.handshake.query.game === 'starcontrol') {
+    return handleStarControlConnection(socket)
+  }
+
   const userId = parseInt(socket.handshake.query.userId)
   const partyId = socket.handshake.query.partyId
 
@@ -1738,7 +1778,7 @@ function requireMaster(req, res, next) {
 }
 
 const AVAILABLE_ROLES = ['master', 'dndMaster', 'premium', 'dnd', 'dndPlayer', 'user']
-const AVAILABLE_APPS = ['dnd', 'planner', 'salud', 'notes']
+const AVAILABLE_APPS = ['dnd', 'planner', 'salud', 'notes', 'juegos']
 
 app.get('/api/admin/users', requireUser, requireMaster, (req, res) => {
   const db = getDB()
@@ -2363,6 +2403,49 @@ app.post('/api/minis/upload', requireUser, requireMaster, (req, res) => {
     console.error('Minis upload error:', e)
     res.status(500).json({ error: e.message })
   }
+})
+
+// ── API: Star Control (ranking) ──────────────────────────
+// Se guarda el resultado de CADA partida jugada (no solo la mejor de cada
+// usuario), así que el ranking sale de todo el histórico de partidas.
+app.get('/api/starcontrol/scores', requireUser, (req, res) => {
+  const db = getDB()
+  const all = (db.starControlScores || []).slice().sort((a, b) => b.score - a.score)
+  const top = all.slice(0, 10)
+  res.json({ top, total: all.length })
+})
+
+app.post('/api/starcontrol/scores', requireUser, (req, res) => {
+  const score = parseInt(req.body?.score)
+  const time = parseInt(req.body?.time) || 0
+  if (!Number.isFinite(score)) return res.status(400).json({ error: 'Puntuación inválida' })
+  const db = getDB()
+  const user = (db.users || []).find(u => u.id === req.userId)
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+  if (!db.starControlScores) db.starControlScores = []
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    userId: req.userId,
+    username: user.username,
+    score,
+    time,
+    date: new Date().toISOString(),
+  }
+  db.starControlScores.push(entry)
+
+  // Solo se conservan en la base de datos como máximo los 50 mejores
+  // resultados históricos (de todos los usuarios); el resto se descarta.
+  db.starControlScores.sort((a, b) => b.score - a.score)
+  db.starControlScores = db.starControlScores.slice(0, 50)
+  saveDB(db)
+
+  // Puesto de ESTA partida concreta entre lo que queda guardado. Si no llegó
+  // a colarse en los 50 mejores, "rank" sale null (se descartó del histórico).
+  const idx = db.starControlScores.findIndex(s => s.id === entry.id)
+  const rank = idx === -1 ? null : idx + 1
+
+  res.json({ ok: true, rank, total: db.starControlScores.length, score, time })
 })
 
 // ── Serve React build ────────────────────────────────────

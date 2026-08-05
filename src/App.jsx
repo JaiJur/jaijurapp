@@ -17,6 +17,8 @@ const PartyViewer = lazy(() => import('./pages/DnD/PartyViewer'))
 const Salud = lazy(() => import('./pages/Salud/Salud'))
 const Notes = lazy(() => import('./pages/Notes/Notes'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
+const Juegos = lazy(() => import('./pages/Juegos/Juegos'))
+const StarControl = lazy(() => import('./pages/Juegos/StarControl/StarControl'))
 const Minis = lazy(() => import('./pages/Minis/Minis'))
 const MiniDetail = lazy(() => import('./pages/Minis/MiniDetail'))
 const MinisAdmin = lazy(() => import('./pages/Minis/MinisAdmin'))
@@ -50,6 +52,8 @@ export default function App() {
           <Route path="/dnd/viewer/:channel" element={<MapViewer />} />
           <Route path="/dnd/viewer/:channel/multi" element={<MapViewerMulti />} />
           <Route path="/dnd/party" element={<PartyViewer />} />
+          <Route path="/juegos" element={<ProtectedRoute><Juegos /></ProtectedRoute>} />
+          <Route path="/juegos/star-control" element={<ProtectedRoute><StarControl /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>

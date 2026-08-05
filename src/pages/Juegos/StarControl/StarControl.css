@@ -1,0 +1,419 @@
+.sc-root {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #05070f;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+}
+
+.sc-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.sc-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ── HUD ── */
+.sc-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  font-family: 'Space Mono', monospace;
+}
+.sc-hud-score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffd23f;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+.sc-hud-lives { display: flex; gap: 6px; }
+.sc-hud-right { display: flex; align-items: center; gap: 12px; pointer-events: auto; }
+.sc-settings-btn {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.sc-settings-btn:hover { border-color: #ff6a00; background: rgba(255,106,0,.2); }
+.sc-life {
+  font-size: 1.2rem;
+  transform: rotate(0deg);
+  color: #4da3ff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+.sc-life.off { color: rgba(255,255,255,.15); }
+.sc-hud-buff {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #4da3ff;
+  background: rgba(77,163,255,.15);
+  border: 1px solid rgba(77,163,255,.5);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.sc-hud-buff-boost {
+  color: #ffd23f;
+  background: rgba(255,210,63,.15);
+  border-color: rgba(255,210,63,.5);
+}
+
+/* ── Game Over ── */
+.sc-gameover {
+  position: absolute;
+  inset: 0;
+  background: rgba(5,7,15,.85);
+  display: flex;
+  align-items: safe center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 1rem;
+}
+.sc-gameover-box {
+  text-align: center;
+  padding: 2rem 2.5rem;
+  border: 1px solid #1e2740;
+  border-radius: 16px;
+  background: #0b0f1a;
+  max-width: min(360px, 92vw);
+  max-height: 100%;
+  overflow-y: auto;
+}
+.sc-gameover-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #ff4d4d;
+  margin-bottom: .75rem;
+}
+.sc-gameover-score {
+  font-size: 1rem;
+  color: #ccc;
+  margin-bottom: .5rem;
+}
+.sc-gameover-rank {
+  font-size: .88rem;
+  color: #ffd23f;
+  margin-bottom: 1.5rem;
+}
+.sc-gameover-btn {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 10px;
+  background: #ff6a00;
+  color: #fff;
+  font-weight: 600;
+  font-size: .95rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.sc-gameover-btn:hover { background: #e55d00; }
+
+/* ── Modal de configuración de teclas ── */
+.sc-keybind-box { width: clamp(300px, 50vw, 640px); max-width: clamp(300px, 50vw, 640px); }
+.sc-keybind-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #4da3ff;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Acordeón "Controles" ── */
+.sc-accordion {
+  text-align: left;
+  margin: 1rem 0 1.5rem;
+  border: 1px solid #1e2740;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.sc-accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #12172a;
+  border: none;
+  color: #fff;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sc-accordion-header:hover { background: #171d33; }
+.sc-accordion-arrow { color: #888; transition: transform .15s; }
+.sc-accordion-arrow.open { transform: rotate(90deg); }
+.sc-accordion-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid #1e2740;
+}
+.sc-accordion-devbtn { margin-top: 4px; }
+
+.sc-keybind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.sc-keybind-label { font-size: .9rem; color: #ccc; }
+.sc-keybind-key {
+  min-width: 90px;
+  padding: 8px 14px;
+  border: 1px solid #2a3350;
+  border-radius: 8px;
+  background: #12172a;
+  color: #ffd23f;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.sc-keybind-key:hover { border-color: #ff6a00; }
+.sc-keybind-key.listening {
+  color: #fff;
+  border-color: #ff6a00;
+  background: rgba(255,106,0,.15);
+  font-size: .75rem;
+}
+.sc-exit-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #888;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.sc-exit-btn:hover { color: #ff4d4d; border-color: rgba(255,77,77,.4); }
+
+/* ── Controles táctiles flotantes (solo móvil), en dos grupos:
+   izquierda = girar, derecha = propulsión/disparo ── */
+.sc-controls-left, .sc-controls-right {
+  position: absolute;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: none;
+  gap: 14px;
+  z-index: 10;
+}
+.sc-controls-left { left: 18px; }
+.sc-controls-right { right: 18px; }
+
+@media (pointer: coarse) {
+  .sc-controls-left, .sc-controls-right { display: flex; }
+}
+
+/* En landscape móvil la altura es limitada: botones algo más pequeños */
+@media (pointer: coarse) and (orientation: landscape) {
+  .sc-btn { width: 50px; height: 50px; font-size: 1.25rem; }
+}
+
+.sc-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.sc-btn:active { background: rgba(255,106,0,.35); border-color: #ff6a00; }
+.sc-btn-thrust { background: rgba(255,106,0,.15); border-color: rgba(255,106,0,.4); }
+.sc-btn-fire { background: rgba(255,210,63,.15); border-color: rgba(255,210,63,.5); color: #ffd23f; }
+.sc-btn-fire:active { background: rgba(255,210,63,.4); border-color: #ffd23f; }
+.sc-btn-missile { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.4); }
+.sc-btn-missile:active { background: rgba(255,255,255,.3); }
+
+/* ── Aviso de "gira tu dispositivo" ── */
+.sc-rotate-prompt {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: #05070f;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 2rem;
+  font-family: 'DM Sans', sans-serif;
+}
+.sc-rotate-icon { font-size: 3rem; animation: sc-rotate-spin 1.6s ease-in-out infinite; }
+@keyframes sc-rotate-spin {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
+.sc-rotate-prompt .sc-exit-btn { width: auto; padding: 8px 24px; margin-top: 8px; }
+
+/* ── Ranking (Leaderboard) ── */
+.sc-leaderboard {
+  margin: 0 0 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1e2740;
+  text-align: left;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.sc-leaderboard-title {
+  font-size: .95rem;
+  font-weight: 700;
+  color: #ffd23f;
+  margin-bottom: .6rem;
+  text-align: center;
+}
+.sc-leaderboard-loading, .sc-leaderboard-empty {
+  font-size: .8rem;
+  color: #888;
+  text-align: center;
+  padding: .5rem 0;
+}
+.sc-leaderboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sc-leaderboard-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .82rem;
+  color: #ccc;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.sc-leaderboard-list li.sc-leaderboard-self {
+  background: rgba(255,106,0,.12);
+  color: #fff;
+}
+.sc-leaderboard-pos { width: 18px; color: #666; font-family: 'Space Mono', monospace; }
+.sc-leaderboard-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-leaderboard-time { color: #888; font-family: 'Space Mono', monospace; font-size: .78rem; }
+.sc-leaderboard-score { font-weight: 700; color: #ffd23f; font-family: 'Space Mono', monospace; min-width: 34px; text-align: right; }
+.sc-leaderboard-me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .82rem;
+  color: #fff;
+  padding: 6px 8px;
+  margin-top: 6px;
+  border-top: 1px dashed #2a3350;
+  background: rgba(255,106,0,.1);
+  border-radius: 6px;
+}
+
+/* ── Consola de desarrollador ── */
+.sc-devconsole {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(340px, 90vw);
+  background: rgba(8,10,20,.97);
+  border-left: 1px solid #1e2740;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+}
+.sc-devconsole-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #1e2740;
+  font-weight: 700;
+  font-size: .95rem;
+  color: #4da3ff;
+}
+.sc-devconsole-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.sc-devconsole-close:hover { color: #ff4d4d; }
+.sc-devconsole-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+.sc-dev-section {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.sc-dev-section h4 {
+  margin: 0 0 8px;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #ff6a00;
+}
+.sc-dev-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: .82rem;
+  color: #ccc;
+}
+.sc-dev-field input {
+  width: 90px;
+  padding: 4px 8px;
+  border: 1px solid #2a3350;
+  border-radius: 6px;
+  background: #12172a;
+  color: #ffd23f;
+  font-family: 'Space Mono', monospace;
+  font-size: .8rem;
+  text-align: right;
+}
+.sc-dev-field input:focus { outline: none; border-color: #ff6a00; }
+.sc-devconsole-reset {
+  margin: 12px 16px 16px;
+  padding: 10px;
+  border: 1px solid rgba(255,77,77,.4);
+  border-radius: 8px;
+  background: transparent;
+  color: #ff4d4d;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.sc-devconsole-reset:hover { background: rgba(255,77,77,.1); }
